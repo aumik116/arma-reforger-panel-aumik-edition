@@ -8,3 +8,4 @@ config.env
 .scenario-cache.json
 .panel-data.sqlite3*
 .test-deps/
+.local-preview/

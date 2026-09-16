@@ -510,6 +510,18 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     </button>
   </div>
 
+  <!-- Live Logs -->
+  <div data-permission="logs" hidden class="log-viewer-card">
+    <div class="log-viewer-header">
+      <div class="log-viewer-title">
+        <div class="log-live-dot off" id="log-live-dot"></div>
+        Server console — live
+      </div>
+      <button class="btn-clear-log" onclick="clearLog()">Clear</button>
+    </div>
+    <div id="log-output"></div>
+  </div>
+
   <!-- Charts -->
   <div class="charts-row">
     <div class="chart-card">
@@ -674,18 +686,6 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <div class="restart-notice" id="persist-restart-notice">⚠ Restart required for persistence changes to take effect</div>
   </div>
 
-  <!-- Live Logs -->
-  <div data-permission="logs" hidden class="log-viewer-card">
-    <div class="log-viewer-header">
-      <div class="log-viewer-title">
-        <div class="log-live-dot off" id="log-live-dot"></div>
-        Server logs — live
-      </div>
-      <button class="btn-clear-log" onclick="clearLog()">Clear</button>
-    </div>
-    <div id="log-output"></div>
-  </div>
-
   <!-- Accounts and activity -->
   <div class="card clip">
     <div class="card-label">My account · <span id="account-label"></span></div>
@@ -708,13 +708,13 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <label><input id="user-enabled" type="checkbox" checked> Account enabled</label>
     <div class="feature-row"><button id="user-save" class="btn-save" onclick="saveUser()">Create account</button><button class="btn-save" onclick="resetUserForm()">Clear form</button></div>
   </div>
-  <div class="card clip" data-permission="activity" hidden>
-    <div class="card-label">Activity log</div>
-    <p class="feature-note">Panel actions, recorded with account, time and result. Commands issued outside this panel are not included.</p>
+  <details class="card" data-permission="activity" hidden>
+    <summary class="card-label" style="cursor:pointer;margin-bottom:12px">Admin activity history — who changed what</summary>
+    <p class="feature-note">Separate from the live server console: account actions such as server start/stop/restart, mod changes, presets and settings, with who performed them and when.</p>
     <button class="btn-save" onclick="loadActivity()">Refresh activity</button>
     <div id="activity-list"></div>
     <button id="activity-more" class="btn-save" onclick="loadActivity(true)" hidden>Load older events</button>
-  </div>
+  </details>
   <!-- Op log -->
   <div class="op-log">
     <div class="log-label">Last operation</div>

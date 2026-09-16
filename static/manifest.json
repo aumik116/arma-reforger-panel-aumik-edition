@@ -1,7 +1,7 @@
 {
   "name": "Arma Reforger Panel",
   "short_name": "Arma Panel",
-  "description": "Panel zarządzania serwerem Arma Reforger",
+  "description": "Arma Reforger server management panel",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

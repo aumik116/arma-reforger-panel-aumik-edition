@@ -1,6 +1,6 @@
 const CACHE_NAME = 'arma-panel-v2';
 
-// Przy instalacji — nie cachujemy nic (panel musi być zawsze live)
+// Do not cache on installation; panel data must remain live
 self.addEventListener('install', event => {
   self.skipWaiting();
 });
@@ -14,7 +14,7 @@ self.addEventListener('activate', event => {
   self.clients.claim();
 });
 
-// Sieć zawsze pierwsza — panel musi pokazywać aktualne dane
+// Always use the network for current panel data
 self.addEventListener('fetch', event => {
   event.respondWith(
     fetch(event.request).catch(() =>

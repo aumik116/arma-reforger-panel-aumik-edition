@@ -8,6 +8,12 @@ A lightweight, self-hosted web panel for managing your **Arma Reforger dedicated
 
 ## Features
 
+- **Connected players** — username dropdown with player ID, identity and first-observed time, queried through RCON
+- **Mod presets** — save, overwrite, apply and delete named mod lists, including versions
+- **Individual accounts** — Administrator, Manager, Operator and Viewer roles enforced on every API request
+- **Activity history** — persistent actor, timestamp, result and mod changes for panel operations
+- **English interface** — all panel labels, feedback, login and PWA text in English
+
 - **One-command install** — sets up SteamCMD, downloads the Arma Reforger server and installs the panel automatically
 - **Server control** — Start, stop and restart your server from the browser
 - **Real-time monitoring** — Live CPU and RAM charts updated every 3 seconds
@@ -30,6 +36,76 @@ A lightweight, self-hosted web panel for managing your **Arma Reforger dedicated
 | Disk | 20 GB free (Arma server is ~15 GB) |
 | Python | 3.10+ (installed automatically) |
 
+## Accounts, presets and activity
+
+On the first launch of this version, the panel creates an `admin` account using
+your existing panel password. Sign in with username `admin` and that password.
+Existing shared-password sessions must sign in again. Change your password in
+**My account**, then create individual accounts in **User accounts**.
+
+| Role | Permissions |
+|------|-------------|
+| Viewer | Status, metrics, connected players, configured mods and saved presets |
+| Operator | Viewer permissions plus start/stop/restart and server console logs |
+| Manager | Operator permissions plus configuration, persistence, mods, presets and activity history |
+| Administrator | All features plus create, edit, disable and delete accounts |
+
+Password changes, role changes and disabling an account invalidate its previous
+sessions. Administrators cannot delete or demote their own account. Passwords
+are bcrypt hashed; new passwords require at least 10 characters (maximum 72
+UTF-8 bytes).
+
+**Save current mods as preset** snapshots the configured mod list and versions.
+**Apply selected preset** replaces that list without changing the mission or
+automatically restarting the server. Restart a running server to load the new
+mods. Check that your chosen mission is supported by the applied mods.
+
+Activity history covers actions performed through this panel, including server
+controls, config changes, mod additions/removals/imports, presets, accounts and
+persistence. It records successful and failed authorized operations. It does
+not capture external SSH, systemd or in-game admin commands. Password values are
+never included in activity records.
+
+Accounts, presets and history are stored in `.panel-data.sqlite3` next to
+`app.py`, preserved by `install.sh --update`. Back it up along with
+`.panel-secret` and `config.env`. Once accounts exist, changing the bootstrap
+password in `config.env` does not change their passwords; use account management.
+
+## Connected-player setup
+
+The panel queries native Reforger `#players` over RCON. Enable an `rcon` block in
+your server's `config.json`, using a unique password, then restart the server:
+
+```json
+"rcon": {
+  "address": "127.0.0.1",
+  "port": 19999,
+  "password": "REPLACE_WITH_A_UNIQUE_RCON_PASSWORD",
+  "permission": "monitor"
+}
+```
+
+The panel reads these settings automatically. `RCON_HOST`, `RCON_PORT` and
+`RCON_PASSWORD` in `config.env` can override its connection settings. Keep the
+RCON UDP port private. Ensure any RCON command whitelist allows `#players`.
+The client sends `@logout` after each query (supported by Reforger 1.2.1+).
+
+The dropdown refreshes every ten seconds. **First observed by panel** means when
+the panel first saw that player during monitoring; it is not an authoritative
+connection duration and resets when the panel restarts. Unconfigured, failed or
+unrecognized queries display **unavailable**, not a misleading zero count.
+Live RCON behavior must be verified against your installed game-server version.
+
+References: [Bohemia server configuration](https://community.bistudio.com/wiki/Arma_Reforger:Server_Config),
+[server commands](https://community.bistudio.com/wiki/Arma_Reforger:Server_Management),
+[BattlEye RCON protocol](https://www.battleye.com/downloads/BERConProtocol.txt).
+
+## Development checks
+
+With Flask and bcrypt installed, run `python -m unittest discover -s tests -v`.
+Tests use temporary configurations and mock server processes and RCON sockets;
+they do not start or stop a real game server.
+
 ---
 
 ## Installation
@@ -39,8 +115,8 @@ A lightweight, self-hosted web panel for managing your **Arma Reforger dedicated
 Sets up everything: SteamCMD, Arma Reforger Dedicated Server, and the management panel.
 
 ```bash
-git clone https://github.com/mateuszgolebiewski-code/arma-reforger-panel.git
-cd arma-reforger-panel
+git clone https://github.com/aumik116/arma-reforger-panel-aumik-edition.git
+cd arma-reforger-panel-aumik-edition
 sudo bash install.sh
 ```
 
@@ -62,8 +138,8 @@ http://YOUR_SERVER_IP:8888
 If you already have Arma Reforger server running and only want the web panel:
 
 ```bash
-git clone https://github.com/mateuszgolebiewski-code/arma-reforger-panel.git
-cd arma-reforger-panel
+git clone https://github.com/aumik116/arma-reforger-panel-aumik-edition.git
+cd arma-reforger-panel-aumik-edition
 sudo bash install.sh --panel-only
 ```
 

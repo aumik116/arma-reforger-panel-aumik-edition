@@ -59,9 +59,14 @@ h1 span { color: var(--accent); }
   <div class="tag">&#9632; Server Management Panel</div>
   <h1>ARMA <span>REFORGER</span></h1>
   <div class="field">
-    <label>Panel Password</label>
+    <label for="username">Username</label>
+    <input type="text" id="username" autocomplete="username" placeholder="admin" autofocus
+           onkeydown="if(event.key==='Enter')doLogin()" />
+  </div>
+  <div class="field">
+    <label for="pwd">Password</label>
     <input type="password" id="pwd" placeholder="Enter password..."
-           onkeydown="if(event.key==='Enter')doLogin()" autofocus />
+           onkeydown="if(event.key==='Enter')doLogin()" autocomplete="current-password" />
   </div>
   <button class="btn" onclick="doLogin()">Login ↗</button>
   <div class="error" id="err"></div>
@@ -76,15 +81,17 @@ async function doLogin() {
     const r = await fetch('/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: pwd })
+      body: JSON.stringify({ username: document.getElementById('username').value.trim(), password: pwd })
     });
     if (r.ok) { window.location.href = '/'; return; }
-    let msg = 'Invalid password';
+    let msg = 'Invalid username or password';
     if (r.status === 429) msg = 'Too many attempts — wait a minute and retry';
     try { const d = await r.json(); if (d && d.error) msg = d.error; } catch(e) {}
     err.textContent = msg;
     document.getElementById('pwd').style.borderColor = '#d64c4c';
     setTimeout(() => { err.textContent = ''; document.getElementById('pwd').style.borderColor = ''; }, 2500);
+  } catch(e) {
+    err.textContent = 'Could not connect. Please try again.';
   } finally {
     if (btn) btn.disabled = false;
   }

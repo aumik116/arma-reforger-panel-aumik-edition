@@ -10,7 +10,7 @@ Local fork — modifications:
   - Auto-discovery of scenarios from installed mods (`.pak` strings scan, mtime-cached)
 """
 
-from flask import Flask, request, jsonify, session, redirect, Response, send_from_directory
+from flask import Flask, request, jsonify, session, redirect, Response, send_from_directory, g
 import bcrypt
 import hmac
 import re
@@ -21,6 +21,8 @@ import json
 import threading
 import time
 import glob
+import sys
+import tempfile
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
@@ -157,7 +159,7 @@ def _csrf_required() -> Response | None:
         or (request.get_json(silent=True) or {}).get("_csrf", "")
         or request.form.get("_csrf", "")
     )
-    if not expected or not supplied or not hmac.compare_digest(expected, supplied):
+    if not isinstance(expected, str) or not isinstance(supplied, str) or not supplied or not hmac.compare_digest(expected, supplied):
         return jsonify({"ok": False, "error": "CSRF token invalid"}), 403
     return None
 
@@ -672,8 +674,18 @@ def read_config():
         return {}
 
 def write_config(cfg):
-    with open(SERVER_CONFIG, "w") as f:
-        json.dump(cfg, f, indent="\t")
+    # Replace atomically so readers never see a partially-written configuration.
+    folder = os.path.dirname(os.path.abspath(SERVER_CONFIG))
+    fd, temporary = tempfile.mkstemp(dir=folder, prefix=".panel-config-")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, indent="\t")
+        if os.path.exists(SERVER_CONFIG):
+            os.chmod(temporary, os.stat(SERVER_CONFIG).st_mode & 0o777)
+        os.replace(temporary, SERVER_CONFIG)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
 
 # ─── PERSISTENCE ─────────────────────────────────────────────────────────────
 #
@@ -817,7 +829,8 @@ def index():
     if not session.get("logged_in"):
         return redirect("/login")
     _ensure_csrf()
-    return open(os.path.join(os.path.dirname(__file__), "index.html")).read()
+    with open(os.path.join(os.path.dirname(__file__), "index.html"), encoding="utf-8") as f:
+        return f.read()
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -826,17 +839,24 @@ def login():
         if not _login_rate_ok(ip):
             return jsonify({"ok": False, "error": "Too many attempts. Wait a minute."}), 429
         data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return jsonify(ok=False, error="Request body must be a JSON object"), 400
         # bcrypt is intentionally slow — even on a successful login it adds ~100ms,
         # which is also a natural defense against brute force.
-        if _verify_password(data.get("password", "")):
+        user = authenticate_user(data.get("username", ""), data.get("password", ""))
+        if user:
             session.clear()
             session.permanent = True
             session["logged_in"] = True
+            session["user_id"] = user["id"]
+            session["user_version"] = user["version"]
             session["login_at"] = int(time.time())
             _ensure_csrf()
+            audit_event(user["username"], "login", "success")
             return jsonify({"ok": True, "csrf": session["csrf"]})
-        return jsonify({"ok": False, "error": "Invalid password"}), 401
-    return open(os.path.join(os.path.dirname(__file__), "login.html")).read()
+        return jsonify({"ok": False, "error": "Invalid username or password"}), 401
+    with open(os.path.join(os.path.dirname(__file__), "login.html"), encoding="utf-8") as f:
+        return f.read()
 
 @app.route("/logout", methods=["POST"])
 def logout():
@@ -863,7 +883,7 @@ def api_status():
         "running":        pid is not None,
         "pid":            pid,
         "map":            get_map_name(cfg),
-        "players":        0,
+        "players":        None,
         "uptime":         format_uptime(get_process_uptime(pid)) if pid else "—",
         "uptime_sec":     get_process_uptime(pid) if pid else 0,
         "server_name":    cfg.get("game", {}).get("name", "—"),
@@ -873,8 +893,8 @@ def api_status():
         "missions":       missions,
         "missions_count": {"vanilla": sum(1 for m in missions if m.get("source") == "vanilla"),
                            "from_mods": sum(1 for m in missions if m.get("source") != "vanilla")},
-        "password":       cfg.get("game", {}).get("password", ""),
-        "password_admin": cfg.get("game", {}).get("passwordAdmin", ""),
+        "password":       cfg.get("game", {}).get("password", "") if "configure" in g.permissions else "",
+        "password_admin": cfg.get("game", {}).get("passwordAdmin", "") if "configure" in g.permissions else "",
         "cpu":            cpu,
         "ram_process":    ram,
         "ram_used":       ram_used,
@@ -1239,6 +1259,9 @@ def api_restart():
         return jsonify({"ok": True})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
+
+from panel_features import install as install_features
+install_features(sys.modules[__name__])
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=PANEL_PORT, threaded=True)

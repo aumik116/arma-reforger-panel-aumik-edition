@@ -6,3 +6,5 @@ __pycache__/
 config.env
 .panel-secret
 .scenario-cache.json
+.panel-data.sqlite3*
+.test-deps/

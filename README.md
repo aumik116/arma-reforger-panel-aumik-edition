@@ -104,6 +104,35 @@ With Flask and bcrypt installed, run `python -m unittest discover -s tests -v`.
 Tests use temporary configurations and mock server processes and RCON sockets;
 they do not start or stop a real game server.
 
+Run `bash tests/test_installer.sh` for the installer checks. These simulate
+SteamCMD self-updates, transient and permanent download failures, misleading exit
+statuses and missing server binaries without installing anything.
+
+### Recovering a failed SteamCMD install
+
+If a fresh install stops at `Failed to install app '1874900' (Missing configuration)`,
+update this checkout and rerun the full installer:
+
+```bash
+git pull --ff-only
+sudo bash install.sh
+```
+
+The installer now finishes SteamCMD's own update in a separate invocation, runs
+it with the Arma user's home and SteamCMD working directory, and retries failed
+downloads up to three times. It retains the downloaded files between attempts.
+It continues only after SteamCMD reports success for the correct app, exits
+successfully, and the server executable is present and nonempty.
+
+Each run saves its bootstrap and download output under
+`/home/arma/steamcmd/install-logs/run-*/` (adjust for a custom system user).
+If all attempts fail, the installer stops and prints the exact log directory.
+Keep these logs to diagnose persistent Steam/network/disk failures. It does not
+automatically delete Steam caches. Existing `config.json`, panel `config.env`,
+accounts, presets and activity history are preserved when rerunning with the
+same system user. The selected prompts apply to newly created configuration;
+existing configuration retains its saved values.
+
 ---
 
 ## Installation

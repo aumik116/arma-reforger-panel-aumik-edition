@@ -11,6 +11,90 @@
 
 set -e
 
+# These helpers can be sourced by tests without running the installer.
+run_steamcmd_logged() {
+    local log_file="$1"
+    shift
+    local -a result
+    # Give SteamCMD its own working directory and the target user's HOME.
+    # Capture both statuses: tee must not hide a failed SteamCMD invocation.
+    if sudo -H -u "$ARMA_USER" bash -c \
+        'cd "$1" || exit 1; shift; exec ./steamcmd.sh "$@"' \
+        _ "$STEAM_DIR" "$@" 2>&1 | tee "$log_file"; then
+        result=("${PIPESTATUS[@]}")
+    else
+        result=("${PIPESTATUS[@]}")
+    fi
+    if (( result[1] != 0 )); then
+        echo "ERROR: Could not save SteamCMD output to $log_file" >&2
+        return 1
+    fi
+    return "${result[0]}"
+}
+
+download_arma_server() {
+    local attempts=3 attempt status log_file log_dir ready=0
+    mkdir -p "$STEAM_DIR/install-logs" || return 1
+    log_dir=$(mktemp -d "$STEAM_DIR/install-logs/run-XXXXXXXX") || return 1
+    echo "SteamCMD diagnostics: $log_dir"
+
+    # Let SteamCMD finish replacing/restarting itself before asking it to
+    # install the game. A self-update can exit nonzero; retry in a new process.
+    for ((attempt=1; attempt<=attempts; attempt++)); do
+        echo "Preparing SteamCMD (attempt $attempt/$attempts)..."
+        if run_steamcmd_logged "$log_dir/bootstrap-$attempt.log" +quit; then
+            ready=1
+            break
+        else
+            status=$?
+            echo "SteamCMD bootstrap exited with status $status."
+        fi
+        if (( attempt < attempts )); then sleep 5; fi
+    done
+    if (( ! ready )); then
+        echo "ERROR: SteamCMD could not finish starting after $attempts attempts." >&2
+        echo "Logs: $log_dir" >&2
+        return 1
+    fi
+
+    for ((attempt=1; attempt<=attempts; attempt++)); do
+        log_file="$log_dir/download-$attempt.log"
+        echo "Installing Arma server (attempt $attempt/$attempts)..."
+        status=0
+        if run_steamcmd_logged "$log_file" \
+            +@ShutdownOnFailedCommand 1 +@NoPromptForPassword 1 \
+            +@sSteamCmdForcePlatformType linux \
+            +force_install_dir "$SERVER_DIR" \
+            +login anonymous +app_update "$ARMA_APP_ID" validate +quit; then
+            status=0
+        else
+            status=$?
+        fi
+        # A zero exit or an old binary alone does not prove this download worked.
+        if (( status == 0 )) \
+            && grep -Eq "Success! App '$ARMA_APP_ID' (fully installed|already up to date)" "$log_file" \
+            && ! grep -q 'ERROR!' "$log_file" \
+            && [[ -s "$SERVER_DIR/$ARMA_BINARY" && -x "$SERVER_DIR/$ARMA_BINARY" ]]; then
+            echo "Arma server download verified. Logs: $log_dir"
+            return 0
+        fi
+        echo "Download not verified (SteamCMD exit status: $status)."
+        if grep -qi 'Missing configuration' "$log_file"; then
+            echo "Steam could not resolve the app configuration; retrying with a fresh SteamCMD process."
+        fi
+        if (( attempt < attempts )); then
+            echo "Retrying in 10 seconds; downloaded files will be reused."
+            sleep 10
+        fi
+    done
+    echo "ERROR: Arma server installation failed after $attempts attempts." >&2
+    echo "The installer has stopped before writing configuration or starting services." >&2
+    echo "Keep the logs in $log_dir for diagnosis. Check Steam connectivity and available disk space." >&2
+    return 1
+}
+
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then return 0; fi
+
 # ── Colors ────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
 CYAN='\033[0;36m'; BOLD='\033[1m'; DIM='\033[2m'; NC='\033[0m'
@@ -196,8 +280,16 @@ if [[ "$MODE" == "full" ]]; then
     echo -e "${YELLOW}[3/6] Installing SteamCMD...${NC}"
     mkdir -p "$STEAM_DIR"
     if [ ! -f "$STEAM_DIR/steamcmd.sh" ]; then
-        curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" \
-            | tar xz -C "$STEAM_DIR"
+        # Fail on HTTP/download errors instead of piping an error page to tar.
+        STEAM_ARCHIVE=$(mktemp "$STEAM_DIR/steamcmd-download-XXXXXXXX.tar.gz")
+        if ! curl -qfSL --retry 3 --connect-timeout 30 \
+            "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" \
+            -o "$STEAM_ARCHIVE"; then
+            echo -e "${RED}ERROR: SteamCMD download failed. Archive: $STEAM_ARCHIVE${NC}"
+            exit 1
+        fi
+        tar xzf "$STEAM_ARCHIVE" -C "$STEAM_DIR"
+        rm -f -- "$STEAM_ARCHIVE"
     fi
     chown -R "$ARMA_USER:$ARMA_USER" "$STEAM_DIR"
     echo -e "      ${GREEN}✓ Done.${NC}"
@@ -207,18 +299,15 @@ if [[ "$MODE" == "full" ]]; then
     echo -e "      ${DIM}This may take 10–30 minutes depending on your connection.${NC}"
     mkdir -p "$SERVER_DIR"
     chown -R "$ARMA_USER:$ARMA_USER" "$SERVER_DIR"
-    # NOTE: +force_install_dir MUST come before +login, otherwise SteamCMD
-    # fails with "Please use force_install_dir before logon!"
-    sudo -u "$ARMA_USER" "$STEAM_DIR/steamcmd.sh" \
-        +force_install_dir "$SERVER_DIR" \
-        +login anonymous \
-        +app_update "$ARMA_APP_ID" validate \
-        +quit
+    download_arma_server
     echo -e "      ${GREEN}✓ Arma Reforger Server downloaded.${NC}"
 
     # Step 5: config.json
     echo -e "${YELLOW}[5/6] Generating server config.json...${NC}"
     mkdir -p "$(dirname "$SERVER_CONFIG")"
+    if [ -f "$SERVER_CONFIG" ]; then
+        echo -e "      ${DIM}Keeping existing $SERVER_CONFIG.${NC}"
+    else
     cat > "$SERVER_CONFIG" << EOF
 {
 	"bindAddress": "0.0.0.0",
@@ -250,8 +339,9 @@ if [[ "$MODE" == "full" ]]; then
 	}
 }
 EOF
+    fi
     chown "$ARMA_USER:$ARMA_USER" "$SERVER_CONFIG"
-    echo -e "      ${GREEN}✓ config.json generated.${NC}"
+    echo -e "      ${GREEN}✓ config.json ready.${NC}"
 
     # Firewall is intentionally NOT touched — see post-install summary.
     # The user is expected to manage their own firewall (UFW recommended).
@@ -322,6 +412,9 @@ WORKSHOP_DIR="${ARMA_HOME}/.local/share/Arma Reforger/addons"
 # layout puts them under `{ARMA_HOME}/.config/ArmaReforger/profile/.save/`.
 PROFILE_DIR="${ARMA_HOME}/.config/ArmaReforger/profile"
 
+if [ -f "$PANEL_DIR/config.env" ]; then
+    echo -e "      ${DIM}Keeping existing $PANEL_DIR/config.env (including its panel port and paths).${NC}"
+else
 cat > "$PANEL_DIR/config.env" << EOF
 # bcrypt-hashed admin password. Generated at install time.
 PANEL_PASSWORD_HASH=${PANEL_PASSWORD_HASH}
@@ -333,6 +426,7 @@ WORKSHOP_DIR=${WORKSHOP_DIR}
 PROFILE_DIR=${PROFILE_DIR}
 MAX_FPS=${MAX_FPS}
 EOF
+fi
 chmod 600 "$PANEL_DIR/config.env"
 chown -R "$ARMA_USER:$ARMA_USER" "$PANEL_DIR"
 
@@ -380,7 +474,9 @@ echo ""
 fi
 echo -e "  ${BOLD}Management Panel:${NC}"
 echo -e "    URL      : ${CYAN}http://${PUBLIC_IP}:${PANEL_PORT}${NC}"
-echo -e "    Password : ${DIM}(the one you entered — it has been bcrypt-hashed in config.env)${NC}"
+echo -e "    Username : ${CYAN}admin${NC} (first install)"
+echo -e "    Password : ${DIM}(the one entered on first install; existing accounts keep their passwords)${NC}"
+echo -e "    Config   : ${DIM}$PANEL_DIR/config.env — saved settings take precedence when rerunning${NC}"
 echo -e "    Restart  : ${YELLOW}sudo systemctl restart arma-panel${NC}"
 echo -e "    Logs     : ${YELLOW}sudo journalctl -u arma-panel -f${NC}"
 echo ""

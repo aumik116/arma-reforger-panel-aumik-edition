@@ -7,6 +7,35 @@ let activityCursor = null;
 const can = permission => currentAccount.permissions.includes(permission);
 const byId = id => document.getElementById(id);
 
+function selectPanelTab(tab) {
+  document.querySelectorAll('.panel-tab').forEach(button => {
+    const selected = button === tab;
+    button.setAttribute('aria-selected', String(selected));
+    button.tabIndex = selected ? 0 : -1;
+    byId(button.getAttribute('aria-controls')).hidden = !selected;
+  });
+  document.querySelector('.panel-tabs').scrollIntoView({block: 'start'});
+  if (tab.id === 'tab-dashboard') {
+    requestAnimationFrame(() => { cpuChart.resize(); ramChart.resize(); });
+    fetchMetrics();
+  }
+}
+
+document.querySelectorAll('.panel-tab').forEach((tab, index, tabs) => {
+  tab.addEventListener('click', () => selectPanelTab(tab));
+  tab.addEventListener('keydown', event => {
+    let next;
+    if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
+    else if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length;
+    else if (event.key === 'Home') next = 0;
+    else if (event.key === 'End') next = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    tabs[next].focus();
+    selectPanelTab(tabs[next]);
+  });
+});
+
 async function getFeature(url) {
   const response = await fetch(url);
   if (response.status === 401) { location.href = '/login'; throw new Error('Please sign in'); }
@@ -29,6 +58,9 @@ function applyPermissions() {
     el.hidden = !can(el.dataset.permission);
   });
   document.querySelectorAll('#mods-list button').forEach(el => { el.hidden = !can('mods'); });
+  byId('users-controls').disabled = !can('users');
+  byId('users-restricted').hidden = can('users');
+  byId('configuration-readonly').hidden = can('configure');
   ['btn-start', 'btn-stop', 'btn-reset'].forEach(id => {
     if (!can('control')) byId(id).disabled = true;
   });

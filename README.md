@@ -14,7 +14,8 @@ A lightweight, self-hosted web panel for managing your **Arma Reforger dedicated
 
 - **One-command install** — sets up SteamCMD, downloads the Arma Reforger server and installs the panel automatically
 - **Server control** — Start, stop and restart your server from the browser
-- **Real-time monitoring** — Live CPU and RAM charts updated every 3 seconds
+- **Tabbed interface** — Dashboard, Configuration and Administration keep the panel organized; everyone can change their own password in Administration
+- **Real-time monitoring** — Live CPU and RAM charts refresh every second while the Dashboard is visible; overlapping requests are prevented
 - **Live log streaming** — Server console logs with colour-coded output (errors, warnings, network events)
 - **Mission selector** — 41 built-in missions including all vanilla and RHS — Status Quo scenarios
 - **Mod management** — Add and remove Workshop mods directly from the panel

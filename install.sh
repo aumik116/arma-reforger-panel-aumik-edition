@@ -93,6 +93,48 @@ download_arma_server() {
     return 1
 }
 
+configure_server_control() {
+    local panel_dir="$1" panel_user="$2" rule
+    local config_root="${3:-/etc}"
+    # Only these two exact operations are privileged, never arbitrary commands.
+    [[ "$panel_user" =~ ^[a-zA-Z_][a-zA-Z0-9_-]*\$?$ ]] || return 1
+    command -v visudo >/dev/null || { echo "ERROR: Install sudo first." >&2; return 1; }
+    mkdir -p "${config_root}/sudoers.d" "${config_root}/systemd/system/arma-server.service.d" "${config_root}/systemd/system/arma-panel.service.d"
+    rule=$(mktemp)
+    printf '%s ALL=(root) NOPASSWD: /usr/bin/systemctl start arma-server.service, /usr/bin/systemctl stop arma-server.service\n' "$panel_user" > "$rule"
+    visudo -cf "$rule" || { rm -f "$rule"; return 1; }
+    install -o root -g root -m 0440 "$rule" "${config_root}/sudoers.d/arma-panel-control"
+    rm -f "$rule"
+    if [[ ! -f ${config_root}/systemd/system/arma-server.service ]]; then
+        cat > "${config_root}/systemd/system/arma-server.service" <<EOF
+[Unit]
+Description=Arma Reforger Dedicated Server
+After=network.target
+[Service]
+Type=simple
+User=${panel_user}
+Restart=on-failure
+RestartSec=10
+[Install]
+WantedBy=multi-user.target
+EOF
+    fi
+    cat > "${config_root}/systemd/system/arma-server.service.d/panel-control.conf" <<EOF
+[Service]
+User=${panel_user}
+ExecStart=
+ExecStart=/usr/bin/python3 "${panel_dir}/runtime_ops.py" "${panel_dir}/config.env"
+TimeoutStopSec=120
+EOF
+    # Preserve a legacy panel-launched game during this and future panel updates.
+    # New launches use arma-server.service and its normal control-group cleanup.
+    cat > "${config_root}/systemd/system/arma-panel.service.d/legacy-game.conf" <<EOF
+[Service]
+KillMode=process
+EOF
+    systemctl daemon-reload
+}
+
 if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then return 0; fi
 
 # ── Colors ────────────────────────────────────────────────────────────────────
@@ -168,10 +210,12 @@ if [[ "$MODE" == "update" ]]; then
     cp "$SCRIPT_DIR/app.py"     "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/panel_features.py" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/player_query.py" "$PANEL_DIR_EXISTING/"
+    cp "$SCRIPT_DIR/runtime_ops.py" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/index.html" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/login.html" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/static/"*   "$PANEL_DIR_EXISTING/static/"
     chown -R "$EXISTING_USER:$EXISTING_USER" "$PANEL_DIR_EXISTING"
+    configure_server_control "$PANEL_DIR_EXISTING" "$EXISTING_USER"
     systemctl restart arma-panel
     echo -e "${GREEN}✓ Panel updated and restarted.${NC}"
     echo ""
@@ -386,7 +430,7 @@ fi
 mkdir -p "$PANEL_DIR/static"
 
 # Copy files from script directory
-for f in app.py panel_features.py player_query.py index.html login.html; do
+for f in app.py panel_features.py player_query.py runtime_ops.py index.html login.html; do
     if [ -f "$SCRIPT_DIR/$f" ]; then
         cp "$SCRIPT_DIR/$f" "$PANEL_DIR/"
     else
@@ -447,7 +491,7 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
-systemctl daemon-reload
+configure_server_control "$PANEL_DIR" "$ARMA_USER"
 systemctl enable arma-panel
 systemctl restart arma-panel
 

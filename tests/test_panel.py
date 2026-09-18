@@ -128,13 +128,46 @@ class PanelTests(unittest.TestCase):
         self.assertEqual(event['outcome'], 'failed')
 
     def test_server_actions_audited_and_no_real_processes_started(self):
-        with patch.object(self.module.subprocess, 'Popen'), patch.object(self.module.subprocess, 'run'), patch.object(self.module.time, 'sleep'):
+        with patch.object(self.module, 'start_server'), patch.object(self.module, 'stop_server'):
             self.assertTrue(self.post(self.admin, '/api/start').json['ok'])
             self.module.get_server_pid = lambda: 42
             self.assertTrue(self.post(self.admin, '/api/stop').json['ok'])
             self.assertTrue(self.post(self.admin, '/api/restart').json['ok'])
         actions = {e['action'] for e in self.admin.get('/api/activity').json['events']}
         self.assertTrue({'api_start','api_stop','api_restart'} <= actions)
+
+    def test_start_checks_survival_and_service_errors(self):
+        from types import SimpleNamespace
+        with patch.object(self.module.subprocess, 'run', return_value=SimpleNamespace(returncode=1, stderr='permission denied')):
+            with self.assertRaisesRegex(RuntimeError, 'permission denied'):
+                self.module.service_command('start')
+        with patch.object(self.module, 'service_command') as command, patch.object(self.module.time, 'sleep'):
+            with patch.object(self.module, 'get_server_pid', side_effect=[42] * 9):
+                self.module.start_server()
+                command.assert_called_with('start')
+            with patch.object(self.module, 'get_server_pid', side_effect=[42, None]):
+                with self.assertRaisesRegex(RuntimeError, 'exited during startup'):
+                    self.module.start_server()
+            with patch.object(self.module, 'get_server_pid', return_value=None), \
+                 patch.object(self.module.time, 'monotonic', side_effect=[0, 11]):
+                with self.assertRaisesRegex(RuntimeError, 'did not start'):
+                    self.module.start_server()
+
+    def test_stop_waits_and_restart_does_not_start_after_timeout(self):
+        with patch.object(self.module, 'service_command') as command, \
+             patch.object(self.module.os, 'kill') as kill, patch.object(self.module.time, 'sleep'), \
+             patch.object(self.module, 'get_server_pid', side_effect=[42, 42, None]):
+            self.module.stop_server()
+            command.assert_called_once_with('stop')
+            kill.assert_called_once_with(42, 15)
+        with patch.object(self.module, 'service_command'), patch.object(self.module.os, 'kill'), \
+             patch.object(self.module, 'get_server_pid', return_value=42), \
+             patch.object(self.module.time, 'monotonic', side_effect=[0, 61]), \
+             patch.object(self.module, 'start_server') as start:
+            result = self.post(self.admin, '/api/restart')
+            self.assertFalse(result.json['ok'])
+            self.assertIn('still stopping', result.json['error'])
+            start.assert_not_called()
 
 
 class RconTests(unittest.TestCase):

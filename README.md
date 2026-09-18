@@ -184,7 +184,22 @@ git pull
 sudo bash install.sh --update
 ```
 
-This copies updated panel files and restarts the service. Your `config.env` is preserved.
+This copies updated panel files and restarts the panel service. Your `config.env` is preserved.
+
+The update also configures separate game control through `arma-server.service`,
+with sudo permission limited to starting and stopping that service. A compatibility
+override preserves games launched by older panel versions during panel updates.
+On your next normal game restart, the game moves to its own service. No game
+restart is requested by the update itself. The service launcher reads your saved
+`SERVER_DIR`, `SERVER_CONFIG`, and `MAX_FPS` settings. Custom service `ExecStart`
+overrides are replaced by the panel launcher; other service settings are preserved.
+
+Start checks that the process survives four seconds (mod loading can take longer).
+Restart waits for shutdown before launching a replacement. CPU shows recent Arma
+process usage as a percentage of total host CPU capacity, refreshed every second.
+Console polling uses file positions to retain repeated lines and catch up after
+busy bursts; the browser keeps the latest 800 displayed lines. Rotation starts a
+new console view; full historical output remains in the server's log files.
 
 ---
 

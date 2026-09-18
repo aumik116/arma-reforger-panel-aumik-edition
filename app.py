@@ -23,6 +23,7 @@ import time
 import glob
 import sys
 import tempfile
+from runtime_ops import ProcessMetrics, read_console
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
@@ -610,9 +611,14 @@ def all_scenarios_cached():
 
 def get_server_pid():
     try:
-        r = subprocess.run(["pgrep", "-f", "ArmaReforgerServer"], capture_output=True, text=True)
-        pids = r.stdout.strip().splitlines()
-        return int(pids[0]) if pids else None
+        expected = os.path.realpath(os.path.join(SERVER_DIR, SERVER_BINARY))
+        for entry in glob.glob('/proc/[0-9]*/exe'):
+            try:
+                if os.path.realpath(entry) == expected:
+                    return int(entry.split('/')[2])
+            except OSError:
+                continue
+        return None
     except Exception:
         return None
 
@@ -635,13 +641,12 @@ def get_cpu_count():
     except Exception:
         return 1
 
+_process_metrics = ProcessMetrics()
+
+
 def get_cpu_ram(pid):
     try:
-        r = subprocess.run(["ps", "-p", str(pid), "-o", "pcpu=,rss="], capture_output=True, text=True)
-        parts = r.stdout.strip().split()
-        cpu = round(float(parts[0]) / get_cpu_count(), 1)
-        ram = round(int(parts[1]) / 1024, 1)
-        return cpu, ram
+        return _process_metrics.read(pid)
     except Exception:
         return 0.0, 0.0
 
@@ -935,13 +940,18 @@ def api_metrics():
 def api_logs():
     if not session.get("logged_in"):
         return jsonify({"error": "unauthorized"}), 401
-    n = int(request.args.get("lines", 100))
+    try:
+        n = max(1, min(800, int(request.args.get("lines", 80))))
+    except ValueError:
+        return jsonify(error="Invalid line count"), 400
+    cursor = request.args.get('cursor', '')
+    if len(cursor) > 4096:
+        return jsonify(error="Invalid console cursor"), 400
     path = get_latest_log()
     if not path:
         return jsonify({"lines": [], "path": None})
     try:
-        r = subprocess.run(["tail", "-n", str(n), path], capture_output=True, text=True)
-        return jsonify({"lines": r.stdout.splitlines(), "path": path})
+        return jsonify(read_console(path, cursor, n))
     except Exception as e:
         return jsonify({"lines": [], "error": str(e)})
 
@@ -1206,59 +1216,77 @@ def api_mods_remove():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 
+def service_command(action):
+    result = subprocess.run(
+        ["sudo", "-n", "/usr/bin/systemctl", action, "arma-server.service"],
+        capture_output=True, text=True, timeout=150)
+    if result.returncode:
+        raise RuntimeError(result.stderr.strip() or "Server service command failed")
+
+
+def stop_server():
+    # systemd stop also cancels scheduled automatic restarts.
+    service_command("stop")
+    pid = get_server_pid()
+    if pid:
+        # A game started by the previous panel is outside arma-server.service.
+        try:
+            os.kill(pid, 15)
+        except ProcessLookupError:
+            pass
+    deadline = time.monotonic() + 60
+    while get_server_pid():
+        if time.monotonic() >= deadline:
+            raise RuntimeError("Server is still stopping; no replacement was started. Check the console.")
+        time.sleep(0.25)
+
+
+def start_server():
+    service_command("start")
+    # Verify the same process survives an observation window. This is process
+    # health, not a claim that mods have loaded or players can connect yet.
+    pid = get_server_pid()
+    deadline = time.monotonic() + 10
+    while not pid and time.monotonic() < deadline:
+        time.sleep(0.25)
+        pid = get_server_pid()
+    if not pid:
+        raise RuntimeError("Server did not start. Check the console and journalctl -u arma-server.")
+    for _ in range(8):
+        time.sleep(0.5)
+        if get_server_pid() != pid:
+            raise RuntimeError("Server exited during startup. Check the console and journalctl -u arma-server.")
+
+
 @app.route("/api/start", methods=["POST"])
 def api_start():
-    if not session.get("logged_in"):
-        return jsonify({"error": "unauthorized"}), 401
-    err = _csrf_required()
-    if err: return err
-    if get_server_pid():
-        return jsonify({"ok": False, "error": "Server is already running"})
     try:
-        subprocess.Popen([SERVER_BINARY] + build_server_args(), cwd=SERVER_DIR,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                         start_new_session=True)
-        time.sleep(1)
-        return jsonify({"ok": True})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
+        if get_server_pid():
+            return jsonify(ok=False, error="Server is already running")
+        start_server()
+        return jsonify(ok=True)
+    except Exception as exc:
+        return jsonify(ok=False, error=str(exc))
+
 
 @app.route("/api/stop", methods=["POST"])
 def api_stop():
-    if not session.get("logged_in"):
-        return jsonify({"error": "unauthorized"}), 401
-    err = _csrf_required()
-    if err: return err
-    pid = get_server_pid()
-    if not pid:
-        return jsonify({"ok": False, "error": "Server is not running"})
     try:
-        subprocess.run(["kill", str(pid)], check=True)
-        return jsonify({"ok": True})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
+        stop_server()
+        return jsonify(ok=True)
+    except Exception as exc:
+        return jsonify(ok=False, error=str(exc))
+
 
 @app.route("/api/restart", methods=["POST"])
 def api_restart():
-    if not session.get("logged_in"):
-        return jsonify({"error": "unauthorized"}), 401
-    err = _csrf_required()
-    if err: return err
-    pid = get_server_pid()
-    if pid:
-        try:
-            subprocess.run(["kill", str(pid)], check=True)
-            time.sleep(3)
-        except Exception as e:
-            return jsonify({"ok": False, "error": f"Stop failed: {e}"})
     try:
-        subprocess.Popen([SERVER_BINARY] + build_server_args(), cwd=SERVER_DIR,
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                         start_new_session=True)
-        time.sleep(1)
-        return jsonify({"ok": True})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
+        stop_server()
+        start_server()
+        return jsonify(ok=True)
+    except Exception as exc:
+        return jsonify(ok=False, error=str(exc))
+
 
 from panel_features import install as install_features
 install_features(sys.modules[__name__])

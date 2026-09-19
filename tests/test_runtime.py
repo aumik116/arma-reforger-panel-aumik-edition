@@ -1,13 +1,54 @@
 import tempfile
 import os
+import json
 import unittest
 from pathlib import Path
 from unittest.mock import patch, mock_open
 
-from runtime_ops import ProcessMetrics, read_console, launch_server
+from runtime_ops import ProcessMetrics, HostMetrics, read_game_telemetry, read_console, launch_server
 
 
 class RuntimeTests(unittest.TestCase):
+    def test_host_rates_and_counter_reset(self):
+        from types import SimpleNamespace
+        metrics = HostMetrics()
+        def sample(rx, sectors, operations, milliseconds):
+            def opened(path):
+                data = (f'eth0: {rx} 0 0 0 0 0 0 0 {rx} 0 0 0 0 0 0 0\n'
+                        if path == '/proc/net/dev' else
+                        f'8 1 sda1 {operations} 0 {sectors} {milliseconds} 0 0 0 0 0 0 0\n')
+                return mock_open(read_data=data)()
+            return opened
+        with patch('runtime_ops.time.monotonic', side_effect=[1, 3, 5]), \
+             patch('runtime_ops.shutil.disk_usage', return_value=SimpleNamespace(free=25, used=75, total=100)), \
+             patch('runtime_ops.os.stat', return_value=SimpleNamespace(st_dev=1)), \
+             patch('runtime_ops.os.major', create=True, return_value=8), \
+             patch('runtime_ops.os.minor', create=True, return_value=1):
+            with patch('builtins.open', side_effect=sample(1000, 100, 10, 20)):
+                self.assertIsNone(metrics.read('/server')['network_rx'])
+            with patch('builtins.open', side_effect=sample(1001000, 4196, 14, 40)):
+                result = metrics.read('/server')
+                self.assertEqual(result['network_rx'], 4)
+                self.assertEqual(result['disk_read'], 1)
+                self.assertEqual(result['disk_used_percent'], 75)
+            with patch('builtins.open', side_effect=sample(0, 0, 0, 0)):
+                result = metrics.read('/server')
+                self.assertIsNone(result['network_rx'])
+                self.assertIsNone(result['disk_read'])
+
+    def test_game_telemetry_freshness_and_validation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'telemetry.json'
+            with patch('runtime_ops.time.time', return_value=100):
+                path.write_text(json.dumps(dict(timestamp=99, server_fps=58, player_pings_ms=[10, 20, 100])))
+                result = read_game_telemetry(path, True)
+                self.assertEqual((result['server_fps'], result['ping_median'], result['ping_p95']), (58, 20, 100))
+                self.assertIsNone(read_game_telemetry(path, False)['server_fps'])
+                for sample in [dict(timestamp=80, server_fps=58), dict(timestamp=99, server_fps=-1),
+                               dict(timestamp=99, player_pings_ms=[float('nan')]), [], None]:
+                    path.write_text(json.dumps(sample))
+                    self.assertIsNone(read_game_telemetry(path, True)['server_fps'])
+
     def test_console_bursts_repeated_lines_and_partial_line(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'console.log'

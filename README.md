@@ -99,6 +99,38 @@ References: [Bohemia server configuration](https://community.bistudio.com/wiki/A
 [server commands](https://community.bistudio.com/wiki/Arma_Reforger:Server_Management),
 [BattlEye RCON protocol](https://www.battleye.com/downloads/BERConProtocol.txt).
 
+## Dashboard performance charts
+
+The status dashboard includes simulation FPS, incoming/outgoing
+host traffic (Mbps), server filesystem device reads/writes (MiB/s), and median/95th-percentile player ping.
+Disk space has a gauge and warning below 10% free or 5 GiB free.
+Network counters include all non-loopback interfaces (virtual interfaces can
+count the same traffic more than once). Disk counters include other applications
+on the server filesystem device; unsupported filesystems show unavailable.
+The first rate sample shows unavailable.
+
+Charts keep 60 samples in the current browser page. The separate player roster uses
+the existing ten-second RCON refresh. Charts refresh every second while the
+Dashboard is visible. Dashed markers indicate successful panel start/stop/restart
+and mod changes; recent event labels are shown below the charts. External game
+controls are not tracked. These charts are not persistent historical monitoring.
+
+Measured FPS and ping require a game-side mod or exporter; the panel's current
+RCON player list does not supply them. No exporter is bundled. Set
+`GAME_TELEMETRY_FILE` in `config.env`, restart the panel, and have your exporter
+atomically replace that UTF-8 JSON file with this structure:
+
+```json
+{"timestamp": 1790000000, "server_fps": 59.5, "player_pings_ms": [24, 31, 86]}
+```
+
+`timestamp` is the current Unix time in seconds, `server_fps` is measured
+simulation FPS, and the ping array contains one current measurement per player
+in milliseconds. Publish at least every ten seconds. Samples older than fifteen
+seconds, malformed values, and offline servers display unavailable rather than
+zero. An empty ping array displays unavailable. FPS and ping values must be
+finite and nonnegative. Keep the exporter clock synchronized with the host.
+
 ## Development checks
 
 With Flask and bcrypt installed, run `python -m unittest discover -s tests -v`.

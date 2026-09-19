@@ -23,7 +23,7 @@ import time
 import glob
 import sys
 import tempfile
-from runtime_ops import ProcessMetrics, read_console
+from runtime_ops import ProcessMetrics, HostMetrics, read_game_telemetry, read_console
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
@@ -116,23 +116,29 @@ app.config.update(
 # ─── SECURITY HELPERS ─────────────────────────────────────────────────────────
 
 def _client_ip():
-    # Honor X-Forwarded-For only when behind a reverse proxy; otherwise use remote_addr
-    return request.headers.get("X-Forwarded-For", request.remote_addr or "").split(",")[0].strip() or "unknown"
+    # Forwarded headers are client-controlled unless a trusted proxy validates them.
+    return request.remote_addr or "unknown"
 
 
 _LOGIN_BUCKETS: dict[str, list[float]] = {}
 _LOGIN_WINDOW_SEC = 60.0
 _LOGIN_MAX_ATTEMPTS = 5
+_LOGIN_LOCK = threading.Lock()
 
 def _login_rate_ok(ip: str) -> bool:
-    now = time.time()
-    bucket = [t for t in _LOGIN_BUCKETS.get(ip, []) if now - t < _LOGIN_WINDOW_SEC]
-    if len(bucket) >= _LOGIN_MAX_ATTEMPTS:
-        _LOGIN_BUCKETS[ip] = bucket
-        return False
-    bucket.append(now)
-    _LOGIN_BUCKETS[ip] = bucket
-    return True
+    now = time.monotonic()
+    with _LOGIN_LOCK:
+        for key in list(_LOGIN_BUCKETS):
+            bucket = [t for t in _LOGIN_BUCKETS[key] if now - t < _LOGIN_WINDOW_SEC]
+            if bucket:
+                _LOGIN_BUCKETS[key] = bucket
+            else:
+                del _LOGIN_BUCKETS[key]
+        bucket = _LOGIN_BUCKETS.setdefault(ip, [])
+        if len(bucket) >= _LOGIN_MAX_ATTEMPTS:
+            return False
+        bucket.append(now)
+        return True
 
 
 def _verify_password(plain: str) -> bool:
@@ -642,6 +648,7 @@ def get_cpu_count():
         return 1
 
 _process_metrics = ProcessMetrics()
+_host_metrics = HostMetrics()
 
 
 def get_cpu_ram(pid):
@@ -671,12 +678,24 @@ def get_latest_log():
     except Exception:
         return None
 
+class ConfigReadError(RuntimeError):
+    pass
+
+
+@app.errorhandler(ConfigReadError)
+def config_read_error(error):
+    return jsonify(ok=False, error=str(error)), 503
+
+
 def read_config():
     try:
-        with open(SERVER_CONFIG) as f:
-            return json.load(f)
-    except Exception:
-        return {}
+        with open(SERVER_CONFIG, encoding='utf-8') as f:
+            cfg = json.load(f)
+        if not isinstance(cfg, dict) or not isinstance(cfg.get('game'), dict):
+            raise ValueError('Expected a configuration object with a game object')
+        return cfg
+    except (OSError, ValueError) as exc:
+        raise ConfigReadError('Server configuration cannot be read. Repair the file before saving changes.') from exc
 
 def write_config(cfg):
     # Replace atomically so readers never see a partially-written configuration.
@@ -931,6 +950,9 @@ def api_metrics():
     cpu, ram = get_cpu_ram(pid) if pid else (0.0, 0.0)
     ram_used, ram_total = get_system_ram()
     return jsonify({
+        **_host_metrics.read(SERVER_DIR),
+        **read_game_telemetry(_cfg.get('GAME_TELEMETRY_FILE'), pid is not None),
+        "events": metric_events(),
         "cpu": cpu, "ram_process": ram,
         "ram_used": ram_used, "ram_total": ram_total,
         "running": pid is not None, "ts": int(time.time()),

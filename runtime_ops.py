@@ -6,6 +6,102 @@ import threading
 import time
 import sys
 import hashlib
+import shutil
+import math
+import statistics
+
+
+class HostMetrics:
+    """Shared interval samples; disk counters belong to the server filesystem device."""
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.previous = {}
+        self.cached = {}
+        self.sampled_at = None
+
+    def read(self, directory):
+        with self.lock:
+            now = time.monotonic()
+            if self.sampled_at is not None and now - self.sampled_at < 1:
+                return dict(self.cached)
+            result = dict(network_rx=None, network_tx=None, disk_read=None,
+                          disk_write=None, disk_free=None,
+                          disk_total=None, disk_used_percent=None)
+            def rate(key, counters):
+                old = self.previous.get(key)
+                self.previous[key] = (now, counters)
+                if old is None or now <= old[0] or any(a < b for a, b in zip(counters, old[1])):
+                    return None
+                return [(a - b) / (now - old[0]) for a, b in zip(counters, old[1])]
+            try:
+                interfaces = {}
+                with open('/proc/net/dev') as stream:
+                    for line in stream:
+                        if ':' not in line:
+                            continue
+                        name, values = line.split(':', 1)
+                        if name.strip() == 'lo':
+                            continue
+                        fields = values.split()
+                        interfaces[name.strip()] = (int(fields[0]), int(fields[8]))
+                identity = tuple(sorted(interfaces))
+                speeds = rate(('network', identity), tuple(sum(v[i] for v in interfaces.values()) for i in (0, 1)))
+                if speeds:
+                    result.update(network_rx=speeds[0] * 8 / 1e6, network_tx=speeds[1] * 8 / 1e6)
+            except (OSError, ValueError, IndexError):
+                self.previous = {k: v for k, v in self.previous.items() if k[0] != 'network'}
+            try:
+                usage = shutil.disk_usage(directory)
+                result.update(disk_free=usage.free, disk_total=usage.total,
+                              disk_used_percent=100 * usage.used / usage.total)
+                device = os.stat(directory).st_dev
+                major, minor = os.major(device), os.minor(device)
+                with open('/proc/diskstats') as stream:
+                    for line in stream:
+                        f = line.split()
+                        if (int(f[0]), int(f[1])) != (major, minor):
+                            continue
+                        # Linux diskstats sectors are always 512 bytes.
+                        speeds = rate(('disk', device), (int(f[5]), int(f[9])))
+                        if speeds:
+                            result.update(disk_read=speeds[0] * 512 / 1048576,
+                                          disk_write=speeds[1] * 512 / 1048576)
+                        break
+            except (OSError, ValueError, IndexError, AttributeError):
+                self.previous = {k: v for k, v in self.previous.items() if k[0] != 'disk'}
+            self.sampled_at, self.cached = now, result
+            return dict(result)
+
+
+def read_game_telemetry(path, running):
+    """Optional game-side exporter: reject stale, oversized or invalid samples."""
+    result = dict(server_fps=None, ping_median=None, ping_p95=None,
+                  telemetry_message='Game telemetry exporter not configured')
+    if not running:
+        return dict(result, telemetry_message='Server is offline')
+    if not path:
+        return result
+    try:
+        with open(path, encoding='utf-8') as stream:
+            sample = json.loads(stream.read(65537))
+        timestamp = sample['timestamp']
+        if type(timestamp) not in (int, float) or not math.isfinite(timestamp) or not -5 <= time.time() - timestamp <= 15:
+            raise ValueError('Stale sample')
+        def valid(value):
+            return type(value) in (int, float) and math.isfinite(value) and value >= 0
+        fps = sample.get('server_fps')
+        pings = sample.get('player_pings_ms', [])
+        if fps is not None and not valid(fps):
+            raise ValueError('Invalid FPS')
+        if not isinstance(pings, list) or not all(valid(p) for p in pings):
+            raise ValueError('Invalid pings')
+        result.update(server_fps=fps, telemetry_message='Live game telemetry')
+        if pings:
+            result.update(ping_median=statistics.median(pings),
+                          ping_p95=sorted(pings)[math.ceil(len(pings) * .95) - 1])
+    except (OSError, ValueError, KeyError, TypeError):
+        result['telemetry_message'] = 'Game telemetry unavailable or older than 15 seconds'
+    return result
 
 
 class ProcessMetrics:

@@ -523,7 +523,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <div class="chart-card">
       <div class="chart-header">
         <div>
-          <div class="chart-title">CPU — Arma Server</div>
+          <div class="chart-title">CPU Usage</div>
           <div class="chart-sub" id="proc-cpu-sub">Arma: —%</div>
         </div>
         <div>
@@ -535,7 +535,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <div class="chart-card">
       <div class="chart-header">
         <div>
-          <div class="chart-title">RAM — System</div>
+          <div class="chart-title">RAM Usage</div>
           <div class="chart-sub" id="proc-ram-sub">Arma: — MB</div>
         </div>
         <div>
@@ -544,6 +544,16 @@ button:disabled { opacity:.45; cursor:not-allowed; }
       </div>
       <div class="chart-wrap"><canvas id="chart-ram"></canvas></div>
     </div>
+  </div>
+
+  <div class="charts-row" id="extra-metrics"></div>
+  <div class="card">
+    <div class="card-label">Server storage</div>
+    <div id="disk-space-text" role="status">Waiting for storage sample…</div>
+    <progress id="disk-space-gauge" max="100" value="0" aria-label="Disk space used" style="width:100%;margin-top:12px;accent-color:var(--accent)"></progress>
+    <p class="feature-note" id="disk-space-alert" role="status"></p>
+    <p class="feature-note">Storage metrics cover the server filesystem device. Network metrics cover host interfaces except loopback. Charts retain the latest 60 samples while this dashboard is open; dashed lines mark panel server controls and mod changes.</p>
+    <p class="feature-note" id="metric-events">No recent panel events.</p>
   </div>
 
   <!-- Live Logs -->
@@ -851,6 +861,78 @@ function pushChart(chart, value) {
   chart.update('none');
 }
 
+const metricDefinitions = [
+  ['fps', 'Server simulation FPS', ['FPS'], 'FPS', 'Requires game telemetry'],
+  ['network', 'Network traffic — host', ['Incoming', 'Outgoing'], 'Mbps', 'All non-loopback interfaces; shared with other host traffic'],
+  ['disk', 'Disk activity — server device', ['Read', 'Write'], 'MiB/s', 'Includes other applications on this device'],
+  ['ping', 'Player latency', ['Median', '95th percentile'], 'ms', 'Requires game telemetry; unavailable with no ping samples'],
+];
+const extraCharts = {};
+const eventMarkers = {
+  id: 'panelEvents',
+  afterDraw(chart) {
+    const events = chart.panelEvents || [];
+    const times = chart.sampleTimes || [];
+    const {ctx, chartArea} = chart;
+    if (!chartArea) return;
+    ctx.save(); ctx.strokeStyle = '#c8a84b'; ctx.setLineDash([3, 4]);
+    for (const event of events) {
+      const index = times.findIndex(t => t != null && t >= event.ts);
+      const first = times.find(t => t != null);
+      if (index < 0 || event.ts < first) continue;
+      const x = chart.scales.x.getPixelForValue(index);
+      ctx.beginPath(); ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom); ctx.stroke();
+    }
+    ctx.restore();
+  }
+};
+Chart.register(eventMarkers);
+for (const [id, title, series, unit, description] of metricDefinitions) {
+  const card = document.createElement('div'); card.className = 'chart-card';
+  card.innerHTML = `<div class="chart-header"><div><div class="chart-title">${title}</div><div class="chart-sub" id="metric-${id}-value">Unavailable</div></div></div><div class="chart-wrap" style="height:120px"><canvas id="chart-${id}" role="img" aria-label="${title}"></canvas></div><p class="feature-note" id="metric-${id}-note">${description}</p>`;
+  document.getElementById('extra-metrics').append(card);
+  const options = chartOpts(undefined);
+  options.scales.y.ticks.callback = v => v + ' ' + unit;
+  options.plugins.legend = {display: series.length > 1, labels: {color:'#8a909d', boxWidth:10}};
+  options.plugins.tooltip = {enabled:true};
+  const data = makeChartData('#4c9fd6');
+  data.datasets = series.map((label, i) => ({...makeChartData(i ? '#c8a84b' : '#4c9fd6').datasets[0], label, tension:0, fill:false}));
+  extraCharts[id] = new Chart(card.querySelector('canvas'), {type:'line', data, options});
+}
+function updateExtraMetrics(d) {
+  const now = d?.ts ?? Date.now() / 1000;
+  const values = {
+    fps:[d?.server_fps], network:[d?.network_rx, d?.network_tx],
+    disk:[d?.disk_read, d?.disk_write], ping:[d?.ping_median, d?.ping_p95]
+  };
+  const events = d?.events || [];
+  for (const [id, , series, unit] of metricDefinitions) {
+    const chart = extraCharts[id];
+    chart.data.labels.push(new Date(now * 1000).toLocaleTimeString()); chart.data.labels.shift();
+    chart.sampleTimes = [...(chart.sampleTimes || Array(MAX_POINTS).fill(null)), now].slice(-MAX_POINTS);
+    chart.panelEvents = events;
+    chart.data.datasets.forEach((set, i) => {
+      set.data.push(Number.isFinite(values[id][i]) ? values[id][i] : null); set.data.shift();
+    });
+    document.getElementById(`metric-${id}-value`).textContent = series.map((label,i) => `${label}: ${Number.isFinite(values[id][i]) ? values[id][i].toFixed(id === 'players' ? 0 : 1) + ' ' + unit : 'Unavailable'}`).join(' · ');
+    chart.update('none');
+  }
+  for (const chart of [cpuChart, ramChart]) {
+    chart.sampleTimes = [...(chart.sampleTimes || Array(MAX_POINTS).fill(null)), now].slice(-MAX_POINTS);
+    chart.panelEvents = events;
+  }
+  for (const id of ['fps', 'ping']) document.getElementById(`metric-${id}-note`).textContent = d?.telemetry_message || 'Metrics connection unavailable';
+  const available = Number.isFinite(d?.disk_free) && d.disk_total > 0;
+  const low = available && (d.disk_used_percent >= 90 || d.disk_free < 5 * 1024 ** 3);
+  document.getElementById('disk-space-gauge').hidden = !available;
+  document.getElementById('disk-space-gauge').value = available ? d.disk_used_percent : 0;
+  document.getElementById('disk-space-text').textContent = available ? `${(d.disk_free / 1024 ** 3).toFixed(1)} GiB free of ${(d.disk_total / 1024 ** 3).toFixed(1)} GiB (${d.disk_used_percent.toFixed(1)}% used)` : 'Disk space unavailable';
+  document.getElementById('disk-space-alert').textContent = low ? 'Low disk space: less than 10% or 5 GiB remaining. Free space before updating mods or creating saves.' : '';
+  document.getElementById('disk-space-alert').style.color = low ? '#ef7777' : '';
+  const names = {api_start:'Server start', api_stop:'Server stop', api_restart:'Server restart', presets_apply:'Mod preset applied', api_mods_add:'Mod added', api_mods_remove:'Mod removed', api_mods_import:'Mods imported'};
+  document.getElementById('metric-events').textContent = events.length ? events.slice(0,5).map(e => `${new Date(e.ts * 1000).toLocaleTimeString()} — ${names[e.action] || e.action}`).join(' · ') : 'No recent panel events.';
+}
+
 // ─── Metrics polling ─────────────────────────────────────────────────────────
 let metricsPending = false;
 async function fetchMetrics() {
@@ -859,7 +941,9 @@ async function fetchMetrics() {
   try {
     const r = await fetch('/api/metrics');
     if (r.status === 401) { window.location.href = '/login'; return; }
+    if (!r.ok) throw new Error('Metrics request failed');
     const d = await r.json();
+    updateExtraMetrics(d);
 
     const ramPct = d.ram_total > 0 ? Math.round(d.ram_used / d.ram_total * 100) : 0;
 
@@ -870,7 +954,7 @@ async function fetchMetrics() {
 
     pushChart(cpuChart, d.cpu ?? 0);
     pushChart(ramChart, ramPct);
-  } catch(e) {}
+  } catch(e) { updateExtraMetrics(null); }
   finally { metricsPending = false; }
 }
 

@@ -79,6 +79,18 @@ def install(api):
     api.authenticate_user = authenticate
     api.audit_event = audit
 
+    def metric_events():
+        # Only non-sensitive labels are exposed to dashboard viewers.
+        with db() as conn:
+            rows = conn.execute("""SELECT id,ts,action FROM activity
+                WHERE outcome='success' AND ts >= ? AND action IN
+                ('api_start','api_stop','api_restart','api_mods_add','api_mods_remove',
+                 'api_mods_import','presets_apply') ORDER BY id DESC LIMIT 50""",
+                (time.time() - 3600,)).fetchall()
+        return [dict(row) for row in rows]
+
+    api.metric_events = metric_events
+
     @app.before_request
     def authorize():
         if request.endpoint in {"login", "static", "manifest", "service_worker"}:

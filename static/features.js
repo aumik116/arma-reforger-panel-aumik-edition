@@ -16,7 +16,7 @@ function selectPanelTab(tab) {
   });
   document.querySelector('.panel-tabs').scrollIntoView({block: 'start'});
   if (tab.id === 'tab-dashboard') {
-    requestAnimationFrame(() => { cpuChart.resize(); ramChart.resize(); });
+    requestAnimationFrame(() => { cpuChart.resize(); ramChart.resize(); Object.values(extraCharts).forEach(chart => chart.resize()); });
     fetchMetrics();
   }
 }

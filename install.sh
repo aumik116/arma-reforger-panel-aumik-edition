@@ -1,6 +1,8 @@
 #!/bin/bash
 # ============================================================
-# Arma Reforger — All-in-One Installer v4.0
+# Arma Reforger Panel — Aumik Edition Installer
+# https://github.com/aumik116/arma-reforger-panel-aumik-edition
+# Original project by Mateusz Gołębiewski:
 # https://github.com/mateuszgolebiewski-code/arma-reforger-panel
 #
 # Modes:
@@ -160,10 +162,10 @@ if [[ "$1" == "--update" ]];      then MODE="update"; fi
 
 # ── Header ────────────────────────────────────────────────────────────────────
 echo ""
-echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "${BOLD}${CYAN}║   Arma Reforger — All-in-One Installer v4.0     ║${NC}"
-echo -e "${BOLD}${CYAN}║   github.com/mateuszgolebiewski-code             ║${NC}"
-echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════╝${NC}"
+echo -e "${BOLD}${CYAN}Arma Reforger Panel — Aumik Edition${NC}"
+echo "github.com/aumik116/arma-reforger-panel-aumik-edition"
+echo "Based on the original panel by Mateusz Gołębiewski."
+echo "Vibe coded with OpenAI Codex assistance."
 echo ""
 
 if [[ "$MODE" == "full" ]];   then echo -e "  Mode: ${GREEN}Full install${NC} (SteamCMD + Arma server + Panel)"; fi
@@ -179,7 +181,7 @@ fi
 
 # ── OS check ──────────────────────────────────────────────────────────────────
 if ! grep -qi "ubuntu" /etc/os-release 2>/dev/null; then
-    echo -e "${YELLOW}WARNING: This installer is tested on Ubuntu 20.04/22.04/24.04.${NC}"
+    echo -e "${YELLOW}WARNING: This installer targets Ubuntu and requires Python 3.10+.${NC}"
     read -p "  Continue anyway? [y/N]: " CONTINUE
     [[ "$CONTINUE" =~ ^[Yy]$ ]] || exit 1
 fi

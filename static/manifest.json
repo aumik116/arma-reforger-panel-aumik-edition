@@ -1,7 +1,7 @@
 {
-  "name": "Arma Reforger Panel",
-  "short_name": "Arma Panel",
-  "description": "Arma Reforger server management panel",
+  "name": "Arma Reforger Panel — Aumik Edition",
+  "short_name": "Aumik Panel",
+  "description": "Aumik Edition of the Arma Reforger server management panel",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

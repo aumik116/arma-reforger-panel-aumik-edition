@@ -1,13 +1,15 @@
 """
-Arma Reforger Server Management Panel
+Arma Reforger Panel — Aumik Edition
+https://github.com/aumik116/arma-reforger-panel-aumik-edition
+Original project by Mateusz Gołębiewski:
 https://github.com/mateuszgolebiewski-code/arma-reforger-panel
 
-Local fork — modifications:
+Vibe coded with OpenAI Codex assistance. Fork modifications:
   - Bcrypt-hashed admin password + constant-time verification + rate limiting
   - CSRF protection on state-changing routes
   - Persistent SECRET_KEY (sessions survive panel restart)
   - Bulk mod import via pasted JSON array or uploaded JSON file
-  - Auto-discovery of scenarios from installed mods (`.pak` strings scan, mtime-cached)
+  - Auto-discovery of scenarios from addon metadata and resource databases
 """
 
 from flask import Flask, request, jsonify, session, redirect, Response, send_from_directory, g

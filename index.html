@@ -862,7 +862,7 @@ function pushChart(chart, value) {
 }
 
 const metricDefinitions = [
-  ['fps', 'Server simulation FPS', ['FPS'], 'FPS', 'Requires game telemetry'],
+  ['fps', 'Server simulation FPS', ['FPS'], 'FPS', 'Waiting for native server performance statistics'],
   ['network', 'Network traffic — host', ['Incoming', 'Outgoing'], 'Mbps', 'All non-loopback interfaces; shared with other host traffic'],
   ['disk', 'Disk activity — server device', ['Read', 'Write'], 'MiB/s', 'Includes other applications on this device'],
   ['ping', 'Player latency', ['Median', '95th percentile'], 'ms', 'Requires game telemetry; unavailable with no ping samples'],
@@ -921,7 +921,8 @@ function updateExtraMetrics(d) {
     chart.sampleTimes = [...(chart.sampleTimes || Array(MAX_POINTS).fill(null)), now].slice(-MAX_POINTS);
     chart.panelEvents = events;
   }
-  for (const id of ['fps', 'ping']) document.getElementById(`metric-${id}-note`).textContent = d?.telemetry_message || 'Metrics connection unavailable';
+  document.getElementById('metric-fps-note').textContent = d?.fps_message || 'FPS statistics unavailable';
+  document.getElementById('metric-ping-note').textContent = d?.telemetry_message || 'Player latency unavailable';
   const available = Number.isFinite(d?.disk_free) && d.disk_total > 0;
   const low = available && (d.disk_used_percent >= 90 || d.disk_free < 5 * 1024 ** 3);
   document.getElementById('disk-space-gauge').hidden = !available;

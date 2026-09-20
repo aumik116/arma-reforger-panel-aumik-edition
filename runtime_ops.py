@@ -9,6 +9,50 @@ import hashlib
 import shutil
 import math
 import statistics
+import re
+
+
+class ServerFPS:
+    """Read newly appended native logStats records, never revive old log samples."""
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.identity = None
+        self.cursor = None
+        self.value = None
+        self.seen_at = 0
+        self.last_poll = None
+
+    def read(self, path, pid):
+        with self.lock:
+            now = time.monotonic()
+            identity = (path, pid)
+            if identity != self.identity or not pid or (self.last_poll is not None and now - self.last_poll > 15):
+                self.identity, self.cursor, self.value = identity, None, None
+            self.last_poll = now
+            message = 'Waiting for fresh FPS statistics; restart the game after updating to enable them'
+            if not pid:
+                return dict(server_fps=None, fps_message='Server is offline')
+            try:
+                if path:
+                    result = read_console(path, self.cursor, initial_lines=1)
+                    self.cursor = result['cursor']
+                    if result['reset']:
+                        self.value = None
+                    else:
+                        for line in result['lines']:
+                            match = re.search(r'\bFPS:\s*([0-9]+(?:\.[0-9]+)?),\s*frame time\s*\(', line)
+                            if match:
+                                value = float(match[1])
+                                if math.isfinite(value):
+                                    self.value, self.seen_at = value, now
+                    # A backlog may contain historical samples, not current measurements.
+                    if result['more']:
+                        self.value = None
+            except (OSError, ValueError):
+                self.cursor, self.value = None, None
+            if self.value is not None and now - self.seen_at <= 15:
+                return dict(server_fps=self.value, fps_message='Live server FPS from native performance log')
+            return dict(server_fps=None, fps_message=message)
 
 
 class HostMetrics:
@@ -181,7 +225,7 @@ def launch_server(config_path):
                 settings[key.strip()] = value.strip().strip('"').strip("'")
     directory = settings.get('SERVER_DIR', '/home/arma/server')
     binary = os.path.join(directory, 'ArmaReforgerServer')
-    args = [binary, '-config', settings.get('SERVER_CONFIG', directory + '/config.json'), '-loadSessionSave']
+    args = [binary, '-config', settings.get('SERVER_CONFIG', directory + '/config.json'), '-loadSessionSave', '-logStats', '1000']
     if settings.get('MAX_FPS', '').strip():
         args.append('-maxFPS=' + settings['MAX_FPS'].strip())
     os.chdir(directory)

@@ -23,7 +23,7 @@ import time
 import glob
 import sys
 import tempfile
-from runtime_ops import ProcessMetrics, HostMetrics, read_game_telemetry, read_console
+from runtime_ops import ProcessMetrics, HostMetrics, ServerFPS, read_game_telemetry, read_console
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
@@ -77,7 +77,7 @@ def build_server_args():
     save files it's a no-op, and including it keeps panel-launched and
     systemd-launched starts behaving the same way. The 'enabled' toggle in the
     UI controls only the `persistence` block in config.json (autosave)."""
-    args = ["-config", SERVER_CONFIG, "-loadSessionSave"]
+    args = ["-config", SERVER_CONFIG, "-loadSessionSave", "-logStats", "1000"]
     if MAX_FPS:
         args.append(f"-maxFPS={MAX_FPS}")
     return args
@@ -649,6 +649,7 @@ def get_cpu_count():
 
 _process_metrics = ProcessMetrics()
 _host_metrics = HostMetrics()
+_server_fps = ServerFPS()
 
 
 def get_cpu_ram(pid):
@@ -952,6 +953,7 @@ def api_metrics():
     return jsonify({
         **_host_metrics.read(SERVER_DIR),
         **read_game_telemetry(_cfg.get('GAME_TELEMETRY_FILE'), pid is not None),
+        **_server_fps.read(get_latest_log(), pid),
         "events": metric_events(),
         "cpu": cpu, "ram_process": ram,
         "ram_used": ram_used, "ram_total": ram_total,

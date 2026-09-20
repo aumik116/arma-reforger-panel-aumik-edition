@@ -5,10 +5,33 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch, mock_open
 
-from runtime_ops import ProcessMetrics, HostMetrics, read_game_telemetry, read_console, launch_server
+from runtime_ops import ProcessMetrics, HostMetrics, ServerFPS, read_game_telemetry, read_console, launch_server
 
 
 class RuntimeTests(unittest.TestCase):
+    def test_native_fps_freshness_partial_lines_and_restart(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'console.log'
+            path.write_bytes(b'FPS: 60.0, frame time (avg: 16.7 ms)\n')
+            reader = ServerFPS()
+            with patch('runtime_ops.time.monotonic', return_value=10):
+                self.assertIsNone(reader.read(str(path), 12)['server_fps'])
+                with path.open('ab') as stream:
+                    stream.write(b'FPS: 42.5, frame time (avg: 23.5 ms)')
+                self.assertIsNone(reader.read(str(path), 12)['server_fps'])
+                with path.open('ab') as stream:
+                    stream.write(b'\n')
+                self.assertEqual(reader.read(str(path), 12)['server_fps'], 42.5)
+            with patch('runtime_ops.time.monotonic', return_value=26):
+                with path.open('ab') as stream:
+                    stream.write(b'Unrelated fresh log message\n')
+                self.assertIsNone(reader.read(str(path), 12)['server_fps'])
+                with path.open('ab') as stream:
+                    stream.write(b'FPS: 0.0, frame time (avg: 1000 ms)\n')
+                self.assertEqual(reader.read(str(path), 12)['server_fps'], 0)
+                self.assertIsNone(reader.read(str(path), 13)['server_fps'])
+                self.assertIsNone(reader.read(str(path), None)['server_fps'])
+
     def test_host_rates_and_counter_reset(self):
         from types import SimpleNamespace
         metrics = HostMetrics()
@@ -111,4 +134,4 @@ class RuntimeTests(unittest.TestCase):
             chdir.assert_called_once_with('/test/server')
             binary = os.path.join('/test/server', 'ArmaReforgerServer')
             execute.assert_called_once_with(binary,
-                [binary, '-config', '/test/custom.json', '-loadSessionSave', '-maxFPS=45'])
+                [binary, '-config', '/test/custom.json', '-loadSessionSave', '-logStats', '1000', '-maxFPS=45'])

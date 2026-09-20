@@ -382,7 +382,7 @@ After=network.target
 Type=simple
 User=${ARMA_USER}
 WorkingDirectory=${SERVER_DIR}
-ExecStart=${SERVER_DIR}/${ARMA_BINARY} -config ${SERVER_CONFIG} -loadSessionSave -maxFPS=${MAX_FPS}
+ExecStart=${SERVER_DIR}/${ARMA_BINARY} -config ${SERVER_CONFIG} -loadSessionSave -maxFPS=${MAX_FPS} -logStats 1000
 Restart=on-failure
 RestartSec=10
 

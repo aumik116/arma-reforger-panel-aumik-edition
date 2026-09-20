@@ -115,20 +115,27 @@ Dashboard is visible. Dashed markers indicate successful panel start/stop/restar
 and mod changes; recent event labels are shown below the charts. External game
 controls are not tracked. These charts are not persistent historical monitoring.
 
-Measured FPS and ping require a game-side mod or exporter; the panel's current
-RCON player list does not supply them. No exporter is bundled. Set
+Server FPS comes directly from Reforger's native `-logStats 1000` console output.
+The installer and service launcher enable it automatically. After updating an
+existing installation, restart the game once to activate the new launch argument;
+the panel update does not restart the game for you. The panel waits for a newly
+written statistics line and expires FPS after 15 seconds without another sample.
+No telemetry mod or JSON exporter is needed for FPS. Ensure `LOG_DIR` points to
+the server's logs directory, containing `logs_*/console.log`.
+
+Player ping still requires a game-side mod or exporter; the current RCON player
+list does not supply it. No exporter is bundled. Set
 `GAME_TELEMETRY_FILE` in `config.env`, restart the panel, and have your exporter
 atomically replace that UTF-8 JSON file with this structure:
 
 ```json
-{"timestamp": 1790000000, "server_fps": 59.5, "player_pings_ms": [24, 31, 86]}
+{"timestamp": 1790000000, "player_pings_ms": [24, 31, 86]}
 ```
 
-`timestamp` is the current Unix time in seconds, `server_fps` is measured
-simulation FPS, and the ping array contains one current measurement per player
+`timestamp` is the current Unix time in seconds, and the ping array contains one current measurement per player
 in milliseconds. Publish at least every ten seconds. Samples older than fifteen
 seconds, malformed values, and offline servers display unavailable rather than
-zero. An empty ping array displays unavailable. FPS and ping values must be
+zero. An empty ping array displays unavailable. Ping values must be
 finite and nonnegative. Keep the exporter clock synchronized with the host.
 
 ## Development checks

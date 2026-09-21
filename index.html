@@ -454,27 +454,41 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 .op-log { position:sticky; bottom:0; z-index:10; }
 @media(max-width:480px) { .panel-tab { font-size:13px; padding:12px 5px; } }
 </style>
+<link rel="stylesheet" href="/static/workspace.css">
 </head>
 <body>
 <div class="layout">
 
   <header>
     <div class="header-left">
-      <div class="tag">&#9632; Server Management Panel</div>
+      <div class="tag">DEDICATED SERVER MANAGEMENT</div>
       <h1>ARMA <span>REFORGER</span></h1>
     </div>
     <button class="btn-logout" onclick="doLogout()">Logout ↗</button>
   </header>
 
-  <nav class="panel-tabs" role="tablist" aria-label="Panel sections">
+  <aside class="sidebar" aria-label="Workspace navigation">
+  <div class="brand"><span class="brand-icon">AR</span><div>REFORGER<small>SERVER PANEL</small></div></div>
+  <div class="nav-label">WORKSPACE</div>
+  <nav class="panel-tabs" role="tablist" aria-label="Panel sections" aria-orientation="vertical">
     <button class="panel-tab" id="tab-dashboard" role="tab" aria-selected="true" aria-controls="panel-dashboard" tabindex="0">Dashboard</button>
-    <button class="panel-tab" id="tab-configuration" role="tab" aria-selected="false" aria-controls="panel-configuration" tabindex="-1">Configuration</button>
+    <button class="panel-tab" id="tab-configuration" role="tab" aria-selected="false" aria-controls="panel-configuration" tabindex="-1">Server config</button>
+    <button class="panel-tab" id="tab-mods" role="tab" aria-selected="false" aria-controls="panel-mods" tabindex="-1">Mods</button>
     <button class="panel-tab" id="tab-administration" role="tab" aria-selected="false" aria-controls="panel-administration" tabindex="-1">Administration</button>
   </nav>
+  <div class="nav-label">QUICK ACCESS</div>
+  <div class="quick-links">
+    <button data-permission="logs" hidden onclick="openPanelSection('dashboard','console-card')">Console <span>↗</span></button>
+    <button onclick="openPanelSection('dashboard','players-card')">Players <span>↗</span></button>
+    <button onclick="openPanelSection('mods','mods-card')">Mods & presets <span>↗</span></button>
+  </div>
+  <div class="sidebar-bottom"><span class="brand-icon">AR</span><div>Arma Reforger<small>Dedicated server</small></div></div>
+  </aside>
+  <div class="page-heading"><div><div class="eyebrow">SERVER WORKSPACE</div><h2 id="page-title">Dashboard</h2><p id="page-description">Monitor your server and manage the action.</p></div></div>
 
   <section class="tab-panel" id="panel-dashboard" role="tabpanel" aria-labelledby="tab-dashboard">
   <!-- Status -->
-  <div class="card clip">
+  <div class="card clip server-overview">
     <div class="card-corner"></div>
     <div class="card-label">Server Status</div>
     <div class="status-row">
@@ -547,7 +561,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
   </div>
 
   <!-- Live Logs -->
-  <div data-permission="logs" hidden class="log-viewer-card">
+  <div data-permission="logs" hidden class="log-viewer-card" id="console-card" tabindex="-1">
     <div class="log-viewer-header">
       <div class="log-viewer-title">
         <div class="log-live-dot off" id="log-live-dot"></div>
@@ -559,7 +573,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
   </div>
 
   <!-- Connected players -->
-  <div class="card clip">
+  <div class="card clip" id="players-card" tabindex="-1">
     <div class="card-label">Players · <span id="player-summary">Loading...</span></div>
     <div class="field"><label for="player-select">Connected usernames</label>
       <select id="player-select" onchange="showPlayer()"><option>Loading...</option></select></div>
@@ -569,14 +583,14 @@ button:disabled { opacity:.45; cursor:not-allowed; }
   </section>
 
   <section class="tab-panel" id="panel-configuration" role="tabpanel" aria-labelledby="tab-configuration" hidden>
-  <p class="feature-note" id="configuration-readonly" hidden>Your account can view mods and presets. A Manager or Administrator can change configuration.</p>
+  <p class="feature-note" id="configuration-readonly" hidden>A Manager or Administrator can change server configuration. View mods and presets in the Mods section.</p>
   <!-- Config -->
   <div class="card" style="animation-delay:0.15s" data-permission="configure" hidden>
     <div class="card-label">Server Configuration</div>
     <div class="config-grid">
       <div class="field-group">
         <label for="input-name">Server name</label>
-        <input type="text" id="input-name" placeholder="e.g. Aumik Arma" maxlength="64" />
+        <input type="text" id="input-name" placeholder="e.g. Conflict Everon" maxlength="64" />
       </div>
       <div class="field-group field-group--mission">
         <label for="input-mission">Scenario / Mission</label>
@@ -599,8 +613,51 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <div class="restart-notice" id="restart-notice">⚠ Changes will take effect after the server restarts</div>
   </div>
 
+  <!-- Persistence -->
+  <div class="card" style="animation-delay:0.2s" data-permission="configure" hidden>
+    <div class="card-label">Persistence</div>
+    <div style="font-size:11.5px;color:var(--muted);line-height:1.6;margin-bottom:14px;">
+      Server launches always pass <code>-loadSessionSave</code>, so any existing save is loaded on
+      start. This toggle writes the <code>game.gameProperties.persistence</code> block in
+      <code>config.json</code> — enable to autosave every N minutes, disable to stop writing new
+      saves (existing saves still load on start; use <strong>Flush saves</strong> to start fresh).
+      Session save only works in scenarios that implement it (Conflict, Combat Ops); Game Master
+      needs manual saves from Esc.
+    </div>
+    <div class="config-grid">
+      <div class="field-group">
+        <label for="input-persist-enabled">Enabled</label>
+        <select id="input-persist-enabled">
+          <option value="false">Disabled</option>
+          <option value="true">Enabled</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label for="input-persist-interval">Auto-save interval (minutes, 0–60)</label>
+        <input type="number" id="input-persist-interval" min="0" max="60" step="1" value="10" />
+      </div>
+      <div class="field-group">
+        <label for="input-persist-hive">Hive ID (0–16383)</label>
+        <input type="number" id="input-persist-hive" min="0" max="16383" step="1" value="1" />
+      </div>
+    </div>
+    <div id="persist-stats" style="font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.6;"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+      <button class="btn-save" id="btn-persist-save" onclick="savePersistence()">Save changes</button>
+      <button class="btn-save" id="btn-persist-flush" onclick="flushPersistence()"
+              style="background:transparent;border:1px solid var(--offline);color:var(--offline);">
+        Flush saves
+      </button>
+    </div>
+    <div class="restart-notice" id="persist-restart-notice">⚠ Restart required for persistence changes to take effect</div>
+  </div>
+
+  </section>
+
+  <section class="tab-panel" id="panel-mods" role="tabpanel" aria-labelledby="tab-mods" hidden>
+  <p class="feature-note" id="mods-readonly" hidden>Your account can view mods and presets. A Manager or Administrator can change them.</p>
   <!-- Mods -->
-  <div class="card" style="animation-delay:0.18s">
+  <div class="card" style="animation-delay:0.18s" id="mods-card" tabindex="-1">
     <div class="card-label">Mod Presets</div>
 
     <!-- Mod presets -->
@@ -667,45 +724,6 @@ button:disabled { opacity:.45; cursor:not-allowed; }
       <div class="restart-notice" id="mods-restart-notice">⚠ Mod changes will be applied after server restart</div>
     </div>
     </div>
-  </div>
-
-  <!-- Persistence -->
-  <div class="card" style="animation-delay:0.2s" data-permission="configure" hidden>
-    <div class="card-label">Persistence</div>
-    <div style="font-size:11.5px;color:var(--muted);line-height:1.6;margin-bottom:14px;">
-      Server launches always pass <code>-loadSessionSave</code>, so any existing save is loaded on
-      start. This toggle writes the <code>game.gameProperties.persistence</code> block in
-      <code>config.json</code> — enable to autosave every N minutes, disable to stop writing new
-      saves (existing saves still load on start; use <strong>Flush saves</strong> to start fresh).
-      Session save only works in scenarios that implement it (Conflict, Combat Ops); Game Master
-      needs manual saves from Esc.
-    </div>
-    <div class="config-grid">
-      <div class="field-group">
-        <label for="input-persist-enabled">Enabled</label>
-        <select id="input-persist-enabled">
-          <option value="false">Disabled</option>
-          <option value="true">Enabled</option>
-        </select>
-      </div>
-      <div class="field-group">
-        <label for="input-persist-interval">Auto-save interval (minutes, 0–60)</label>
-        <input type="number" id="input-persist-interval" min="0" max="60" step="1" value="10" />
-      </div>
-      <div class="field-group">
-        <label for="input-persist-hive">Hive ID (0–16383)</label>
-        <input type="number" id="input-persist-hive" min="0" max="16383" step="1" value="1" />
-      </div>
-    </div>
-    <div id="persist-stats" style="font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.6;"></div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
-      <button class="btn-save" id="btn-persist-save" onclick="savePersistence()">Save changes</button>
-      <button class="btn-save" id="btn-persist-flush" onclick="flushPersistence()"
-              style="background:transparent;border:1px solid var(--offline);color:var(--offline);">
-        Flush saves
-      </button>
-    </div>
-    <div class="restart-notice" id="persist-restart-notice">⚠ Restart required for persistence changes to take effect</div>
   </div>
 
   </section>

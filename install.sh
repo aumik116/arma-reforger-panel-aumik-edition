@@ -437,7 +437,7 @@ for f in app.py panel_features.py player_query.py runtime_ops.py index.html logi
         echo -e "      ${RED}WARNING: $f not found in script directory.${NC}"
     fi
 done
-for f in manifest.json service-worker.js features.js icon-192.png icon-512.png; do
+for f in manifest.json service-worker.js features.js workspace.css icon-192.png icon-512.png; do
     if [ -f "$SCRIPT_DIR/static/$f" ]; then
         cp "$SCRIPT_DIR/static/$f" "$PANEL_DIR/static/"
     fi

@@ -14,19 +14,41 @@ function selectPanelTab(tab) {
     button.tabIndex = selected ? 0 : -1;
     byId(button.getAttribute('aria-controls')).hidden = !selected;
   });
-  document.querySelector('.panel-tabs').scrollIntoView({block: 'start'});
+  byId('page-title').textContent = tab.textContent;
+  byId('page-description').textContent = {
+    'tab-dashboard': 'Monitor your server and manage the action.',
+    'tab-configuration': 'Manage server settings, scenarios and persistence.',
+    'tab-mods': 'Manage Workshop mods, imports and saved presets.',
+    'tab-administration': 'Manage your account, permissions and activity.'
+  }[tab.id];
+  window.scrollTo({top:0});
   if (tab.id === 'tab-dashboard') {
     requestAnimationFrame(() => { cpuChart.resize(); ramChart.resize(); });
     fetchMetrics();
   }
 }
 
+function openPanelSection(panel, target) {
+  selectPanelTab(byId('tab-' + panel));
+  requestAnimationFrame(() => {
+    byId(target).focus({preventScroll:true});
+    byId(target).scrollIntoView({block:'center'});
+  });
+}
+
+const mobileNavigation = window.matchMedia('(max-width: 700px)');
+function updateNavigationOrientation() {
+  document.querySelector('.panel-tabs').setAttribute('aria-orientation', mobileNavigation.matches ? 'horizontal' : 'vertical');
+}
+mobileNavigation.addEventListener('change', updateNavigationOrientation);
+updateNavigationOrientation();
+
 document.querySelectorAll('.panel-tab').forEach((tab, index, tabs) => {
   tab.addEventListener('click', () => selectPanelTab(tab));
   tab.addEventListener('keydown', event => {
     let next;
-    if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
-    else if (event.key === 'ArrowLeft') next = (index + tabs.length - 1) % tabs.length;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % tabs.length;
+    else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index + tabs.length - 1) % tabs.length;
     else if (event.key === 'Home') next = 0;
     else if (event.key === 'End') next = tabs.length - 1;
     else return;
@@ -61,6 +83,7 @@ function applyPermissions() {
   byId('users-controls').disabled = !can('users');
   byId('users-restricted').hidden = can('users');
   byId('configuration-readonly').hidden = can('configure');
+  byId('mods-readonly').hidden = can('mods');
   ['btn-start', 'btn-stop', 'btn-reset'].forEach(id => {
     if (!can('control')) byId(id).disabled = true;
   });

@@ -23,7 +23,7 @@ import time
 import glob
 import sys
 import tempfile
-from runtime_ops import ProcessMetrics, read_console
+from runtime_ops import ProcessMetrics, TrafficMetrics, read_console
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
@@ -642,6 +642,7 @@ def get_cpu_count():
         return 1
 
 _process_metrics = ProcessMetrics()
+_traffic_metrics = TrafficMetrics()
 
 
 def get_cpu_ram(pid):
@@ -931,6 +932,7 @@ def api_metrics():
     cpu, ram = get_cpu_ram(pid) if pid else (0.0, 0.0)
     ram_used, ram_total = get_system_ram()
     return jsonify({
+        **_traffic_metrics.read(pid),
         "cpu": cpu, "ram_process": ram,
         "ram_used": ram_used, "ram_total": ram_total,
         "running": pid is not None, "ts": int(time.time()),
@@ -1287,6 +1289,9 @@ def api_restart():
     except Exception as exc:
         return jsonify(ok=False, error=str(exc))
 
+
+from config_editor import install as install_config_editor
+install_config_editor(sys.modules[__name__])
 
 from panel_features import install as install_features
 install_features(sys.modules[__name__])

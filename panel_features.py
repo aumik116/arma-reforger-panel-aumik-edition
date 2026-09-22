@@ -19,6 +19,8 @@ ROLES = {
 MUTATIONS = {
     "api_start": "control", "api_stop": "control", "api_restart": "control",
     "api_config": "configure", "api_persistence_set": "configure",
+    "config_editor_save": "configure", "config_editor_validate": "configure",
+    "admin_label_save": "configure",
     "api_persistence_flush": "configure", "api_scenarios_rescan": "mods",
     "api_mods_add": "mods", "api_mods_remove": "mods", "api_mods_import": "mods",
     "presets_save": "mods", "presets_apply": "mods", "presets_delete": "mods",
@@ -43,6 +45,7 @@ def install(api):
 
     with db() as conn:
         conn.executescript("""
+            CREATE TABLE IF NOT EXISTS admin_labels (identity TEXT PRIMARY KEY, name TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE COLLATE NOCASE NOT NULL,
                 password TEXT NOT NULL, role TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1,
@@ -78,6 +81,22 @@ def install(api):
 
     api.authenticate_user = authenticate
     api.audit_event = audit
+    def get_admin_labels():
+        with db() as conn:
+            return {row['identity']: row['name'] for row in conn.execute('SELECT identity,name FROM admin_labels')}
+    api.get_admin_labels = get_admin_labels
+
+    @app.post('/api/admin-labels')
+    def admin_label_save():
+        data = request.get_json(silent=True) or {}
+        identity, name = data.get('identity'), data.get('name')
+        if not isinstance(identity, str) or not re.fullmatch(r'(?:[0-9]{17}|[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12})', identity):
+            return jsonify(ok=False, error='Enter a UUID or 17-digit Steam ID'), 400
+        if not isinstance(name, str) or len(name) > 80 or any(ord(c) < 32 for c in name):
+            return jsonify(ok=False, error='Name must be at most 80 characters without control characters'), 400
+        with db() as conn:
+            conn.execute('INSERT INTO admin_labels(identity,name) VALUES(?,?) ON CONFLICT(identity) DO UPDATE SET name=excluded.name', (identity.lower(), name.strip()))
+        return jsonify(ok=True, name=name.strip())
 
     @app.before_request
     def authorize():
@@ -95,6 +114,7 @@ def install(api):
         needed = MUTATIONS.get(request.endpoint) if request.method == "POST" else {
             "api_logs": "logs", "users_list": "users", "activity_list": "activity",
             "api_persistence_get": "configure",
+            "config_editor_get": "configure",
         }.get(request.endpoint, "view")
         if needed and needed not in g.permissions:
             return jsonify(ok=False, error="Your account does not have permission for this action"), 403
@@ -139,6 +159,8 @@ def install(api):
                 changed = [k for k in before.keys() | after.keys() if before.get(k) != after.get(k) and k != "mods"]
                 if changed:
                     details["changed_fields"] = changed  # Never store passwords or config values.
+                if request.endpoint == 'config_editor_save':
+                    details['changed_fields'] = sorted((request.get_json(silent=True) or {}).get('changes', {}).keys())
             audit(g.audit_actor, request.endpoint, "success" if ok else "failed", details)
         return response
 

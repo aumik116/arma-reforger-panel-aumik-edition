@@ -4,10 +4,36 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch, mock_open
 
-from runtime_ops import ProcessMetrics, read_console, launch_server
+from runtime_ops import ProcessMetrics, TrafficMetrics, read_console, launch_server
 
 
 class RuntimeTests(unittest.TestCase):
+    def test_traffic_interval_resets_and_unavailable(self):
+        metrics = TrafficMetrics()
+        self.assertEqual(metrics.sample('network', {'eth0':(100,200)}, 1)['status'], 'warming')
+        self.assertEqual(metrics.sample('network', {'eth0':(300,600)}, 3), dict(status='available',first=100,second=200))
+        self.assertEqual(metrics.sample('network', {'eth0':(999,999)}, 3.1)['first'], 100)
+        self.assertEqual(metrics.sample('network', {'eth0':(10,10)}, 4)['first'], 0)
+        self.assertEqual(metrics.sample('disk', {(5,'old'):(100,100)}, 1)['status'], 'warming')
+        self.assertEqual(metrics.sample('disk', {(5,'new'):(200,200)}, 2)['status'], 'warming')
+        with patch('builtins.open', side_effect=PermissionError):
+            self.assertEqual(metrics.read(5)['network']['status'], 'unavailable')
+            self.assertEqual(metrics.read(None)['disk']['status'], 'stopped')
+
+    def test_traffic_reads_host_and_process_counters(self):
+        from io import StringIO
+        metrics = TrafficMetrics()
+        fields = ['0'] * 22; fields[19] = '123'
+        def opened(path):
+            return StringIO({'/proc/net/dev':'lo: 999 0 0 0 0 0 0 0 999\neth0: 100 0 0 0 0 0 0 0 200\n',
+                '/proc/5/stat':'5 (arma) ' + ' '.join(fields),
+                '/proc/5/io':'read_bytes: 1024\nwrite_bytes: 2048\n'}[path])
+        with patch('builtins.open', side_effect=opened):
+            result = metrics.read(5)
+        self.assertEqual(result['disk']['status'], 'warming')
+        self.assertEqual(metrics.previous['network'][1], {'eth0':(100,200)})
+        self.assertEqual(metrics.previous['disk'][1], {(5,'123'):(1024,2048)})
+
     def test_console_bursts_repeated_lines_and_partial_line(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'console.log'

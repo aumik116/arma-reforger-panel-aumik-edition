@@ -211,6 +211,7 @@ if [[ "$MODE" == "update" ]]; then
     cp "$SCRIPT_DIR/panel_features.py" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/player_query.py" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/runtime_ops.py" "$PANEL_DIR_EXISTING/"
+    cp "$SCRIPT_DIR/config_editor.py" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/index.html" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/login.html" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/static/"*   "$PANEL_DIR_EXISTING/static/"
@@ -430,14 +431,14 @@ fi
 mkdir -p "$PANEL_DIR/static"
 
 # Copy files from script directory
-for f in app.py panel_features.py player_query.py runtime_ops.py index.html login.html; do
+for f in app.py panel_features.py player_query.py runtime_ops.py config_editor.py index.html login.html; do
     if [ -f "$SCRIPT_DIR/$f" ]; then
         cp "$SCRIPT_DIR/$f" "$PANEL_DIR/"
     else
         echo -e "      ${RED}WARNING: $f not found in script directory.${NC}"
     fi
 done
-for f in manifest.json service-worker.js features.js workspace.css icon-192.png icon-512.png; do
+for f in manifest.json service-worker.js features.js workspace.css configuration.js configuration.css icon-192.png icon-512.png; do
     if [ -f "$SCRIPT_DIR/static/$f" ]; then
         cp "$SCRIPT_DIR/static/$f" "$PANEL_DIR/static/"
     fi

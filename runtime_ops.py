@@ -36,6 +36,67 @@ class ProcessMetrics:
             return self.cpu, ram
 
 
+class TrafficMetrics:
+    """Interval rates: host interfaces and physical I/O attributed to the game process."""
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.previous = {}
+        self.cached = {}
+
+    def sample(self, key, counters, now):
+        old = self.previous.get(key)
+        if old and now - old[0] < .5:
+            return self.cached[key]
+        result = dict(status='warming', first=None, second=None)
+        if old:
+            common = counters.keys() & old[1].keys()
+            if common:
+                totals = [0, 0]
+                for identity in common:
+                    values, before = counters[identity], old[1][identity]
+                    if any(a < b for a, b in zip(values, before)):
+                        continue
+                    for index in range(2):
+                        totals[index] += values[index] - before[index]
+                result = dict(status='available', first=totals[0] / (now-old[0]), second=totals[1] / (now-old[0]))
+        self.previous[key] = (now, counters)
+        self.cached[key] = result
+        return result
+
+    def read(self, pid):
+        with self.lock:
+            now = time.monotonic()
+            result = {}
+            for key in ('network', 'disk'):
+                try:
+                    counters = {}
+                    if key == 'network':
+                        with open('/proc/net/dev') as stream:
+                            for line in stream:
+                                if ':' not in line:
+                                    continue
+                                interface, values = line.split(':', 1)
+                                if interface.strip() == 'lo':
+                                    continue
+                                values = values.split()
+                                counters[interface.strip()] = (int(values[0]), int(values[8]))
+                    elif pid:
+                        with open(f'/proc/{pid}/stat') as stream:
+                            start = stream.read().rsplit(')', 1)[1].split()[19]
+                        with open(f'/proc/{pid}/io') as stream:
+                            values = dict(line.strip().split(': ', 1) for line in stream if ': ' in line)
+                        counters[(pid, start)] = (int(values['read_bytes']), int(values['write_bytes']))
+                    if not counters:
+                        result[key] = dict(status='stopped' if key == 'disk' and not pid else 'unavailable', first=None, second=None)
+                        self.previous.pop(key, None)
+                    else:
+                        result[key] = self.sample(key, counters, now)
+                except (OSError, ValueError, IndexError, KeyError):
+                    self.previous.pop(key, None)
+                    result[key] = dict(status='unavailable', first=None, second=None)
+            return result
+
+
 def read_console(path, cursor=None, initial_lines=80, limit=262144):
     """Opaque cursor never supplies a path. Read at most 256 KiB per request."""
     with open(path, 'rb') as stream:

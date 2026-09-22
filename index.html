@@ -455,6 +455,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 @media(max-width:480px) { .panel-tab { font-size:13px; padding:12px 5px; } }
 </style>
 <link rel="stylesheet" href="/static/workspace.css">
+<link rel="stylesheet" href="/static/configuration.css">
 </head>
 <body>
 <div class="layout">
@@ -560,6 +561,21 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     </div>
   </div>
 
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">Network traffic — host interfaces</div>
+      <div class="traffic-values"><span class="traffic-first">↓ Receive <strong id="net-rx">—</strong></span><span class="traffic-second">↑ Send <strong id="net-tx">—</strong></span></div>
+      <div class="chart-sub" id="net-state">Waiting for sample</div>
+      <div class="chart-wrap"><canvas id="chart-network" aria-label="Host network receive and send rates"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Disk activity — Arma process</div>
+      <div class="traffic-values"><span class="traffic-first">Read <strong id="disk-read">—</strong></span><span class="traffic-second">Write <strong id="disk-write">—</strong></span></div>
+      <div class="chart-sub" id="disk-state">Waiting for sample</div>
+      <div class="chart-wrap"><canvas id="chart-disk" aria-label="Arma disk read and write rates"></canvas></div>
+    </div>
+  </div>
+
   <!-- Live Logs -->
   <div data-permission="logs" hidden class="log-viewer-card" id="console-card" tabindex="-1">
     <div class="log-viewer-header">
@@ -584,73 +600,35 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 
   <section class="tab-panel" id="panel-configuration" role="tabpanel" aria-labelledby="tab-configuration" hidden>
   <p class="feature-note" id="configuration-readonly" hidden>A Manager or Administrator can change server configuration. View mods and presets in the Mods section.</p>
-  <!-- Config -->
-  <div class="card" style="animation-delay:0.15s" data-permission="configure" hidden>
-    <div class="card-label">Server Configuration</div>
-    <div class="config-grid">
-      <div class="field-group">
-        <label for="input-name">Server name</label>
-        <input type="text" id="input-name" placeholder="e.g. Conflict Everon" maxlength="64" />
+  <div id="configuration-editor" data-permission="configure" hidden>
+    <div class="config-toolbar">
+      <div class="config-modes" role="tablist" aria-label="Configuration view">
+        <button id="config-visual-tab" role="tab" aria-controls="config-visual" aria-selected="true" onclick="setConfigurationView('visual')">Visual controls</button>
+        <button id="config-json-tab" role="tab" aria-controls="config-json" aria-selected="false" tabindex="-1" onclick="setConfigurationView('json')">{ } Raw JSON</button>
       </div>
-      <div class="field-group field-group--mission">
-        <label for="input-mission">Scenario / Mission</label>
-        <div class="field-aux">
-          <span id="scenario-source-badge"></span>
-          <button type="button" id="btn-rescan-scenarios" class="link-btn" onclick="rescanScenarios()">Rescan from mods</button>
-        </div>
-        <select id="input-mission"></select>
-      </div>
-      <div class="field-group">
-        <label for="input-password">Game password (blank = no password)</label>
-        <input type="text" id="input-password" placeholder="Leave blank to remove the password" maxlength="64" />
-      </div>
-      <div class="field-group">
-        <label for="input-password-admin">Admin password</label>
-        <input type="text" id="input-password-admin" placeholder="Admin password" maxlength="64" />
-      </div>
+      <button class="config-button" onclick="reloadConfiguration()">Reload from disk</button>
     </div>
-    <button class="btn-save" id="btn-save" onclick="saveConfig()">Save changes</button>
-    <div class="restart-notice" id="restart-notice">⚠ Changes will take effect after the server restarts</div>
+    <div class="config-summary" id="config-summary"></div>
+    <p class="config-note" id="config-loading">Open this section to load configuration.</p>
+    <fieldset id="config-fields" disabled>
+      <div id="config-visual" role="tabpanel" aria-labelledby="config-visual-tab"></div>
+      <div id="config-json" role="tabpanel" aria-labelledby="config-json-tab" hidden>
+        <div class="config-json-heading"><div><h3>Configuration JSON</h3><p>Read-only preview of the complete draft, including mods and custom fields. Passwords are included.</p></div><button class="config-button" type="button" onclick="copyConfigurationJson()">Copy JSON</button></div>
+        <textarea id="config-json-text" readonly spellcheck="false" aria-label="Complete configuration JSON"></textarea>
+      </div>
+      <div class="config-savebar">
+        <div><strong id="config-dirty">No unsaved changes</strong><p id="config-feedback" role="status" aria-live="polite">Changes apply on the next server start. Saving does not restart it.</p></div>
+        <div class="config-actions"><button class="config-button" id="config-reset" onclick="resetConfiguration()" disabled>Discard edits</button><button class="config-button" onclick="submitConfiguration(false)">Validate</button><button class="config-button primary" id="config-save" onclick="submitConfiguration(true)" disabled>Save configuration</button></div>
+      </div>
+    </fieldset>
   </div>
 
-  <!-- Persistence -->
-  <div class="card" style="animation-delay:0.2s" data-permission="configure" hidden>
-    <div class="card-label">Persistence</div>
-    <div style="font-size:11.5px;color:var(--muted);line-height:1.6;margin-bottom:14px;">
-      Server launches always pass <code>-loadSessionSave</code>, so any existing save is loaded on
-      start. This toggle writes the <code>game.gameProperties.persistence</code> block in
-      <code>config.json</code> — enable to autosave every N minutes, disable to stop writing new
-      saves (existing saves still load on start; use <strong>Flush saves</strong> to start fresh).
-      Session save only works in scenarios that implement it (Conflict, Combat Ops); Game Master
-      needs manual saves from Esc.
-    </div>
-    <div class="config-grid">
-      <div class="field-group">
-        <label for="input-persist-enabled">Enabled</label>
-        <select id="input-persist-enabled">
-          <option value="false">Disabled</option>
-          <option value="true">Enabled</option>
-        </select>
-      </div>
-      <div class="field-group">
-        <label for="input-persist-interval">Auto-save interval (minutes, 0–60)</label>
-        <input type="number" id="input-persist-interval" min="0" max="60" step="1" value="10" />
-      </div>
-      <div class="field-group">
-        <label for="input-persist-hive">Hive ID (0–16383)</label>
-        <input type="number" id="input-persist-hive" min="0" max="16383" step="1" value="1" />
-      </div>
-    </div>
-    <div id="persist-stats" style="font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.6;"></div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
-      <button class="btn-save" id="btn-persist-save" onclick="savePersistence()">Save changes</button>
-      <button class="btn-save" id="btn-persist-flush" onclick="flushPersistence()"
-              style="background:transparent;border:1px solid var(--offline);color:var(--offline);">
-        Flush saves
-      </button>
-    </div>
-    <div class="restart-notice" id="persist-restart-notice">⚠ Restart required for persistence changes to take effect</div>
-  </div>
+  <details class="card config-maintenance" data-permission="configure" hidden>
+    <summary>Save-file maintenance</summary>
+    <p class="feature-note">Inspect or clear existing saves. Configure save timing and retention in Persistence above.</p>
+    <div id="persist-stats" class="feature-note"></div>
+    <button class="config-button" id="btn-persist-flush" onclick="flushPersistence()">Flush saves</button>
+  </details>
 
   </section>
 
@@ -862,6 +840,28 @@ const ramChart = new Chart(document.getElementById('chart-ram'), {
   options: chartOpts(100)
 });
 
+function trafficChart(id, unit) {
+  const data = makeChartData('#c8a84b');
+  data.datasets.push(makeChartData('#4caf7d').datasets[0]);
+  const options = chartOpts(undefined);
+  options.scales.y.ticks.callback = value => value + ' ' + unit;
+  return new Chart(document.getElementById(id), {type:'line', data, options});
+}
+const networkChart = trafficChart('chart-network', 'Mbps');
+const diskChart = trafficChart('chart-disk', 'MiB/s');
+
+function renderTraffic(sample, chart, ids, statusId, factor, unit, scope) {
+  const available = sample?.status === 'available';
+  [sample?.first, sample?.second].forEach((value, index) => {
+    const rate = available && Number.isFinite(value) ? value * factor : null;
+    document.getElementById(ids[index]).textContent = rate === null ? '—' : rate.toFixed(2) + ' ' + unit;
+    const values = chart.data.datasets[index].data;
+    values.push(rate); if (values.length > MAX_POINTS) values.shift();
+  });
+  document.getElementById(statusId).textContent = available ? scope : sample?.status === 'warming' ? 'Collecting first interval…' : sample?.status === 'stopped' ? 'Server stopped' : 'Metrics unavailable';
+  chart.update('none');
+}
+
 function pushChart(chart, value) {
   chart.data.datasets[0].data.push(value);
   if (chart.data.datasets[0].data.length > MAX_POINTS)
@@ -888,7 +888,12 @@ async function fetchMetrics() {
 
     pushChart(cpuChart, d.cpu ?? 0);
     pushChart(ramChart, ramPct);
-  } catch(e) {}
+    renderTraffic(d.network, networkChart, ['net-rx','net-tx'], 'net-state', 8 / 1000000, 'Mbps', 'All non-loopback interfaces; includes other host traffic');
+    renderTraffic(d.disk, diskChart, ['disk-read','disk-write'], 'disk-state', 1 / 1048576, 'MiB/s', 'Storage reads/writes attributed to the game process');
+  } catch(e) {
+    renderTraffic(null, networkChart, ['net-rx','net-tx'], 'net-state', 1, 'Mbps', '');
+    renderTraffic(null, diskChart, ['disk-read','disk-write'], 'disk-state', 1, 'MiB/s', '');
+  }
   finally { metricsPending = false; }
 }
 
@@ -995,85 +1000,11 @@ function updateUI(d) {
     document.getElementById('btn-reset').disabled = false;
   }
 
-  const nameInput = document.getElementById('input-name');
-  if (document.activeElement !== nameInput) nameInput.value = d.server_name || '';
-
-  const pwdInput = document.getElementById('input-password');
-  if (document.activeElement !== pwdInput) pwdInput.value = d.password || '';
-
-  const pwdAdminInput = document.getElementById('input-password-admin');
-  if (document.activeElement !== pwdAdminInput) pwdAdminInput.value = d.password_admin || '';
-
   if (d.csrf) CSRF = d.csrf;
-  renderMissionSelect(d.missions || [], d.missions_count, d.scenario_id);
 
   // Render the mod list
   renderMods(d.mods || []);
   if (typeof applyPermissions === 'function') applyPermissions();
-}
-
-function renderMissionSelect(missions, counts, currentId) {
-  const sel = document.getElementById('input-mission');
-  // Always rebuild — discovered scenarios can change as the workshop populates.
-  const prev = sel.value || currentId || '';
-  sel.innerHTML = '';
-  // Group by source: vanilla first, then per-mod alphabetical.
-  const groups = {};
-  missions.forEach(m => {
-    const key = m.source || 'vanilla';
-    (groups[key] = groups[key] || []).push(m);
-  });
-  const sourceKeys = Object.keys(groups).sort((a, b) => {
-    if (a === 'vanilla') return -1;
-    if (b === 'vanilla') return 1;
-    return a.localeCompare(b);
-  });
-  sourceKeys.forEach(src => {
-    const og = document.createElement('optgroup');
-    og.label = src === 'vanilla' ? 'Base game' : src;
-    groups[src].forEach(m => {
-      const opt = document.createElement('option');
-      opt.value = m.id;
-      opt.textContent = m.name;
-      og.appendChild(opt);
-    });
-    sel.appendChild(og);
-  });
-  if (prev) sel.value = prev;
-
-  // Update the badge near the select if present.
-  const badge = document.getElementById('scenario-source-badge');
-  if (badge && counts) {
-    badge.textContent = `${counts.vanilla} vanilla · ${counts.from_mods} from mods`;
-  }
-}
-
-async function rescanScenarios() {
-  const btn = document.getElementById('btn-rescan-scenarios');
-  if (btn) btn.disabled = true;
-  setLog('Scanning installed mods for scenarios…', 'info');
-  try {
-    const r = await postJson('/api/scenarios/rescan', {});
-    const d = await r.json();
-    if (d.ok) {
-      renderMissionSelect(d.missions, d.missions_count);
-      const diag = d.diag || {};
-      let msg = `Vanilla: ${d.missions_count.vanilla} · From mods: ${d.missions_count.from_mods}`;
-      if (diag.workshop_dir) {
-        const n = diag.metas_found ?? diag.paks_found ?? 0;
-        msg += ` (scanned ${n} addon${n === 1 ? '' : 's'} in ${diag.workshop_dir})`;
-      } else {
-        const tried = (diag.candidates_tried || []).map(c => c.path).slice(0, 3).join(', ');
-        msg += `. No .pak files found. Tried: ${tried}${(diag.candidates_tried || []).length > 3 ? '…' : ''}. Run the server once so it downloads workshop mods, or set WORKSHOP_DIR in config.env.`;
-      }
-      setLog(msg, diag.workshop_dir ? 'ok' : 'error');
-      // Stash full diagnostics in console for deep debugging.
-      if (diag) console.log('[rescan diagnostics]', diag);
-    } else {
-      setLog('Rescan failed: ' + (d.error || 'unknown'), 'error');
-    }
-  } catch(e) { setLog('Rescan error', 'error'); }
-  if (btn) btn.disabled = false;
 }
 
 function renderMods(mods) {
@@ -1210,7 +1141,7 @@ function setLog(msg, type = 'info') {
 
 function setBusy(state) {
   busy = state;
-  ['btn-start','btn-stop','btn-reset','btn-save','btn-persist-save','btn-persist-flush'].forEach(id => {
+  ['btn-start','btn-stop','btn-reset','btn-persist-flush'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.disabled = state;
   });
@@ -1232,31 +1163,6 @@ async function serverAction(action) {
       await fetchStatus();
     } else {
       setLog('Error: ' + (d.error || 'unknown'), 'error');
-    }
-  } catch(e) { setLog('Connection error', 'error'); }
-  setBusy(false);
-}
-
-async function saveConfig() {
-  const name     = document.getElementById('input-name').value.trim();
-  const scenario = document.getElementById('input-mission').value;
-  const password = document.getElementById('input-password').value;
-  const pwdAdmin = document.getElementById('input-password-admin').value.trim();
-
-  if (!name)     { setLog('Server name cannot be empty', 'error'); return; }
-  if (!pwdAdmin) { setLog('Admin password cannot be empty', 'error'); return; }
-
-  setBusy(true);
-  setLog('Saving configuration...', 'info');
-  try {
-    const r = await postJson('/api/config', { server_name: name, scenario_id: scenario, password, password_admin: pwdAdmin });
-    const d = await r.json();
-    if (d.ok) {
-      setLog('Configuration saved', 'ok');
-      document.getElementById('restart-notice').classList.toggle('visible', !!d.restart_required);
-      await fetchStatus();
-    } else {
-      setLog('Save failed: ' + (d.error || 'unknown'), 'error');
     }
   } catch(e) { setLog('Connection error', 'error'); }
   setBusy(false);
@@ -1297,34 +1203,9 @@ function _renderPersistStats(s) {
 async function fetchPersistence() {
   if (typeof can === 'function' && !can('configure')) return;
   try {
-    const r = await fetch('/api/persistence');
-    if (!r.ok) return;
-    const d = await r.json();
-    document.getElementById('input-persist-enabled').value  = d.enabled ? 'true' : 'false';
-    document.getElementById('input-persist-interval').value = d.autoSaveInterval;
-    document.getElementById('input-persist-hive').value     = d.hiveId;
-    _renderPersistStats(d);
-  } catch (e) { /* panel is the source of truth; silent on transient errors */ }
-}
-
-async function savePersistence() {
-  const enabled  = document.getElementById('input-persist-enabled').value === 'true';
-  const interval = parseInt(document.getElementById('input-persist-interval').value, 10);
-  const hive     = parseInt(document.getElementById('input-persist-hive').value, 10);
-  setBusy(true);
-  setLog('Saving persistence settings...', 'info');
-  try {
-    const r = await postJson('/api/persistence', { enabled, autoSaveInterval: interval, hiveId: hive });
-    const d = await r.json();
-    if (d.ok) {
-      setLog(enabled ? 'Persistence enabled' : 'Persistence disabled', 'ok');
-      document.getElementById('persist-restart-notice').classList.toggle('visible', !!d.restart_required);
-      await fetchPersistence();
-    } else {
-      setLog('Save failed: ' + (d.error || 'unknown'), 'error');
-    }
-  } catch (e) { setLog('Connection error', 'error'); }
-  setBusy(false);
+    const response = await fetch('/api/persistence');
+    if (response.ok) _renderPersistStats(await response.json());
+  } catch(e) { /* Status refresh can retry later. */ }
 }
 
 async function flushPersistence() {
@@ -1371,5 +1252,6 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 <script src="/static/features.js"></script>
+<script src="/static/configuration.js"></script>
 </body>
 </html>

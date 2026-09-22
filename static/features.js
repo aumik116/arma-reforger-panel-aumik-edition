@@ -22,8 +22,9 @@ function selectPanelTab(tab) {
     'tab-administration': 'Manage your account, permissions and activity.'
   }[tab.id];
   window.scrollTo({top:0});
+  if (tab.id === 'tab-configuration' && can('configure') && typeof loadConfiguration === 'function') loadConfiguration();
   if (tab.id === 'tab-dashboard') {
-    requestAnimationFrame(() => { cpuChart.resize(); ramChart.resize(); });
+    requestAnimationFrame(() => { cpuChart.resize(); ramChart.resize(); networkChart.resize(); diskChart.resize(); });
     fetchMetrics();
   }
 }

@@ -65,6 +65,80 @@ class PanelTests(unittest.TestCase):
             session['logged_in'] = True
         self.assertEqual(client.get('/api/status').status_code, 401)
 
+    def test_config_editor_preserves_unknown_fields_and_rejects_stale_drafts(self):
+        cfg = json.loads(self.config.read_text())
+        cfg['customExtension'] = {'keep': [1, 2]}
+        cfg['game']['mods'] = [{'modId': 'ABC123', 'required': False}]
+        self.config.write_text(json.dumps(cfg))
+        loaded = self.admin.get('/api/config/editor').json
+        payload = {'revision': loaded['revision'], 'changes': {
+            'game.maxPlayers': 96, 'game.gameProperties.disableThirdPerson': True,
+            'game.gameProperties.persistence.saveRetention': 12, 'publicPort': 2002}}
+        validated = self.post(self.admin, '/api/config/validate', payload)
+        self.assertTrue(validated.json['ok'], validated.json)
+        self.assertEqual(json.loads(self.config.read_text()), cfg)
+        saved = self.post(self.admin, '/api/config/editor', payload)
+        self.assertTrue(saved.json['ok'], saved.json)
+        result = json.loads(self.config.read_text())
+        self.assertEqual(result['customExtension'], cfg['customExtension'])
+        self.assertEqual(result['game']['mods'], cfg['game']['mods'])
+        self.assertEqual(result['game']['maxPlayers'], 96)
+        self.assertEqual(result['publicPort'], 2002)
+        self.assertEqual(self.post(self.admin, '/api/config/editor', payload).status_code, 409)
+
+    def test_config_editor_validation_and_secret_access(self):
+        loaded = self.admin.get('/api/config/editor').json
+        initial = self.config.read_text()
+        for changes in [
+            {'game.maxPlayers': True}, {'game.maxPlayers': 129},
+            {'game.gameProperties.networkViewDistance': 200},
+            {'game.gameProperties.serverMinGrassDistance': 20},
+            {'game.admins': ['bad-id']}, {'game.visible': 'true'},
+            {'rcon.password': 'has spaces'}, {'rcon.maxClients': 5},
+            {'game.mods': []}, {'publicPort': 0}, {'publicAddress': 'not-an-address'},
+            {'game.scenarioId': 'not-a-resource'}, {'game.name': None},
+        ]:
+            response = self.post(self.admin, '/api/config/editor', {'revision':loaded['revision'], 'changes':changes})
+            self.assertEqual(response.status_code, 400, (changes, response.json))
+            self.assertEqual(self.config.read_text(), initial)
+        self.create('configviewer', 'viewer')
+        viewer = self.login('configviewer')
+        self.assertEqual(viewer.get('/api/config/editor').status_code, 403)
+        self.assertEqual(self.module.app.test_client().get('/api/config/editor').status_code, 401)
+        self.assertEqual(self.admin.post('/api/config/editor', json={'revision':loaded['revision'], 'changes':{}}).status_code, 403)
+
+    def test_config_editor_custom_scenario_rcon_and_defaults(self):
+        loaded = self.admin.get('/api/config/editor').json
+        payload = {'revision':loaded['revision'], 'changes': {
+            'game.scenarioId':'{1234567890ABCDEF}Missions/Custom.conf',
+            'rcon.address':'127.0.0.1', 'rcon.password':'unique-test-secret',
+            'rcon.permission':'monitor', 'rcon.port':19999,
+            'game.maxPlayers':64}}
+        saved = self.post(self.admin, '/api/config/editor', payload)
+        self.assertTrue(saved.json['ok'], saved.json)
+        self.assertNotIn('unique-test-secret', json.dumps(self.admin.get('/api/activity').json))
+        reset = self.post(self.admin, '/api/config/editor', {'revision':saved.json['revision'], 'changes':{'game.maxPlayers':None}})
+        self.assertTrue(reset.json['ok'])
+        self.assertNotIn('maxPlayers', reset.json['config']['game'])
+        self.assertEqual(reset.json['config']['rcon']['password'], 'unique-test-secret')
+
+    def test_config_editor_refuses_corrupt_existing_file(self):
+        self.config.write_text('{broken')
+        self.assertEqual(self.admin.get('/api/config/editor').status_code, 400)
+        result = self.post(self.admin, '/api/config/editor', {'changes':{'game.maxPlayers':32}})
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(self.config.read_text(), '{broken')
+
+    def test_admin_name_labels_persist_without_changing_access(self):
+        original = self.config.read_text()
+        identity = '12345678-abcd-abcd-abcd-123456789012'
+        result = self.post(self.admin, '/api/admin-labels', {'identity':identity, 'name':'Ranger One'})
+        self.assertTrue(result.json['ok'])
+        self.assertEqual(self.admin.get('/api/config/editor').json['admin_labels'][identity], 'Ranger One')
+        self.assertEqual(self.config.read_text(), original)
+        self.assertEqual(self.post(self.admin, '/api/admin-labels', {'identity':'bad', 'name':'Name'}).status_code, 400)
+        self.assertEqual(self.post(self.admin, '/api/admin-labels', {'identity':identity, 'name':['bad']}).status_code, 400)
+
     def test_disable_revoke_and_self_protection(self):
         user = self.create('helper', 'operator')
         client = self.login('helper')

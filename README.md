@@ -1,79 +1,96 @@
 # Arma Reforger Server Management Panel
 
-A lightweight, self-hosted web panel for managing your **Arma Reforger dedicated server** on Linux. The all-in-one installer sets up everything from scratch — SteamCMD, the game server, and the panel — on a clean Ubuntu VPS.
-
----
+A self-hosted web panel for managing an Arma Reforger dedicated server on Linux. Control your server, configure gameplay, manage mods and monitor activity from your browser.
 
 ## Features
 
-- **Connected players** — username dropdown with player ID, identity and first-observed time, queried through RCON
-- **Mod presets** — save, overwrite, apply and delete named mod lists, including versions
-- **Individual accounts** — Administrator, Manager, Operator and Viewer roles enforced on every API request
-- **Activity history** — persistent actor, timestamp, result and mod changes for panel operations
-- **English interface** — all panel labels, feedback, login and PWA text in English
+- **Server controls:** start, stop and restart the game server.
+- **Live dashboard:** CPU, memory, network traffic and disk activity charts.
+- **Server console:** live logs with highlighted errors and warnings.
+- **Detailed configuration:** grouped settings for identity, access, networking, gameplay, RCON, operating behavior and persistence.
+- **Raw JSON view:** inspect and copy the complete configuration draft alongside the visual controls.
+- **Named scenarios:** select built-in and discovered mod scenarios by name, or enter a custom scenario resource.
+- **Mod management:** add and remove mods, specify versions, import JSON lists and save reusable presets.
+- **Connected players:** view player names, IDs and when the panel first observed them.
+- **Administrator labels:** save a readable name beside an in-game administrator UUID or Steam ID.
+- **Individual accounts:** four permission levels and a history of panel operations.
+- **Responsive interface:** charcoal-and-gold styling with separate Dashboard, Server config, Mods and Administration sections.
 
-- **One-command install** — sets up SteamCMD, downloads the Arma Reforger server and installs the panel automatically
-- **Server control** — Start, stop and restart your server from the browser
-- **Tabbed interface** — Dashboard, Configuration and Administration keep the panel organized; everyone can change their own password in Administration
-- **Real-time monitoring** — Live CPU and RAM charts refresh every second while the Dashboard is visible; overlapping requests are prevented
-- **Live log streaming** — Server console logs with colour-coded output (errors, warnings, network events)
-- **Mission selector** — 41 built-in missions including all vanilla and RHS — Status Quo scenarios
-- **Mod management** — Add and remove Workshop mods directly from the panel
-- **Config editor** — Edit server name, scenario, passwords without touching the filesystem
-- **PWA support** — Installable as a native app on Android and iOS
-- **Single config file** — All settings in one `config.env`, no code editing required
+## Installation
 
----
+Use an x86_64 Linux server with Python 3.10 or newer. The installer is intended for Ubuntu and installs the required packages. Allow enough memory and disk space for your scenario, player count and Workshop mods.
 
-## Requirements
+### New game server and panel
 
-| Component | Requirement |
-|-----------|-------------|
-| OS | Ubuntu 20.04 / 22.04 / 24.04 |
-| Architecture | x86_64 |
-| RAM | 4 GB minimum, 8 GB recommended |
-| Disk | 20 GB free (Arma server is ~15 GB) |
-| Python | 3.10+ (installed automatically) |
+```bash
+git clone https://github.com/aumik116/arma-reforger-panel-aumik-edition.git
+cd arma-reforger-panel-aumik-edition
+sudo bash install.sh
+```
 
-## Accounts, presets and activity
+The installer asks for a system user, server name, passwords, player limit, network settings and panel port. It installs SteamCMD, the dedicated server and the panel.
 
-On the first launch of this version, the panel creates an `admin` account using
-your existing panel password. Sign in with username `admin` and that password.
-Existing shared-password sessions must sign in again. Change your password in
-**My account**, then create individual accounts in **User accounts**.
+### Panel for an existing game server
 
-| Role | Permissions |
-|------|-------------|
-| Viewer | Status, metrics, connected players, configured mods and saved presets |
-| Operator | Viewer permissions plus start/stop/restart and server console logs |
-| Manager | Operator permissions plus configuration, persistence, mods, presets and activity history |
-| Administrator | All features plus create, edit, disable and delete accounts |
+```bash
+git clone https://github.com/aumik116/arma-reforger-panel-aumik-edition.git
+cd arma-reforger-panel-aumik-edition
+sudo bash install.sh --panel-only
+```
 
-Password changes, role changes and disabling an account invalidate its previous
-sessions. Administrators cannot delete or demote their own account. Passwords
-are bcrypt hashed; new passwords require at least 10 characters (maximum 72
-UTF-8 bytes).
+Provide the paths to your existing server directory, configuration file and logs when prompted.
 
-**Save current mods as preset** snapshots the configured mod list and versions.
-**Apply selected preset** replaces that list without changing the mission or
-automatically restarting the server. Restart a running server to load the new
-mods. Check that your chosen mission is supported by the applied mods.
+### Open the panel
 
-Activity history covers actions performed through this panel, including server
-controls, config changes, mod additions/removals/imports, presets, accounts and
-persistence. It records successful and failed authorized operations. It does
-not capture external SSH, systemd or in-game admin commands. Password values are
-never included in activity records.
+Visit `http://YOUR_SERVER_IP:8888`, or the port selected during installation. Sign in as `admin` using the panel password set during installation. You can change that password in **Administration → My account**.
 
-Accounts, presets and history are stored in `.panel-data.sqlite3` next to
-`app.py`, preserved by `install.sh --update`. Back it up along with
-`.panel-secret` and `config.env`. Once accounts exist, changing the bootstrap
-password in `config.env` does not change their passwords; use account management.
+## Using the panel
 
-## Connected-player setup
+### Dashboard
 
-The panel queries native Reforger `#players` over RCON. Enable an `rcon` block in
-your server's `config.json`, using a unique password, then restart the server:
+Start, stop or restart the server and monitor its activity:
+
+| Panel | What it measures |
+|---|---|
+| CPU | Arma process usage as a percentage of total host CPU capacity |
+| Memory | System memory usage, with the Arma process usage shown separately |
+| Network traffic | Receive and send rates across non-loopback host interfaces, including traffic from other services |
+| Disk activity | Storage reads and writes attributed to the Arma process |
+
+Charts refresh while the dashboard is visible. Counters need an initial sample before rates appear. Missing or inaccessible counters show **unavailable**. Network totals can include virtual interfaces; disk activity is not a disk-capacity indicator.
+
+The live console displays recent server output. Full historical output remains in the server log files.
+
+### Server config
+
+Settings are grouped into Identity, Network, Access, Gameplay, Remote console, Operating and Persistence cards.
+
+1. Edit the settings you want to change.
+2. Select **Validate** to check the edited values without saving.
+3. Select **Save configuration** to write your changes.
+4. Restart the game server when ready to apply them.
+
+Saving does not restart the server. **Use default** removes an explicit setting so the engine can use its default. Untouched settings, custom configuration fields and mods are preserved.
+
+**Raw JSON** is a read-only view of the complete draft, including unsaved edits. It includes passwords, so take care when copying or sharing it. Configuration access is restricted to Managers and Administrators.
+
+If the configuration changes after you load it, saving is blocked to prevent overwriting newer changes. **Reload from disk** loads the latest file and asks before discarding unsaved edits.
+
+The scenario picker displays readable names. Use **Rescan installed scenarios** after installing mods, or select **Custom scenario** to enter a resource directly. The selected scenario must be available to the game server.
+
+Under **In-game administrators**, enter UUIDs or Steam IDs and save the configuration to update access. Each ID also has a name field with its own **Save name** button. These labels are stored in the panel and do not grant or remove administrator access.
+
+Persistence behavior depends on the scenario. The current server launcher includes `-loadSessionSave`, which must be considered alongside the JSON session-loading option. **Save-file maintenance** lets you inspect and flush existing saves; the server must be stopped before flushing them.
+
+### Mods
+
+Add individual Workshop mods by ID or import a JSON mod list. Imports can replace the configured list or merge new entries into it. A version can be specified for each mod.
+
+Save named presets to reuse mod lists. Applying a preset replaces the configured mods and versions without changing the scenario or restarting the game. Restart the server to load the new list, and ensure the scenario matches your chosen mods.
+
+### Connected players and RCON
+
+Configure the following RCON settings through **Server config → Remote console**, or add this block to your server configuration:
 
 ```json
 "rcon": {
@@ -84,181 +101,83 @@ your server's `config.json`, using a unique password, then restart the server:
 }
 ```
 
-The panel reads these settings automatically. `RCON_HOST`, `RCON_PORT` and
-`RCON_PASSWORD` in `config.env` can override its connection settings. Keep the
-RCON UDP port private. Ensure any RCON command whitelist allows `#players`.
-The client sends `@logout` after each query (supported by Reforger 1.2.1+).
+Restart the game server after changing its RCON listener. Keep the RCON UDP port private. If a command whitelist is configured, allow `#players`.
 
-The dropdown refreshes every ten seconds. **First observed by panel** means when
-the panel first saw that player during monitoring; it is not an authoritative
-connection duration and resets when the panel restarts. Unconfigured, failed or
-unrecognized queries display **unavailable**, not a misleading zero count.
-Live RCON behavior must be verified against your installed game-server version.
+The panel reads the server's RCON settings automatically. `RCON_HOST`, `RCON_PORT` and `RCON_PASSWORD` in `config.env` override its connection settings; editing the server listener does not update these overrides.
 
-References: [Bohemia server configuration](https://community.bistudio.com/wiki/Arma_Reforger:Server_Config),
-[server commands](https://community.bistudio.com/wiki/Arma_Reforger:Server_Management),
-[BattlEye RCON protocol](https://www.battleye.com/downloads/BERConProtocol.txt).
+The player list refreshes every ten seconds. **First observed by panel** is the time the panel first saw a player, not their exact connection time. It resets when the panel restarts.
 
-## Development checks
+### Accounts and activity
 
-With Flask and bcrypt installed, run `python -m unittest discover -s tests -v`.
-Tests use temporary configurations and mock server processes and RCON sockets;
-they do not start or stop a real game server.
+| Role | Permissions |
+|---|---|
+| Viewer | Status, metrics, connected players, mods and presets |
+| Operator | Viewer permissions plus server controls and console logs |
+| Manager | Operator permissions plus configuration, persistence, mod changes, presets, administrator labels and activity history |
+| Administrator | All features plus account management |
 
-Run `bash tests/test_installer.sh` for the installer checks. These simulate
-SteamCMD self-updates, transient and permanent download failures, misleading exit
-statuses and missing server binaries without installing anything.
+Create individual accounts in **Administration**. Every user can change their own password. New passwords require at least 10 characters and cannot exceed 72 UTF-8 bytes.
 
-### Recovering a failed SteamCMD install
+Password changes, role changes and disabling an account invalidate its existing sessions. Administrators cannot delete or demote their own account.
 
-If a fresh install stops at `Failed to install app '1874900' (Missing configuration)`,
-update this checkout and rerun the full installer:
+Activity history records operations made through the panel. It does not record commands issued through SSH or directly in-game. Password values are excluded from activity records.
+
+## Updating
+
+From your checkout:
 
 ```bash
 git pull --ff-only
-sudo bash install.sh
-```
-
-The installer now finishes SteamCMD's own update in a separate invocation, runs
-it with the Arma user's home and SteamCMD working directory, and retries failed
-downloads up to three times. It retains the downloaded files between attempts.
-It continues only after SteamCMD reports success for the correct app, exits
-successfully, and the server executable is present and nonempty.
-
-Each run saves its bootstrap and download output under
-`/home/arma/steamcmd/install-logs/run-*/` (adjust for a custom system user).
-If all attempts fail, the installer stops and prints the exact log directory.
-Keep these logs to diagnose persistent Steam/network/disk failures. It does not
-automatically delete Steam caches. Existing `config.json`, panel `config.env`,
-accounts, presets and activity history are preserved when rerunning with the
-same system user. The selected prompts apply to newly created configuration;
-existing configuration retains its saved values.
-
----
-
-## Installation
-
-### Option A — Full install (recommended for a fresh VPS)
-
-Sets up everything: SteamCMD, Arma Reforger Dedicated Server, and the management panel.
-
-```bash
-git clone https://github.com/aumik116/arma-reforger-panel-aumik-edition.git
-cd arma-reforger-panel-aumik-edition
-sudo bash install.sh
-```
-
-The installer will ask you for:
-- System username (default: `arma`)
-- Server name, game password, admin password
-- Max players, game port, public IP
-- Panel web password and port
-
-After ~15 minutes your server is running and the panel is accessible at:
-```
-http://YOUR_SERVER_IP:8888
-```
-
----
-
-### Option B — Panel only (server already installed)
-
-If you already have Arma Reforger server running and only want the web panel:
-
-```bash
-git clone https://github.com/aumik116/arma-reforger-panel-aumik-edition.git
-cd arma-reforger-panel-aumik-edition
-sudo bash install.sh --panel-only
-```
-
-The installer will ask for your existing server paths (`SERVER_DIR`, `config.json`, log directory).
-
----
-
-### Option C — Update panel files only
-
-After pulling a new version from GitHub:
-
-```bash
-git pull
 sudo bash install.sh --update
 ```
 
-This copies updated panel files and restarts the panel service. Your `config.env` is preserved.
+The update replaces panel files and restarts the panel service. It preserves `config.env`, accounts, presets and activity history. It does not request a game-server restart.
 
-The update also configures separate game control through `arma-server.service`,
-with sudo permission limited to starting and stopping that service. A compatibility
-override preserves games launched by older panel versions during panel updates.
-On your next normal game restart, the game moves to its own service. No game
-restart is requested by the update itself. The service launcher reads your saved
-`SERVER_DIR`, `SERVER_CONFIG`, and `MAX_FPS` settings. Custom service `ExecStart`
-overrides are replaced by the panel launcher; other service settings are preserved.
+The installer manages game control through `arma-server.service`. Updating replaces custom `ExecStart` overrides with the panel's launcher; other service settings are preserved. The launcher reads your saved `SERVER_DIR`, `SERVER_CONFIG` and `MAX_FPS` settings.
 
-Start checks that the process survives four seconds (mod loading can take longer).
-Restart waits for shutdown before launching a replacement. CPU shows recent Arma
-process usage as a percentage of total host CPU capacity, refreshed every second.
-Console polling uses file positions to retain repeated lines and catch up after
-busy bursts; the browser keeps the latest 800 displayed lines. Rotation starts a
-new console view; full historical output remains in the server's log files.
+## Panel settings and backups
 
----
+`config.env` contains panel settings and server paths. The game's settings live in the file named by `SERVER_CONFIG`, usually `config.json`.
 
-## Configuration
-
-All settings live in `config.env` (created automatically by the installer):
+Common panel settings include:
 
 ```env
-# Password for the panel web UI
-PANEL_PASSWORD=changeme
-
-# Port the panel listens on
 PANEL_PORT=8888
-
-# Path to your Arma Reforger server binary directory
 SERVER_DIR=/home/arma/server
-
-# Full path to your server config.json
 SERVER_CONFIG=/home/arma/server/config.json
-
-# Arma Reforger log directory
 LOG_DIR=/home/arma/.config/ArmaReforger/logs
-
-# Server FPS cap (passed as -maxFPS on startup)
 MAX_FPS=60
 ```
 
-After editing, restart the panel:
+Restart the panel after changing `config.env`. Changes to game startup settings require a game-server restart. Once accounts exist, manage their passwords through Administration rather than changing the installation password in `config.env`.
+
+Back up these files along with your game profile and saves:
+
+- `config.env` and the server's `config.json`
+- `.panel-data.sqlite3` — accounts, mod presets, administrator labels and activity history
+- `.panel-secret` — panel session signing key
+
+Stop the panel while copying its database for a consistent file backup. These files contain sensitive information; keep backups private.
+
+## Service commands
+
 ```bash
+# Panel
+sudo systemctl status arma-panel
 sudo systemctl restart arma-panel
+sudo journalctl -u arma-panel -f
+
+# Game server
+sudo systemctl status arma-server
+sudo systemctl start arma-server
+sudo systemctl stop arma-server
+sudo journalctl -u arma-server -f
 ```
 
----
+## HTTPS and custom domains
 
-## Useful Commands
+For access over the internet, place the panel behind an HTTPS reverse proxy. An nginx location can forward requests to the panel:
 
-```bash
-# ── Panel ──────────────────────────────────────────────────
-sudo systemctl status arma-panel      # check panel status
-sudo systemctl restart arma-panel     # restart panel
-sudo journalctl -u arma-panel -f      # live panel logs
-
-# ── Arma Server ────────────────────────────────────────────
-sudo systemctl start arma-server      # start server
-sudo systemctl stop arma-server       # stop server
-sudo systemctl status arma-server     # check server status
-sudo journalctl -u arma-server -f     # live server logs
-
-# ── Update ─────────────────────────────────────────────────
-git pull && sudo bash install.sh --update
-```
-
----
-
-## HTTPS / Domain (optional)
-
-To access the panel over HTTPS with a custom domain, use nginx as a reverse proxy with a Let's Encrypt certificate.
-
-Nginx config example:
 ```nginx
 location / {
     proxy_pass http://127.0.0.1:8888;
@@ -271,46 +190,24 @@ location / {
 }
 ```
 
-If you use **HestiaCP**, add a subdomain through its web interface — it handles SSL automatically.
+Configure your domain and TLS certificate on the proxy. Adjust the upstream port if you selected a different panel port.
 
----
+## Troubleshooting
 
-## Project Structure
+**SteamCMD installation failed:** retain the install logs, update your checkout and rerun the installer. It keeps downloaded files between attempts. Logs are stored under `/home/arma/steamcmd/install-logs/run-*/` by default; the installer prints the path when it fails.
 
-```
-arma-reforger-panel/
-├── app.py               # Flask backend — API, server control, metrics
-├── index.html           # Main panel UI (English)
-├── login.html           # Login screen
-├── config.env           # Your local config (excluded from git)
-├── config.env.example   # Config template
-├── install.sh           # All-in-one installer
-├── static/
-│   ├── manifest.json        # PWA manifest
-│   ├── service-worker.js    # PWA service worker
-│   ├── icon-192.png         # App icon
-│   └── icon-512.png         # App icon (large)
-└── README.md
-```
+**Players show unavailable:** check the server's RCON listener, password, permissions, command whitelist and any overrides in `config.env`.
 
----
+**A scenario is missing:** install its required mods and rescan installed scenarios. Custom resources must refer to a scenario available on the server.
 
-## RHS — Status Quo
+**Configuration changes have no effect:** restart the game server and check its logs for settings or scenarios it could not load.
 
-The panel includes mission IDs for all RHS — Status Quo scenarios. They appear automatically in the mission dropdown once you add the [RHS mod](https://reforger.armaplatform.com/workshop/595F2BF2F44836FB-RHS-Status-Quo) to your server.
+For game-specific settings, see the [Bohemia server configuration reference](https://community.bistudio.com/wiki/Arma_Reforger:Server_Config).
 
----
-
-## Contributing
-
-Pull requests and issues are welcome. Open an issue on GitHub if you run into problems or want to suggest a feature.
-
----
-
-## License
+## License and credits
 
 MIT — free to use, modify and distribute.
 
----
+Based on the panel by [Mateusz Gołębiewski](https://mateuszgolebiewski.pl).
 
-*Built by [Mateusz Gołębiewski](https://mateuszgolebiewski.pl)*
+This fork is developed with AI assistance, including code, interface changes and documentation, using OpenAI Codex.

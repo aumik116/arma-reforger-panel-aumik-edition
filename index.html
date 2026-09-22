@@ -544,7 +544,10 @@ button:disabled { opacity:.45; cursor:not-allowed; }
           <div class="chart-sub" id="proc-cpu-sub">Arma: —%</div>
         </div>
         <div>
-          <div class="chart-value cpu" id="cpu-val">—%</div>
+          <div class="metric-counter-pair">
+            <div><div class="chart-value cpu" id="cpu-val">—%</div><span class="metric-caption">Arma CPU</span></div>
+            <div><div class="chart-value cpu" id="cpu-frequency">— GHz</div><span class="metric-caption">Average CPU clock</span></div>
+          </div>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chart-cpu"></canvas></div>
@@ -556,7 +559,10 @@ button:disabled { opacity:.45; cursor:not-allowed; }
           <div class="chart-sub" id="proc-ram-sub">Arma: — MB</div>
         </div>
         <div>
-          <div class="chart-value ram" id="ram-val">—%</div>
+          <div class="metric-counter-pair">
+            <div><div class="chart-value ram" id="ram-val">—%</div><span class="metric-caption">Host memory</span></div>
+            <div><div class="chart-value ram" id="ram-capacity">— / — GiB</div><span class="metric-caption">Used / total</span></div>
+          </div>
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chart-ram"></canvas></div>
@@ -963,6 +969,7 @@ Chart.register(eventMarkers);
 for (const [id, title, series, unit, description] of metricDefinitions) {
   const card = document.createElement('div'); card.className = 'chart-card';
   card.innerHTML = `<div class="chart-header"><div><div class="chart-title">${title}</div><div class="chart-sub" id="metric-${id}-value">Unavailable</div></div></div><div class="chart-wrap" style="height:120px"><canvas id="chart-${id}" role="img" aria-label="${title}"></canvas></div><p class="feature-note" id="metric-${id}-note">${description}</p>`;
+  if (id === 'fps') { const value = document.createElement('div'); value.className='chart-value ram'; value.id='server-fps-value'; value.textContent='— FPS'; card.querySelector('.chart-header').append(value); }
   document.getElementById('extra-metrics').append(card);
   const options = chartOpts(undefined);
   options.scales.y.ticks.callback = v => v + ' ' + unit;
@@ -973,6 +980,10 @@ for (const [id, title, series, unit, description] of metricDefinitions) {
   extraCharts[id] = new Chart(card.querySelector('canvas'), {type:'line', data, options});
 }
 function updateExtraMetrics(d) {
+  document.getElementById('server-fps-value').textContent = Number.isFinite(d?.server_fps) ? d.server_fps.toFixed(1) + ' FPS' : '— FPS';
+  document.getElementById('cpu-frequency').textContent = Number.isFinite(d?.cpu_frequency_mhz) ? (d.cpu_frequency_mhz / 1000).toFixed(2) + ' GHz' : '— GHz';
+  document.getElementById('cpu-frequency').title = Number.isFinite(d?.cpu_frequency_mhz) ? 'Average frequency reported by the OS across logical CPUs' : 'CPU frequency unavailable from this host';
+  document.getElementById('ram-capacity').textContent = d?.ram_total > 0 && Number.isFinite(d?.ram_used) ? (d.ram_used / 1024).toFixed(1) + ' / ' + (d.ram_total / 1024).toFixed(1) + ' GiB' : '— / — GiB';
   for (const [id, value] of [['ai-count', d?.ai_count], ['vehicle-count', d?.vehicle_count]]) {
     const counter = document.getElementById(id);
     counter.textContent = Number.isFinite(value) ? Math.round(value).toLocaleString() : '—';

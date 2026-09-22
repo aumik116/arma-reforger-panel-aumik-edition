@@ -25,7 +25,7 @@ import time
 import glob
 import sys
 import tempfile
-from runtime_ops import ProcessMetrics, TrafficMetrics, HostMetrics, ServerFPS, read_game_telemetry, read_console
+from runtime_ops import ProcessMetrics, TrafficMetrics, HostMetrics, ServerFPS, read_game_telemetry, read_console, read_cpu_frequency
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
@@ -962,6 +962,7 @@ def api_metrics():
         **_server_fps.read(get_latest_log(), pid),
         "events": metric_events(),
         "cpu": cpu, "ram_process": ram,
+        "cpu_frequency_mhz": read_cpu_frequency(),
         "ram_used": ram_used, "ram_total": ram_total,
         "running": pid is not None, "ts": int(time.time()),
     })

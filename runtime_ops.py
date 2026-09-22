@@ -12,6 +12,18 @@ import statistics
 import re
 
 
+def read_cpu_frequency():
+    """Mean OS-reported logical CPU frequency in MHz; absent on some VMs."""
+    try:
+        with open('/proc/cpuinfo') as stream:
+            values = [float(line.split(':', 1)[1]) for line in stream
+                      if line.split(':', 1)[0].strip() == 'cpu MHz']
+        values = [value for value in values if math.isfinite(value) and value > 0]
+        return round(statistics.mean(values), 1) if values else None
+    except (OSError, ValueError):
+        return None
+
+
 class ServerFPS:
     """Read newly appended native logStats records, never revive old log samples."""
     empty_sample = dict(server_fps=None, ai_count=None, vehicle_count=None,

@@ -128,3 +128,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-v
 .mods-grid:not(.mods-list-view):not(.mods-details-view) .mod-art { flex-shrink:0; }
 .mods-grid:not(.mods-list-view):not(.mods-details-view) .mod-body { flex:1; display:flex; flex-direction:column; }
 .mods-grid:not(.mods-list-view):not(.mods-details-view) .mod-controls { margin-top:auto; }
+.chart-header { flex-wrap:wrap; gap:12px; }
+.metric-counter-pair { display:flex; flex-wrap:wrap; align-items:flex-start; gap:12px 22px; }
+.metric-counter-pair .chart-value { white-space:nowrap; font-size:clamp(21px,2.3vw,28px); }
+.metric-caption { display:block; color:var(--muted); font-size:10px; margin-top:4px; }

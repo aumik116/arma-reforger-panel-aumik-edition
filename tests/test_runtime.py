@@ -5,10 +5,18 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch, mock_open
 
-from runtime_ops import ProcessMetrics, TrafficMetrics, HostMetrics, ServerFPS, read_game_telemetry, read_console, launch_server
+from runtime_ops import ProcessMetrics, TrafficMetrics, HostMetrics, ServerFPS, read_game_telemetry, read_console, launch_server, read_cpu_frequency
 
 
 class RuntimeTests(unittest.TestCase):
+    def test_cpu_frequency_average_and_unavailable(self):
+        with patch('builtins.open', mock_open(read_data='cpu MHz : 2400.0\ncpu MHz : 3600.0\ncpu MHz : 0\n')):
+            self.assertEqual(read_cpu_frequency(), 3000.0)
+        with patch('builtins.open', side_effect=OSError):
+            self.assertIsNone(read_cpu_frequency())
+        with patch('builtins.open', mock_open(read_data='model name : CPU\n')):
+            self.assertIsNone(read_cpu_frequency())
+
     def test_traffic_interval_resets_and_unavailable(self):
         metrics = TrafficMetrics()
         self.assertEqual(metrics.sample('network', {'eth0':(100,200)}, 1)['status'], 'warming')

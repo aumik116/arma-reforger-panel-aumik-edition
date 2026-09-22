@@ -578,15 +578,6 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     </div>
   </div>
   <div class="charts-row" id="extra-metrics"></div>
-  <div class="card" id="storage-card">
-    <div class="card-label">Server storage</div>
-    <div id="disk-space-text" role="status">Waiting for storage sample…</div>
-    <progress id="disk-space-gauge" max="100" value="0" aria-label="Disk space used" style="width:100%;margin-top:12px;accent-color:var(--accent)"></progress>
-    <p class="feature-note" id="disk-space-alert" role="status"></p>
-    <p class="feature-note">Storage metrics cover the server filesystem device. Network metrics cover host interfaces except loopback. Charts retain the latest 60 samples while this dashboard is open; dashed lines mark panel server controls and mod changes.</p>
-    <p class="feature-note" id="metric-events">No recent panel events.</p>
-  </div>
-
   <div class="chart-card entity-counters" aria-label="Live server counts">
     <div class="entity-counter">
       <div class="chart-title">AI</div>
@@ -609,6 +600,15 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <p class="feature-note" id="player-details"></p>
     <div class="field" id="player-uuid-field" hidden><label for="player-uuid">Player UUID</label>
       <input id="player-uuid" type="text" readonly spellcheck="false" aria-label="Selected player UUID"><button class="config-button" id="copy-player-uuid" onclick="copyPlayerUuid()" disabled>Copy UUID</button><span id="uuid-copy-status" role="status"></span></div>
+  </div>
+
+  <div class="card" id="storage-card">
+    <div class="card-label">Server storage</div>
+    <div id="disk-space-text" role="status">Waiting for storage sample…</div>
+    <progress id="disk-space-gauge" max="100" value="0" aria-label="Disk space used" style="width:100%;margin-top:12px;accent-color:var(--accent)"></progress>
+    <p class="feature-note" id="disk-space-alert" role="status"></p>
+    <p class="feature-note">Storage metrics cover the server filesystem device. Network metrics cover host interfaces except loopback. Charts retain the latest 60 samples while this dashboard is open; dashed lines mark panel server controls and mod changes.</p>
+    <p class="feature-note" id="metric-events">No recent panel events.</p>
   </div>
 
   <!-- Live Logs -->

@@ -1,6 +1,8 @@
 #!/bin/bash
 # ============================================================
-# Arma Reforger — All-in-One Installer v4.0
+# Arma Reforger Panel Installer
+# https://github.com/aumik116/arma-reforger-panel-aumik-edition
+# Original project by Mateusz Gołębiewski:
 # https://github.com/mateuszgolebiewski-code/arma-reforger-panel
 #
 # Modes:
@@ -160,10 +162,10 @@ if [[ "$1" == "--update" ]];      then MODE="update"; fi
 
 # ── Header ────────────────────────────────────────────────────────────────────
 echo ""
-echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "${BOLD}${CYAN}║   Arma Reforger — All-in-One Installer v4.0     ║${NC}"
-echo -e "${BOLD}${CYAN}║   github.com/mateuszgolebiewski-code             ║${NC}"
-echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════╝${NC}"
+echo -e "${BOLD}${CYAN}Arma Reforger Panel${NC}"
+echo "github.com/aumik116/arma-reforger-panel-aumik-edition"
+echo "Based on the original panel by Mateusz Gołębiewski."
+echo "Developed with AI assistance using OpenAI Codex."
 echo ""
 
 if [[ "$MODE" == "full" ]];   then echo -e "  Mode: ${GREEN}Full install${NC} (SteamCMD + Arma server + Panel)"; fi
@@ -179,7 +181,7 @@ fi
 
 # ── OS check ──────────────────────────────────────────────────────────────────
 if ! grep -qi "ubuntu" /etc/os-release 2>/dev/null; then
-    echo -e "${YELLOW}WARNING: This installer is tested on Ubuntu 20.04/22.04/24.04.${NC}"
+    echo -e "${YELLOW}WARNING: This installer targets Ubuntu and requires Python 3.10+.${NC}"
     read -p "  Continue anyway? [y/N]: " CONTINUE
     [[ "$CONTINUE" =~ ^[Yy]$ ]] || exit 1
 fi
@@ -199,14 +201,12 @@ fi
 # ── UPDATE mode ───────────────────────────────────────────────────────────────
 if [[ "$MODE" == "update" ]]; then
     echo -e "${YELLOW}Updating panel files...${NC}"
-    if [ ! -d "$PANEL_DIR" ]; then
-        echo -e "${RED}ERROR: Panel not found at ${PANEL_DIR}${NC}"
-        echo -e "  Run the full installer first: sudo bash install.sh"
+    EXISTING_USER=$(systemctl show arma-panel.service --property=User --value)
+    PANEL_DIR_EXISTING=$(systemctl show arma-panel.service --property=WorkingDirectory --value)
+    if [[ -z "$EXISTING_USER" || "$PANEL_DIR_EXISTING" != /* || ! -d "$PANEL_DIR_EXISTING" || ! -f "$PANEL_DIR_EXISTING/config.env" ]]; then
+        echo "ERROR: Cannot locate installed panel service and config.env." >&2
         exit 1
     fi
-    # Read existing user from panel service
-    EXISTING_USER=$(grep "^User=" /etc/systemd/system/arma-panel.service 2>/dev/null | cut -d= -f2 || echo "arma")
-    PANEL_DIR_EXISTING=$(grep "^WorkingDirectory=" /etc/systemd/system/arma-panel.service 2>/dev/null | cut -d= -f2 || echo "$PANEL_DIR")
     cp "$SCRIPT_DIR/app.py"     "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/panel_features.py" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/player_query.py" "$PANEL_DIR_EXISTING/"
@@ -354,37 +354,21 @@ if [[ "$MODE" == "full" ]]; then
     if [ -f "$SERVER_CONFIG" ]; then
         echo -e "      ${DIM}Keeping existing $SERVER_CONFIG.${NC}"
     else
-    cat > "$SERVER_CONFIG" << EOF
-{
-	"bindAddress": "0.0.0.0",
-	"bindPort": ${GAME_PORT},
-	"publicAddress": "${PUBLIC_IP}",
-	"publicPort": ${GAME_PORT},
-	"a2s": {
-		"address": "${PUBLIC_IP}",
-		"port": 17777
-	},
-	"game": {
-		"name": "${SERVER_NAME}",
-		"password": "${GAME_PASSWORD}",
-		"passwordAdmin": "${ADMIN_PASSWORD}",
-		"scenarioId": "{ECC61978EDCC2B5A}Missions/23_Campaign.conf",
-		"maxPlayers": ${MAX_PLAYERS},
-		"visible": true,
-		"crossPlatform": true,
-		"supportedPlatforms": ["PLATFORM_PC", "PLATFORM_XBL"],
-		"gameProperties": {
-			"serverMaxViewDistance": 2500,
-			"serverMinGrassDistance": 50,
-			"networkViewDistance": 1000,
-			"disableThirdPerson": false,
-			"fastValidation": true,
-			"battlEye": true
-		},
-		"mods": []
-	}
-}
-EOF
+    SERVER_NAME="$SERVER_NAME" GAME_PASSWORD="$GAME_PASSWORD" ADMIN_PASSWORD="$ADMIN_PASSWORD" \
+    PUBLIC_IP="$PUBLIC_IP" GAME_PORT="$GAME_PORT" MAX_PLAYERS="$MAX_PLAYERS" \
+    python3 - "$SERVER_CONFIG" <<'PYCONFIG'
+import json, os, sys
+cfg = {'bindAddress': '0.0.0.0', 'bindPort': 0, 'publicAddress': '', 'publicPort': 0, 'a2s': {'address': '', 'port': 17777}, 'game': {'name': '', 'password': '', 'passwordAdmin': '', 'scenarioId': '{ECC61978EDCC2B5A}Missions/23_Campaign.conf', 'maxPlayers': 0, 'visible': True, 'crossPlatform': True, 'supportedPlatforms': ['PLATFORM_PC', 'PLATFORM_XBL'], 'gameProperties': {'serverMaxViewDistance': 2500, 'serverMinGrassDistance': 50, 'networkViewDistance': 1000, 'disableThirdPerson': False, 'fastValidation': True, 'battlEye': True}, 'mods': []}}
+e = os.environ
+port, players = int(e['GAME_PORT']), int(e['MAX_PLAYERS'])
+if not 1 <= port <= 65535 or players < 1:
+    raise ValueError('Invalid game port or max players')
+cfg.update(bindPort=port, publicPort=port, publicAddress=e['PUBLIC_IP'])
+cfg['a2s']['address'] = e['PUBLIC_IP']
+cfg['game'].update(name=e['SERVER_NAME'], password=e['GAME_PASSWORD'], passwordAdmin=e['ADMIN_PASSWORD'], maxPlayers=players)
+with open(sys.argv[1], 'x', encoding='utf-8') as stream:
+    json.dump(cfg, stream, indent=2)
+PYCONFIG
     fi
     chown "$ARMA_USER:$ARMA_USER" "$SERVER_CONFIG"
     echo -e "      ${GREEN}✓ config.json ready.${NC}"
@@ -402,7 +386,7 @@ After=network.target
 Type=simple
 User=${ARMA_USER}
 WorkingDirectory=${SERVER_DIR}
-ExecStart=${SERVER_DIR}/${ARMA_BINARY} -config ${SERVER_CONFIG} -loadSessionSave -maxFPS=${MAX_FPS}
+ExecStart=${SERVER_DIR}/${ARMA_BINARY} -config ${SERVER_CONFIG} -loadSessionSave -maxFPS=${MAX_FPS} -logStats 1000
 Restart=on-failure
 RestartSec=10
 

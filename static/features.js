@@ -25,7 +25,7 @@ function selectPanelTab(tab) {
   window.scrollTo({top:0});
   if (tab.id === 'tab-configuration' && can('configure') && typeof loadConfiguration === 'function') loadConfiguration();
   if (tab.id === 'tab-dashboard') {
-    requestAnimationFrame(() => { cpuChart.resize(); ramChart.resize(); networkChart.resize(); diskChart.resize(); });
+    requestAnimationFrame(() => { cpuChart.resize(); ramChart.resize(); networkChart.resize(); diskChart.resize(); Object.values(extraCharts).forEach(chart => chart.resize()); });
     fetchMetrics();
   }
 }
@@ -112,8 +112,12 @@ async function loadPlayers() {
 
 function showPlayer() {
   const player = roster.find(p => p.identity === byId('player-select').value);
+  const hasUuid = player && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(player.identity);
+  byId('player-uuid-field').hidden = !player;
+  byId('player-uuid').value = hasUuid ? player.identity : '';
+  byId('player-uuid').placeholder = 'Unavailable — no UUID reported';
   byId('player-details').textContent = player ?
-    `Username: ${player.name} · Player ID: ${player.id} · Identity: ${player.identity} · First observed by panel: ${new Date(player.first_seen * 1000).toLocaleString('en-US')}` : '';
+    `Username: ${player.name} · Player ID: ${player.id}${hasUuid ? '' : ` · Identity: ${player.identity}`} · First observed by panel: ${new Date(player.first_seen * 1000).toLocaleString('en-US')}` : '';
 }
 
 async function loadPresets() {

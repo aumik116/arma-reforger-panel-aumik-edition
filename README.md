@@ -5,7 +5,7 @@ A self-hosted web panel for managing an Arma Reforger dedicated server on Linux.
 ## Features
 
 - **Server controls:** start, stop and restart the game server.
-- **Live dashboard:** CPU, memory, network traffic and disk activity charts.
+- **Live dashboard:** CPU, memory, native server FPS, AI/vehicle counts, network traffic, disk activity and free-space monitoring, with optional player latency telemetry.
 - **Server console:** live logs with highlighted errors and warnings.
 - **Detailed configuration:** grouped settings for identity, access, networking, gameplay, RCON, operating behavior and persistence.
 - **Raw JSON view:** inspect and copy the complete configuration draft alongside the visual controls.
@@ -107,6 +107,18 @@ Restart the game server after changing its RCON listener. Keep the RCON UDP port
 The panel reads the server's RCON settings automatically. `RCON_HOST`, `RCON_PORT` and `RCON_PASSWORD` in `config.env` override its connection settings; editing the server listener does not update these overrides.
 
 The player list refreshes every ten seconds. **First observed by panel** is the time the panel first saw a player, not their exact connection time. It resets when the panel restarts.
+
+### Performance telemetry
+
+Server FPS reads fresh performance records from `LOG_DIR/logs_*/console.log`. The launcher enables `-logStats 1000`; restart the game after updating to enable these records. Samples expire after 15 seconds.
+
+Player latency requires an external exporter; none is bundled. Set `GAME_TELEMETRY_FILE` in `config.env` to a UTF-8 JSON file containing a current Unix timestamp and player pings in milliseconds:
+
+```json
+{"timestamp": 1790000000, "player_pings_ms": [24, 31, 86]}
+```
+
+Replace this file atomically at least every ten seconds. Samples older than 15 seconds or without ping measurements are shown as unavailable.
 
 ### Accounts and activity
 

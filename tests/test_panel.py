@@ -222,7 +222,7 @@ class PanelTests(unittest.TestCase):
         self.config.write_text('{broken')
         self.assertEqual(self.admin.get('/api/config/editor').status_code, 400)
         result = self.post(self.admin, '/api/config/editor', {'changes':{'game.maxPlayers':32}})
-        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.status_code, 503)
         self.assertEqual(self.config.read_text(), '{broken')
 
     def test_admin_name_labels_persist_without_changing_access(self):
@@ -234,6 +234,36 @@ class PanelTests(unittest.TestCase):
         self.assertEqual(self.config.read_text(), original)
         self.assertEqual(self.post(self.admin, '/api/admin-labels', {'identity':'bad', 'name':'Name'}).status_code, 400)
         self.assertEqual(self.post(self.admin, '/api/admin-labels', {'identity':identity, 'name':['bad']}).status_code, 400)
+
+    def test_forwarded_headers_cannot_bypass_login_limit(self):
+        self.module._LOGIN_BUCKETS.clear()
+        client = self.module.app.test_client()
+        for i in range(6):
+            response = client.post('/login', json={'username': 'admin', 'password': 'wrong'},
+                                   headers={'X-Forwarded-For': f'198.51.100.{i}'})
+            self.assertEqual(response.status_code, 401 if i < 5 else 429)
+
+    def test_unreadable_config_is_not_overwritten(self):
+        token = self.admin.get('/api/csrf').json['csrf']
+        for contents in ['{broken', '[]', '{"game": null}']:
+            self.config.write_text(contents)
+            response = self.admin.post('/api/config', json={'password': 'new'}, headers={'X-CSRF-Token': token})
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(self.config.read_text(), contents)
+
+    def test_dashboard_metrics_and_safe_event_labels(self):
+        self.module.audit_event('admin', 'api_restart', 'success', {'private': 'hidden'})
+        self.module.audit_event('admin', 'api_mods_add', 'failed')
+        self.create('observer', 'viewer')
+        viewer = self.login('observer')
+        with patch.object(self.module._host_metrics, 'read', return_value={'network_rx': 2.5, 'disk_free': 1024}):
+            response = viewer.get('/api/metrics')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['network_rx'], 2.5)
+        self.assertIsNone(response.json['server_fps'])
+        self.assertEqual(len(response.json['events']), 1)
+        self.assertEqual(set(response.json['events'][0]), {'id', 'ts', 'action'})
+        self.assertEqual(self.module.app.test_client().get('/api/metrics').status_code, 401)
 
     def test_disable_revoke_and_self_protection(self):
         user = self.create('helper', 'operator')

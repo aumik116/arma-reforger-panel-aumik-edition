@@ -56,3 +56,34 @@
 @media(max-width:1200px) { .mods-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media(max-width:950px) { .mods-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .mods-heading { align-items:flex-start; flex-wrap:wrap; } }
 @media(max-width:500px) { .mods-grid { grid-template-columns:minmax(0,1fr); } .mods-actions { margin-left:0; } .mods-tabs { width:100%; } .mods-tabs button { flex:1; } #mods-search { max-width:none; } .mods-footer { align-items:flex-start; } }
+
+/* The same mod entries and actions serve both views. */
+.mods-grid.mods-list-view { grid-template-columns:minmax(0,1fr); gap:10px; }
+.mods-list-view .mod-tile { display:grid; grid-template-columns:150px minmax(0,1fr); }
+.mods-list-view .mod-art { aspect-ratio:auto; min-height:105px; }
+.mods-list-view .mod-art .mod-badge { display:none; }
+.mods-list-view .mod-body { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px 20px; align-items:center; }
+.mods-list-view .mod-body h3 { margin:0; white-space:normal; overflow-wrap:anywhere; }
+.mods-list-view .mod-meta { grid-column:1; grid-row:2; justify-content:flex-start; flex-wrap:wrap; margin:0; }
+.mods-list-view .mod-controls { grid-column:2; grid-row:1 / 3; }
+.mods-list-view .mod-move { grid-column:1 / -1; margin:0; justify-content:flex-end; }
+@media(max-width:700px) {
+ .mods-list-view .mod-tile { grid-template-columns:100px minmax(0,1fr); }
+ .mods-list-view .mod-body { grid-template-columns:minmax(0,1fr); gap:8px; }
+ .mods-list-view .mod-controls { grid-column:1; grid-row:3; flex-wrap:wrap; }
+ .mods-list-view .mod-art-label { font-size:9px; text-align:center; }
+}
+.mods-details-heading { display:none; }
+.mods-grid.mods-details-view { display:block; overflow-x:auto; border:1px solid var(--border); border-radius:8px; }
+.mods-details-view .mods-details-heading,.mods-details-view .mod-tile { display:grid; grid-template-columns:minmax(180px,2fr) 150px 130px 115px 210px; gap:12px; align-items:center; min-width:870px; padding:10px 14px; }
+.mods-details-view .mods-details-heading { color:var(--muted); background:#1a1c20; font-size:12px; font-weight:600; }
+.mods-details-view .mod-tile { border:0; border-radius:0; border-top:1px solid var(--border); }
+.mods-details-view .mod-tile:hover { background:var(--surface2); }
+.mods-details-view .mod-art,.mods-details-view .mod-body,.mods-details-view .mod-meta { display:contents; }
+.mods-details-view .mod-art::before,.mods-details-view .mod-art::after,.mods-details-view .mod-art img,.mods-details-view .mod-badge,.mods-details-view .mod-art-label { display:none; }
+.mods-details-view .mod-body h3 { grid-column:1; grid-row:1; margin:0; font-size:13px; }
+.mods-details-view .mod-meta code { grid-column:2; grid-row:1; }
+.mods-details-view .mod-version { grid-column:3; grid-row:1; justify-self:start; }
+.mods-details-view .mod-art .mod-size { position:static; grid-column:4; grid-row:1; background:none; padding:0; font-size:11px; }
+.mods-details-view .mod-controls { grid-column:5; grid-row:1; }
+.mods-details-view .mod-move { grid-column:1/-1; justify-content:flex-end; margin:0; }

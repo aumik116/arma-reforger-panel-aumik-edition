@@ -160,4 +160,4 @@ class RuntimeTests(unittest.TestCase):
             chdir.assert_called_once_with('/test/server')
             binary = os.path.join('/test/server', 'ArmaReforgerServer')
             execute.assert_called_once_with(binary,
-                [binary, '-config', '/test/custom.json', '-loadSessionSave', '-logStats', '1000', '-maxFPS=45'])
+                [binary, '-config', '/test/custom.json', '-logStats', '1000', '-maxFPS=45'])

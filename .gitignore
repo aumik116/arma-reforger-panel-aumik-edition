@@ -9,3 +9,5 @@ config.env
 .panel-data.sqlite3*
 .test-deps/
 .local-preview/
+.software-job*
+.save-library/

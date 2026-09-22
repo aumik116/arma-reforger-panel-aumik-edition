@@ -61,10 +61,10 @@ GROUPS = [
         field('operating.lobbyPlayerSynchronise', 'Synchronize lobby players', 'bool', default=True),
         field('operating.disableServerShutdown', 'Keep running after backend disconnect', 'bool', default=False),
     ]),
-    dict(title='Persistence', description='Save timing and retention depend on scenario support. The launch command still includes -loadSessionSave.', fields=[
+    dict(title='Persistence', description='Save timing and retention depend on scenario support. Supported scenarios resume their latest save by default.', fields=[
         field('game.gameProperties.persistence.autoSaveInterval', 'Auto-save interval · minutes', 'int', minimum=0, maximum=60, default=10, help='0 disables periodic auto-saves, not all persistence.'),
         field('game.gameProperties.persistence.saveRetention', 'Save points to retain', 'int', minimum=1, maximum=128, default=10),
-        field('game.gameProperties.persistence.loadSessionSave', 'Load latest session', 'bool', default=True, help='The existing launch flag also requests session loading.'),
+        field('game.gameProperties.persistence.loadSessionSave', 'Load latest session', 'bool', default=True, help='Load the latest save for this scenario when starting the server.'),
         field('game.gameProperties.persistence.keepSessionSave', 'Keep saves after mission completion', 'bool', default=False),
         field('game.gameProperties.persistence.hiveId', 'Hive ID', 'int', minimum=0, maximum=16383, default=0),
     ]),

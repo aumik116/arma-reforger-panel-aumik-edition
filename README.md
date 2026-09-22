@@ -81,7 +81,7 @@ The scenario picker displays readable names. Use **Rescan installed scenarios** 
 
 Under **In-game administrators**, enter UUIDs or Steam IDs and save the configuration to update access. Each ID also has a name field with its own **Save name** button. These labels are stored in the panel and do not grant or remove administrator access.
 
-Persistence behavior depends on the scenario. The current server launcher includes `-loadSessionSave`, which must be considered alongside the JSON session-loading option. **Save-file maintenance** lets you inspect and flush existing saves; the server must be stopped before flushing them.
+Persistence behavior depends on the scenario. On Reforger 1.7+, the launcher respects the JSON Load latest session setting (enabled by default), without forcing it through a startup flag. **Save-file maintenance** lets you inspect and flush existing saves; the server must be stopped before flushing them.
 
 ### Mods
 
@@ -153,6 +153,24 @@ The update replaces panel files and restarts the panel service. It preserves `co
 The installer manages game control through `arma-server.service`. Updating replaces custom `ExecStart` overrides with the panel's launcher; other service settings are preserved. The launcher reads your saved `SERVER_DIR`, `SERVER_CONFIG` and `MAX_FPS` settings.
 
 ## Panel settings and backups
+
+### Saved setups
+
+Administrators can capture named backups and restore them under **Persistence → Saved setups**. For Camp Neptune, select `{6A144219C1118E40}Missions/GM_CampNeptune_Persistence.conf` with its required mods. Prepare the scene, wait for a completed autosave, stop the server, then capture a backup. The panel copies existing save files; it cannot force a new game save through standard RCON.
+
+Backups include the full local persistence directory, including player state and storage settings. They support binary save payloads and require native `meta-info.json` save-point metadata. Restore requires a stopped server, matching scenario/mod configuration/hive/recorded Steam build, and verified file hashes. A rollback snapshot is created before replacement. Keep **Load latest session** enabled, then start the server from Dashboard. Custom database/storage overrides are not supported. Camp Neptune's actual restoration of individual modded objects still depends on the scenario and those objects' persistence support.
+
+Snapshots live in `.save-library` beside the panel; include that directory in host backups. Limits are 30 snapshots, 1 GiB and 10,000 files per snapshot. Preserve game-build compatibility when updating: game updates can invalidate older saves. This is a local-file backup library, not a guarantee that the game saved every placed object.
+
+Persistence follows [Bohemia's server configuration](https://community.bistudio.com/wiki/Arma_Reforger%3AServer_Config) and [persistence system](https://community.bistudio.com/wiki/Arma_Reforger%3APersistence_System). Autosave interval 0 disables periodic saves only. Removing the persistence configuration restores defaults; explicitly disabling persistence requires `missionHeader.m_eSaveTypes = 0`.
+
+### Game server software updates
+
+Panel administrators can use **Server config → Server software** to read the installed Steam build ID, check the public Steam release, and run an update. Build IDs are Steam identifiers, not the game's displayed version number. Missing local manifests are shown as unavailable.
+
+Stop the game server before updating. The panel runs SteamCMD with anonymous login for Arma Reforger Dedicated Server (1874900), shows its output, and leaves the game stopped afterward. Start/restart actions are blocked while a software job runs. Check the result before starting; failed updates can leave an incomplete installation. Back up your configuration and saves first. Avoid manual SteamCMD jobs or external game starts during an update.
+
+This feature runs on Linux under the panel service account, which needs write access to the game installation and SteamCMD directories. The installer saves `STEAMCMD_PATH` for new installations. Existing installations search the sibling `steamcmd/steamcmd.sh` directory and the system SteamCMD executable; set `STEAMCMD_PATH=/absolute/path/to/steamcmd.sh` in `config.env` and restart the panel if discovery fails. The update uses the public release; custom beta installations are not supported. Update checks time out after three minutes and updates after thirty minutes.
 
 `config.env` contains panel settings and server paths. The game's settings live in the file named by `SERVER_CONFIG`, usually `config.json`.
 

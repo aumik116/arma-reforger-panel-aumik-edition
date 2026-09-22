@@ -213,6 +213,8 @@ if [[ "$MODE" == "update" ]]; then
     cp "$SCRIPT_DIR/runtime_ops.py" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/config_editor.py" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/mod_metadata.py" "$PANEL_DIR_EXISTING/"
+    cp "$SCRIPT_DIR/server_software.py" "$PANEL_DIR_EXISTING/"
+    cp "$SCRIPT_DIR/save_library.py" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/index.html" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/login.html" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/static/"*   "$PANEL_DIR_EXISTING/static/"
@@ -416,14 +418,14 @@ fi
 mkdir -p "$PANEL_DIR/static"
 
 # Copy files from script directory
-for f in app.py panel_features.py player_query.py runtime_ops.py config_editor.py mod_metadata.py index.html login.html; do
+for f in app.py panel_features.py player_query.py runtime_ops.py config_editor.py mod_metadata.py server_software.py save_library.py index.html login.html; do
     if [ -f "$SCRIPT_DIR/$f" ]; then
         cp "$SCRIPT_DIR/$f" "$PANEL_DIR/"
     else
         echo -e "      ${RED}WARNING: $f not found in script directory.${NC}"
     fi
 done
-for f in manifest.json service-worker.js features.js workspace.css configuration.js configuration.css mods.js mods.css icon-192.png icon-512.png; do
+for f in manifest.json service-worker.js features.js workspace.css configuration.js configuration.css mods.js mods.css software.js saves.js icon-192.png icon-512.png; do
     if [ -f "$SCRIPT_DIR/static/$f" ]; then
         cp "$SCRIPT_DIR/static/$f" "$PANEL_DIR/static/"
     fi
@@ -450,6 +452,7 @@ cat > "$PANEL_DIR/config.env" << EOF
 PANEL_PASSWORD_HASH=${PANEL_PASSWORD_HASH}
 PANEL_PORT=${PANEL_PORT}
 SERVER_DIR=${SERVER_DIR}
+STEAMCMD_PATH=${STEAM_DIR}/steamcmd.sh
 SERVER_CONFIG=${SERVER_CONFIG}
 LOG_DIR=${LOG_DIR}
 WORKSHOP_DIR=${WORKSHOP_DIR}

@@ -1,6 +1,17 @@
 // Configured mod library. Polling preserves local search, pagination and edit drafts.
 const modLibrary = {mods:[], signature:null, page:1, size:8, sort:'order', reorder:false, edit:null, historyCursor:null, metadata:new Map()};
 const modEl = id => document.getElementById(id);
+let modView = 'cards';
+function setModView(view) {
+  modView = ['cards','list','details'].includes(view) ? view : 'cards';
+  modEl('mods-list').classList.toggle('mods-list-view', modView === 'list');
+  modEl('mods-list').classList.toggle('mods-details-view', modView === 'details');
+  ['cards','list','details'].forEach(mode => modEl('mods-view-' + mode).setAttribute('aria-pressed', String(modView === mode)));
+  try { localStorage.setItem('mods-view', modView); } catch (_) {}
+}
+let savedModView = 'cards';
+try { savedModView = localStorage.getItem('mods-view') || 'cards'; } catch (_) {}
+setModView(savedModView);
 try { const size = Number(localStorage.getItem('mods-page-size')); if ([8,16,24,48].includes(size)) modLibrary.size = size; } catch (_) {}
 modEl('mods-per-page').value = String(modLibrary.size);
 modEl('mods-per-page').addEventListener('change', event => {
@@ -29,6 +40,9 @@ function drawModLibrary() {
   modLibrary.page = Math.min(modLibrary.page, pages);
   const start = (modLibrary.page - 1) * modLibrary.size;
   const grid = modEl('mods-list'); grid.replaceChildren();
+  const heading = document.createElement('div'); heading.className = 'mods-details-heading';
+  ['Name','Mod ID','Version','Size','Actions'].forEach(label => { const cell=document.createElement('span');cell.textContent=label;heading.append(cell); });
+  grid.append(heading);
   mods.slice(start, start + modLibrary.size).forEach(mod => {
     const card = document.createElement('article'); card.className='mod-tile';card.dataset.modId=mod.modId;
     const art = document.createElement('div'); art.className='mod-art';

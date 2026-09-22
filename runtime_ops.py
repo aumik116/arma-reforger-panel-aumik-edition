@@ -302,7 +302,7 @@ def launch_server(config_path):
                 settings[key.strip()] = value.strip().strip('"').strip("'")
     directory = settings.get('SERVER_DIR', '/home/arma/server')
     binary = os.path.join(directory, 'ArmaReforgerServer')
-    args = [binary, '-config', settings.get('SERVER_CONFIG', directory + '/config.json'), '-loadSessionSave', '-logStats', '1000']
+    args = [binary, '-config', settings.get('SERVER_CONFIG', directory + '/config.json'), '-logStats', '1000']
     if settings.get('MAX_FPS', '').strip():
         args.append('-maxFPS=' + settings['MAX_FPS'].strip())
     os.chdir(directory)

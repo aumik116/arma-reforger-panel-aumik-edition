@@ -18,12 +18,17 @@ function selectPanelTab(tab) {
   byId('page-title').textContent = tab.textContent;
   byId('page-description').textContent = {
     'tab-dashboard': 'Monitor your server and manage the action.',
-    'tab-configuration': 'Manage server settings, scenarios and persistence.',
+    'tab-configuration': 'Manage server settings, scenarios and software updates.',
+    'tab-persistence': 'Manage save settings, saved setups and save-file maintenance.',
     'tab-mods': 'Manage Workshop mods, imports and saved presets.',
     'tab-administration': 'Manage your account, permissions and activity.'
   }[tab.id];
   window.scrollTo({top:0});
-  if (tab.id === 'tab-configuration' && can('configure') && typeof loadConfiguration === 'function') loadConfiguration();
+  if (['tab-configuration', 'tab-persistence'].includes(tab.id) && can('configure') && typeof loadConfiguration === 'function') {
+    byId(tab.id === 'tab-persistence' ? 'persistence-savebar-slot' : 'configuration-savebar-slot').append(byId('shared-config-savebar'));
+    loadConfiguration();
+  }
+  if (tab.id === 'tab-persistence') { fetchPersistence(); loadSetups(); }
   if (tab.id === 'tab-dashboard') {
     requestAnimationFrame(() => { cpuChart.resize(); ramChart.resize(); networkChart.resize(); diskChart.resize(); Object.values(extraCharts).forEach(chart => chart.resize()); });
     fetchMetrics();
@@ -114,6 +119,8 @@ function showPlayer() {
   const player = roster.find(p => p.identity === byId('player-select').value);
   const hasUuid = player && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(player.identity);
   byId('player-uuid-field').hidden = !player;
+  byId('copy-player-uuid').disabled = !hasUuid;
+  byId('uuid-copy-status').textContent = '';
   byId('player-uuid').value = hasUuid ? player.identity : '';
   byId('player-uuid').placeholder = 'Unavailable — no UUID reported';
   byId('player-details').textContent = player ?
@@ -263,3 +270,10 @@ document.addEventListener('panel-change', event => {
   if (event.detail.startsWith('/api/mods/')) loadPresets().catch(e => setLog(e.message, 'error'));
 });
 initFeatures();
+
+async function copyPlayerUuid() {
+  const field = byId('player-uuid');
+  if (!field.value) return;
+  try { await navigator.clipboard.writeText(field.value); byId('uuid-copy-status').textContent = 'UUID copied'; }
+  catch (_) { field.focus(); field.select(); byId('uuid-copy-status').textContent = 'Press Ctrl+C to copy the selected UUID.'; }
+}

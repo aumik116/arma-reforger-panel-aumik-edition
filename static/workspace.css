@@ -62,6 +62,11 @@ header { position:fixed; top:0; left:232px; right:0; height:66px; margin:0; padd
 .traffic-second { color:var(--online); }
 .log-viewer-card { overflow:hidden; scroll-margin-top:85px; }
 .log-viewer-header { background:#1a1c20; padding:17px 20px; }
+.log-viewer-header { flex-wrap:wrap; gap:12px; }
+.console-actions { display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+.console-filter { display:flex; align-items:center; gap:7px; color:var(--muted); font-size:12px; cursor:pointer; }
+.console-filter input { accent-color:var(--accent); }
+#log-output.hide-performance .performance-log { display:none; }
 .log-viewer-title { font-family:inherit; font-size:11px; letter-spacing:.06em; }
 #log-output { height:280px; background:#0c0e11; padding:18px; font-size:11px; line-height:1.9; }
 .field input,.field select,.field-group input,.field-group select,textarea { border-radius:6px; }
@@ -96,3 +101,14 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-v
  .chart-wrap { height:110px; }
 }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none !important; scroll-behavior:auto !important; } }
+#tab-persistence::before { content:'▣'; }
+#persistence-fields { border:0; padding:0; min-width:0; }
+#panel-persistence > * { margin-bottom:18px; }
+#persistence-settings .config-fields-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media(max-width:700px) { #persistence-settings .config-fields-grid { grid-template-columns:minmax(0,1fr); } }
+#software-card { margin-top:22px; }
+#console-search { background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:5px; padding:8px; width:180px; }
+#uuid-copy-status { display:block; color:var(--muted); font-size:12px; margin-top:6px; }
+#copy-player-uuid { margin-top:8px; }
+#persistence-summary { display:flex; flex-wrap:wrap; gap:16px 30px; }
+#persistence-summary span { display:block; color:var(--muted); font-size:12px; margin-bottom:6px; }

@@ -475,6 +475,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
   <nav class="panel-tabs" role="tablist" aria-label="Panel sections" aria-orientation="vertical">
     <button class="panel-tab" id="tab-dashboard" role="tab" aria-selected="true" aria-controls="panel-dashboard" tabindex="0">Dashboard</button>
     <button class="panel-tab" id="tab-configuration" role="tab" aria-selected="false" aria-controls="panel-configuration" tabindex="-1">Server config</button>
+    <button class="panel-tab" id="tab-persistence" role="tab" aria-selected="false" aria-controls="panel-persistence" tabindex="-1" data-permission="configure" hidden>Persistence</button>
     <button class="panel-tab" id="tab-mods" role="tab" aria-selected="false" aria-controls="panel-mods" tabindex="-1">Mods</button>
     <button class="panel-tab" id="tab-administration" role="tab" aria-selected="false" aria-controls="panel-administration" tabindex="-1">Administration</button>
   </nav>
@@ -607,7 +608,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <p class="feature-note" id="player-message"></p>
     <p class="feature-note" id="player-details"></p>
     <div class="field" id="player-uuid-field" hidden><label for="player-uuid">Player UUID</label>
-      <input id="player-uuid" type="text" readonly spellcheck="false" aria-label="Selected player UUID"></div>
+      <input id="player-uuid" type="text" readonly spellcheck="false" aria-label="Selected player UUID"><button class="config-button" id="copy-player-uuid" onclick="copyPlayerUuid()" disabled>Copy UUID</button><span id="uuid-copy-status" role="status"></span></div>
   </div>
 
   <!-- Live Logs -->
@@ -617,9 +618,9 @@ button:disabled { opacity:.45; cursor:not-allowed; }
         <div class="log-live-dot off" id="log-live-dot"></div>
         Server console — live
       </div>
-      <button class="btn-clear-log" onclick="clearLog()">Clear</button>
+      <div class="console-actions"><label class="console-filter"><input type="checkbox" id="show-performance-logs" onchange="togglePerformanceLogs()"> Show performance logs</label><label class="console-filter"><input type="checkbox" id="pause-console-scroll"> Pause scrolling</label><input type="search" id="console-search" aria-label="Search console" placeholder="Search console…" oninput="filterConsole()"><button class="btn-clear-log" onclick="clearLog()">Clear</button></div>
     </div>
-    <div id="log-output"></div>
+    <div id="log-output" class="hide-performance"></div>
   </div>
 
   </section>
@@ -642,20 +643,50 @@ button:disabled { opacity:.45; cursor:not-allowed; }
         <div class="config-json-heading"><div><h3>Configuration JSON</h3><p id="config-json-description">Read-only preview of your configuration draft.</p></div><button class="config-button" type="button" onclick="copyConfigurationJson()">Copy JSON</button></div>
         <textarea id="config-json-text" readonly spellcheck="false" aria-label="Complete configuration JSON"></textarea>
       </div>
-      <div class="config-savebar">
+      <div id="configuration-savebar-slot"></div><div class="config-savebar" id="shared-config-savebar">
         <div><strong id="config-dirty">No unsaved changes</strong><p id="config-feedback" role="status" aria-live="polite">Changes apply on the next server start. Saving does not restart it.</p></div>
         <div class="config-actions"><button class="config-button" id="config-reset" onclick="resetConfiguration()" disabled>Discard edits</button><button class="config-button" onclick="submitConfiguration(false)">Validate</button><button class="config-button primary" id="config-save" onclick="submitConfiguration(true)" disabled>Save configuration</button></div>
       </div>
     </fieldset>
   </div>
 
+  <div class="card" id="software-card" data-permission="admin_config" hidden>
+    <div class="card-label">Server software</div>
+    <p id="software-build">Installed Steam build: loading…</p>
+    <p class="feature-note" id="software-latest">Available public build: not checked</p>
+    <div class="console-actions"><button class="config-button" id="software-check" disabled onclick="runSoftwareJob('check')">Check for updates</button><button class="config-button" id="software-update" disabled onclick="runSoftwareJob('update')">Update server</button></div>
+    <p class="feature-note">Updates the game server through SteamCMD. Stop the server first; it stays stopped after updating. Steam build IDs are not game version numbers.</p>
+    <p id="software-status" class="feature-note" role="status"></p>
+    <details><summary>Update output</summary><pre id="software-output" style="max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere"></pre></details>
+  </div>
+
+
+  </section>
+
+  <section class="tab-panel" id="panel-persistence" role="tabpanel" aria-labelledby="tab-persistence" hidden>
+    <div class="card" id="persistence-summary" role="status">Loading persistence status…</div>
+    <p class="feature-note">Persistence settings share the configuration draft. Saving applies pending edits from both tabs.</p>
+    <div data-permission="configure" hidden>
+      <button class="config-button" onclick="reloadConfiguration()">Reload from disk</button>
+      <fieldset id="persistence-fields" disabled><div id="persistence-settings"></div><div id="persistence-savebar-slot"></div></fieldset>
+    </div>
+  <div class="card" data-permission="admin_config" id="setup-library" hidden>
+    <div class="card-label">Saved setups</div>
+    <p class="feature-note">Prepare your scene, wait for the scenario to autosave, then stop the server and capture a named setup. This copies existing persistence files; it does not request a new game save. Camp Neptune must use its Persistence scenario.</p>
+    <p class="feature-note" id="setup-detected">Checking save files…</p>
+    <div class="field"><label for="setup-name">Setup name</label><input id="setup-name" maxlength="80" placeholder="Training night"></div>
+    <button class="config-button" id="setup-capture" disabled onclick="setupAction('capture')">Capture setup backup</button>
+    <div class="field"><label for="setup-select">Saved setup</label><select id="setup-select" onchange="loadSetups()"><option value="">Select a saved setup</option></select></div>
+    <button class="config-button" id="setup-restore" disabled onclick="setupAction('restore')">Restore setup</button>
+    <p class="feature-note">Restores the full local persistence directory, including player save state. Requires matching scenario, mods, hive and recorded game build. An automatic rollback backup is made first. Start the server from Dashboard afterward with Load latest session enabled.</p>
+    <p class="feature-note" id="setup-result" role="status"></p>
+  </div>
   <details class="card config-maintenance" data-permission="configure" hidden>
     <summary>Save-file maintenance</summary>
     <p class="feature-note">Inspect or clear existing saves. Configure save timing and retention in Persistence above.</p>
     <div id="persist-stats" class="feature-note"></div>
     <button class="config-button" id="btn-persist-flush" data-permission="admin_config" hidden onclick="flushPersistence()">Flush saves</button>
   </details>
-
   </section>
 
   <section class="tab-panel" id="panel-mods" role="tabpanel" aria-labelledby="tab-mods" hidden>
@@ -671,6 +702,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <div id="mods-configured" role="tabpanel" aria-labelledby="mods-tab-configured">
       <div class="mods-toolbar">
         <input id="mods-search" type="search" aria-label="Search mods" placeholder="Search mods…">
+        <div class="mods-sort" role="group" aria-label="Mod view"><button id="mods-view-cards" aria-pressed="true" onclick="setModView('cards')">Cards</button><button id="mods-view-list" aria-pressed="false" onclick="setModView('list')">List</button><button id="mods-view-details" aria-pressed="false" onclick="setModView('details')">Details</button></div>
         <div class="mods-sort" aria-label="Sort mods"><button id="mods-sort-order" aria-pressed="true" onclick="sortModLibrary('order')">Load order</button><button id="mods-sort-name" aria-pressed="false" onclick="sortModLibrary('name')">Name</button><button id="mods-reorder" aria-pressed="false" data-permission="mods" onclick="toggleModReorder()">Reorder</button></div>
         <div class="mods-actions"><button onclick="exportModLibrary()">Export JSON</button><button onclick="copyModLibrary()">Copy list</button><button data-permission="mods" onclick="openModDialog('import')">Import mods</button><button class="mod-primary" data-permission="mods" onclick="openModDialog('add')">＋ Add mod</button></div>
       </div>
@@ -1026,20 +1058,39 @@ function colorLine(line) {
   return '';
 }
 
+function isPerformanceLog(text) {
+  return /^\s*\d{2}:\d{2}:\d{2}\.\d+\s+(?:DEFAULT\s*:\s*FPS:\s*\d+(?:\.\d+)?,\s*frame time\s*\(|WORLD\s*:\s*(?:UpdateEntities|Frame)\s*$)/.test(text);
+}
+
+function togglePerformanceLogs() {
+  const show = document.getElementById('show-performance-logs').checked;
+  document.getElementById('log-output').classList.toggle('hide-performance', !show);
+  try { localStorage.setItem('panel-show-performance-logs', String(show)); } catch (_) {}
+}
+try {
+  document.getElementById('show-performance-logs').checked = localStorage.getItem('panel-show-performance-logs') === 'true';
+} catch (_) {}
+togglePerformanceLogs();
+
 function appendLog(text) {
   const el = document.getElementById('log-output');
   const span = document.createElement('span');
-  span.className = 'log-line ' + colorLine(text);
+  span.className = 'log-line ' + colorLine(text) + (isPerformanceLog(text) ? ' performance-log' : '');
   span.textContent = text;
+  span.hidden = !text.toLowerCase().includes(document.getElementById('console-search').value.toLowerCase());
   el.appendChild(span);
-  el.appendChild(document.createTextNode('\n'));
   // Auto-scroll only when the user is near the bottom
-  if (el.scrollHeight - el.scrollTop < el.clientHeight + 120) {
+  if (!document.getElementById('pause-console-scroll').checked && el.scrollHeight - el.scrollTop < el.clientHeight + 120) {
     el.scrollTop = el.scrollHeight;
   }
   // Limit lines in the DOM
   const lines = el.querySelectorAll('.log-line');
   if (lines.length > 800) lines[0].remove();
+}
+
+function filterConsole() {
+  const query = document.getElementById('console-search').value.toLowerCase();
+  document.querySelectorAll('#log-output .log-line').forEach(line => { line.hidden = !line.textContent.toLowerCase().includes(query); });
 }
 
 function clearLog() {
@@ -1274,6 +1325,12 @@ function _fmtAge(ts) {
 }
 
 function _renderPersistStats(s) {
+  if ('autoSaveInterval' in s) {
+    const settings = typeof configSnapshot !== 'undefined' ? configSnapshot?.game?.gameProperties?.persistence : null;
+    const items = [['Autosave', s.enabled === false ? 'Saving disabled' : s.autoSaveInterval === 0 ? 'Periodic saves off' : `Every ${s.autoSaveInterval} minutes`], ['Startup loading', settings?.loadSessionSave === false ? 'Off' : 'Latest save'], ['Latest detected save metadata', s.saves?.newest_save ? new Date(s.saves.newest_save * 1000).toLocaleString() : 'Not detected']];
+    const summary = document.getElementById('persistence-summary'); summary.replaceChildren();
+    for (const [label, value] of items) { const tile=document.createElement('div'), heading=document.createElement('span'), text=document.createElement('strong'); heading.textContent=label;text.textContent=value;tile.append(heading,text);summary.append(tile); }
+  }
   const el = document.getElementById('persist-stats');
   if (!s.saves) { el.textContent = ''; return; }
   const { path, exists, total, buckets } = s.saves;
@@ -1343,5 +1400,7 @@ if ('serviceWorker' in navigator) {
 <script src="/static/mods.js"></script>
 <script src="/static/features.js"></script>
 <script src="/static/configuration.js"></script>
+<script src="/static/software.js"></script>
+<script src="/static/saves.js"></script>
 </body>
 </html>

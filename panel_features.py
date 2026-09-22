@@ -17,6 +17,8 @@ ROLES = {
     "admin": {"view", "control", "logs", "configure", "mods", "activity", "users", "admin_config"},
 }
 MUTATIONS = {
+    "software_check": "admin_config", "software_update": "admin_config",
+    "saves_capture": "admin_config", "saves_restore": "admin_config",
     "api_start": "control", "api_stop": "control", "api_restart": "control",
     "api_config": "configure", "api_persistence_set": "admin_config",
     "config_editor_save": "configure", "config_editor_validate": "configure",
@@ -130,6 +132,8 @@ def install(api):
         g.user = dict(user)
         g.permissions = ROLES[user["role"]]
         needed = MUTATIONS.get(request.endpoint) if request.method == "POST" else {
+            "software_status": "admin_config",
+            "saves_list": "admin_config",
             "api_logs": "logs", "users_list": "users", "activity_list": "activity",
             "api_persistence_get": "configure",
             "config_editor_get": "configure",
@@ -147,6 +151,8 @@ def install(api):
                 return err
             lock.acquire()
             g.mutation_lock = True
+            if request.endpoint in {"api_start", "api_restart"} and api.software_manager.busy():
+                return jsonify(ok=False, error="Wait for the server software job to finish before starting or restarting."), 409
             g.before_config = api.read_config()
             g.audit_actor = user["username"]
             g.audit_details = {}

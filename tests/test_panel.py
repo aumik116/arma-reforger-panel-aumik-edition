@@ -58,8 +58,26 @@ class PanelTests(unittest.TestCase):
             self.assertEqual(status['password_admin'], '')
         self.assertEqual(self.module.app.test_client().get('/api/status').status_code, 401)
 
+    def test_software_routes_and_start_interlock(self):
+        manager = self.module.software_manager
+        self.create('software-manager', 'manager')
+        client = self.login('software-manager')
+        self.assertEqual(client.get('/api/software').status_code, 403)
+        with patch.object(manager, 'launch') as launch:
+            result = self.post(self.admin, '/api/software/check')
+            self.assertEqual(result.status_code, 202)
+            launch.assert_called_once_with('check', 'admin')
+        with patch.object(manager, 'launch', side_effect=ValueError('Stop server')):
+            self.assertEqual(self.post(self.admin, '/api/software/update').status_code, 409)
+        with patch.object(manager, 'busy', return_value=True), patch.object(self.module, 'start_server') as start, patch.object(self.module, 'stop_server') as stop:
+            for route in ['/api/start', '/api/restart']:
+                self.assertEqual(self.post(self.admin, route).status_code, 409)
+            start.assert_not_called()
+            stop.assert_not_called()
+
     def test_csrf_and_old_shared_sessions_rejected(self):
         self.assertEqual(self.admin.post('/api/start', json={}).status_code, 403)
+        self.assertEqual(self.admin.post('/api/software/update', json={}).status_code, 403)
         client = self.module.app.test_client()
         with client.session_transaction() as session:
             session['logged_in'] = True

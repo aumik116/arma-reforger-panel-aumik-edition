@@ -75,11 +75,8 @@ SERVER_BINARY  = "./ArmaReforgerServer"
 MAX_FPS        = _cfg.get("MAX_FPS", "").strip()
 
 def build_server_args():
-    """Build the launch arguments. `-loadSessionSave` is always passed: with no
-    save files it's a no-op, and including it keeps panel-launched and
-    systemd-launched starts behaving the same way. The 'enabled' toggle in the
-    UI controls only the `persistence` block in config.json (autosave)."""
-    args = ["-config", SERVER_CONFIG, "-loadSessionSave", "-logStats", "1000"]
+    """Reforger 1.7+ uses the JSON persistence settings for automatic loading."""
+    args = ["-config", SERVER_CONFIG, "-logStats", "1000"]
     if MAX_FPS:
         args.append(f"-maxFPS={MAX_FPS}")
     return args
@@ -717,11 +714,8 @@ def write_config(cfg):
 
 # ─── PERSISTENCE ─────────────────────────────────────────────────────────────
 #
-# Reforger session save/load. The toggle is the presence of a top-level
-# `persistence` block in config.json (autosave); `-loadSessionSave` is always
-# passed at launch so any existing save loads on start. Save files live under
-# PROFILE_DIR/.save/ on Linux dedicated installs (Conflict / Combat Ops layout).
-# Subdirs underneath: game/ (world/session), playersave/ (per-player), settings/.
+# Reforger uses scenario-supported save types and JSON persistence defaults.
+# Native save-point layouts can include nested directories and binary payloads.
 
 _SAVE_SUBDIRS = (".save", "save", "saves")
 
@@ -746,7 +740,7 @@ def _set_persistence_block(cfg, block):
 def _persistence_enabled(cfg=None):
     if cfg is None:
         cfg = read_config()
-    return _get_persistence_block(cfg) is not None
+    return cfg.get('game', {}).get('gameProperties', {}).get('missionHeader', {}).get('m_eSaveTypes') != 0
 
 # Subdirs the flush button targets. `settings/` is intentionally preserved
 # because it holds non-session config the server expects to regenerate from.
@@ -783,13 +777,21 @@ def _scan_saves():
     if not os.path.isdir(root):
         return {"path": root, "exists": False, "total": {"count": 0, "bytes": 0, "newest": None}, "buckets": {}}
     buckets = {name: _scan_dir(os.path.join(root, name)) for name in ("game", "playersave", "settings")}
-    total_count = sum(b["count"] for b in buckets.values())
-    total_bytes = sum(b["bytes"] for b in buckets.values())
+    all_files = _scan_dir(root)
+    native_meta = []
+    for path in glob.glob(os.path.join(root, "**", "meta-info.json"), recursive=True):
+        try:
+            if os.path.isfile(path): native_meta.append(os.path.getmtime(path))
+        except OSError:
+            pass
+    total_count = all_files["count"]
+    total_bytes = all_files["bytes"]
     newest_vals = [b["newest"] for b in buckets.values() if b["newest"]]
     return {
         "path":    root,
         "exists":  True,
         "buckets": buckets,
+        "newest_save": max(native_meta) if native_meta else None,
         "total":   {
             "count":  total_count,
             "bytes":  total_bytes,
@@ -1062,6 +1064,9 @@ def api_persistence_set():
     cfg  = read_config()
     enabled = bool(data.get("enabled"))
     if enabled:
+        header = cfg.setdefault('game', {}).setdefault('gameProperties', {}).setdefault('missionHeader', {})
+        if header.get('m_eSaveTypes') == 0:
+            header.pop('m_eSaveTypes')  # Inherit the scenario's supported save types.
         block = _get_persistence_block(cfg) or {}
         if "autoSaveInterval" in data:
             try:
@@ -1085,7 +1090,7 @@ def api_persistence_set():
             block.setdefault("hiveId", 1)
         _set_persistence_block(cfg, block)
     else:
-        _set_persistence_block(cfg, None)
+        cfg.setdefault('game', {}).setdefault('gameProperties', {}).setdefault('missionHeader', {})['m_eSaveTypes'] = 0
     try:
         write_config(cfg)
         return jsonify({
@@ -1367,6 +1372,12 @@ install_config_editor(sys.modules[__name__])
 
 from panel_features import install as install_features
 install_features(sys.modules[__name__])
+
+from server_software import install as install_server_software
+install_server_software(sys.modules[__name__])
+
+from save_library import install as install_save_library
+install_save_library(sys.modules[__name__])
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=PANEL_PORT, threaded=True)

@@ -80,6 +80,7 @@ function renderConfigFields(missions) {
   configControls.clear();
   const container = byId('config-visual');
   container.replaceChildren();
+  byId('persistence-settings').replaceChildren();
   const suggestions = document.createElement('datalist');
   suggestions.id = 'config-scenarios';
   for (const mission of missions || []) {
@@ -89,8 +90,11 @@ function renderConfigFields(missions) {
     suggestions.append(option);
   }
   container.append(suggestions);
+  const playerSave = configGroups.flatMap(group => group.fields).find(field => field.path === 'operating.playerSaveTime');
+  const displayGroups = configGroups.map(group => ({...group, fields: group.fields.filter(field => field.path !== 'operating.playerSaveTime')}));
+  if (playerSave) displayGroups.find(group => group.title === 'Persistence')?.fields.push(playerSave);
   const order = ['Identity', 'Network', 'Access', 'Gameplay', 'Remote console', 'Operating', 'Persistence'];
-  configGroups.map((group, index) => ({group, index})).sort((a,b) => order.indexOf(a.group.title) - order.indexOf(b.group.title)).forEach(({group, index:groupIndex}) => {
+  displayGroups.map((group, index) => ({group, index})).sort((a,b) => order.indexOf(a.group.title) - order.indexOf(b.group.title)).forEach(({group, index:groupIndex}) => {
     const card = configElement('section', 'config-section');
     card.id = `config-group-${groupIndex}`;
     const heading = configElement('div', 'config-section-heading');
@@ -251,7 +255,7 @@ function renderConfigFields(missions) {
       configControls.set(spec.path, {spec, input});
     });
     card.append(grid);
-    container.append(card);
+    (group.title === 'Persistence' ? byId('persistence-settings') : container).append(card);
   });
 }
 
@@ -270,7 +274,7 @@ function populateScenarioOptions(select, current) {
 async function loadConfiguration(force = false) {
   if (!can('configure') || configPending || (configSnapshot && !force)) return;
   configPending = true;
-  byId('config-fields').disabled = true;
+  byId('config-fields').disabled = true; byId('persistence-fields').disabled = true;
   byId('config-loading').textContent = 'Loading server configuration…';
   try {
     const data = await getFeature('/api/config/editor');
@@ -282,7 +286,7 @@ async function loadConfiguration(force = false) {
     byId('config-json-text').setAttribute('aria-label', can('admin_config') ? 'Complete configuration JSON' : 'Configuration JSON with admin secrets omitted');
     renderConfigFields(configMissions);
     byId('config-loading').textContent = data.rcon_overridden ? 'RCON connection overrides in config.env are active. Editing the server listener does not update those overrides.' : 'Unset fields use engine defaults. Custom fields and the mod list are preserved.';
-    byId('config-fields').disabled = false;
+    byId('config-fields').disabled = false; byId('persistence-fields').disabled = false;
     updateConfigDraft();
     configFeedback('Changes apply on the next server start. Saving does not restart it.');
     fetchPersistence();
@@ -325,10 +329,10 @@ async function submitConfiguration(save) {
   if (configPending || !configSnapshot) return;
   for (const {spec, input} of configControls.values()) {
     if (Object.hasOwn(configChanges, spec.path) && !input.checkValidity()) {
-      setConfigurationView('visual'); input.reportValidity(); return;
+      selectPanelTab(byId(spec.path.includes('.persistence.') || spec.path === 'operating.playerSaveTime' ? 'tab-persistence' : 'tab-configuration')); setConfigurationView('visual'); input.reportValidity(); return;
     }
   }
-  configPending = true; byId('config-fields').disabled = true;
+  configPending = true; byId('config-fields').disabled = true; byId('persistence-fields').disabled = true;
   try {
     const response = await postJson(save ? '/api/config/editor' : '/api/config/validate', {revision:configRevision, changes:configChanges});
     const data = await response.json();
@@ -341,7 +345,7 @@ async function submitConfiguration(save) {
     }
     configFeedback(save ? 'Saved. Restart the server to apply these settings.' : 'Changed fields are valid. Scenario resources and mod support are checked by the game on startup.');
   } catch (error) { configFeedback(error.message, true); }
-  finally { configPending = false; byId('config-fields').disabled = false; updateConfigDraft(); }
+  finally { configPending = false; byId('config-fields').disabled = false; byId('persistence-fields').disabled = false; updateConfigDraft(); }
 }
 
 async function copyConfigurationJson() {

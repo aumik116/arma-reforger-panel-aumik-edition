@@ -55,7 +55,7 @@ class PanelTests(unittest.TestCase):
                     result = self.post(client, routes[endpoint])
                     self.assertEqual(result.status_code, 403, (role, endpoint, result.json))
             status = client.get('/api/status').json
-            self.assertEqual(status['password_admin'], 'admin-secret' if role == 'manager' else '')
+            self.assertEqual(status['password_admin'], '')
         self.assertEqual(self.module.app.test_client().get('/api/status').status_code, 401)
 
     def test_csrf_and_old_shared_sessions_rejected(self):
@@ -64,6 +64,102 @@ class PanelTests(unittest.TestCase):
         with client.session_transaction() as session:
             session['logged_in'] = True
         self.assertEqual(client.get('/api/status').status_code, 401)
+
+    def test_manager_field_permissions_and_secret_redaction(self):
+        from config_editor import FIELDS, MANAGER_FIELDS
+        self.create('manager', 'manager')
+        manager = self.login('manager')
+        cfg = json.loads(self.config.read_text())
+        cfg['rcon'] = {'address': '127.0.0.1', 'password': 'rcon-secret', 'port': 19999}
+        cfg['game']['gameProperties'] = {'persistence': {'hiveId': 12, 'autoSaveInterval': 10}}
+        self.config.write_text(json.dumps(cfg))
+        loaded = manager.get('/api/config/editor').json
+        self.assertNotIn('passwordAdmin', loaded['config']['game'])
+        self.assertNotIn('password', loaded['config']['rcon'])
+        self.assertEqual(loaded['config']['game']['password'], 'game-secret')
+        specs = {f['path']: f for group in loaded['groups'] for f in group['fields']}
+        for path in FIELDS.keys() - MANAGER_FIELDS:
+            self.assertTrue(specs[path]['read_only'], path)
+            for route in ('/api/config/editor', '/api/config/validate'):
+                response = self.post(manager, route, {'revision': loaded['revision'], 'changes': {path: None, 'game.name': 'Must not save'}})
+                self.assertEqual(response.status_code, 403, (path, route))
+        self.assertEqual(json.loads(self.config.read_text()), cfg)
+        for route in ('/api/config/validate', '/api/config/editor'):
+            response = self.post(manager, route, {'revision': loaded['revision'], 'changes': {
+                'game.name': 'Managed server', 'game.gameProperties.persistence.autoSaveInterval': 15}})
+            self.assertEqual(response.status_code, 200, response.json)
+            self.assertNotIn('admin-secret', response.get_data(as_text=True))
+            self.assertNotIn('rcon-secret', response.get_data(as_text=True))
+        saved = json.loads(self.config.read_text())
+        self.assertEqual(saved['game']['passwordAdmin'], 'admin-secret')
+        self.assertEqual(saved['rcon']['password'], 'rcon-secret')
+        self.assertEqual(saved['game']['gameProperties']['persistence']['hiveId'], 12)
+        self.assertEqual(saved['game']['gameProperties']['persistence']['autoSaveInterval'], 15)
+        self.assertEqual(self.post(manager, '/api/config', {'password_admin': 'blocked', 'server_name': 'Must not save'}).status_code, 403)
+        self.assertEqual(self.post(manager, '/api/persistence', {'enabled': False}).status_code, 403)
+        with patch.object(self.module, '_flush_saves') as flush:
+            self.assertEqual(self.post(manager, '/api/persistence/flush').status_code, 403)
+            flush.assert_not_called()
+        self.assertEqual(json.loads(self.config.read_text()), saved)
+        admin_loaded = self.admin.get('/api/config/editor').json
+        self.assertEqual(admin_loaded['config']['rcon']['password'], 'rcon-secret')
+        self.assertEqual(self.post(self.admin, '/api/config/editor', {'revision': admin_loaded['revision'], 'changes': {'bindPort': 2400}}).status_code, 200)
+
+    def test_owner_is_protected_from_added_admins_and_survives_rename(self):
+        owner = self.admin.get('/api/me').json
+        self.assertTrue(owner['is_owner'])
+        self.create('secondadmin', 'admin')
+        added = self.login('secondadmin')
+        self.assertFalse(added.get('/api/me').json['is_owner'])
+        for overrides in ({'username': 'taken'}, {'password': 'changed-password'}, {'role': 'viewer'}, {'enabled': False}, {}):
+            response = self.post(added, '/api/users', dict(id=owner['id'], username='admin', role='admin', enabled=True) | overrides)
+            self.assertEqual(response.status_code, 403, response.json)
+        self.assertEqual(self.post(added, '/api/users/delete', {'id': owner['id']}).status_code, 403)
+        for overrides in ({'role': 'manager'}, {'enabled': False}):
+            self.assertEqual(self.post(self.admin, '/api/users', dict(id=owner['id'], username='admin', role='admin', enabled=True) | overrides).status_code, 400)
+        self.assertEqual(self.post(self.admin, '/api/users/delete', {'id': owner['id']}).status_code, 400)
+        renamed = self.post(self.admin, '/api/users', {'id': owner['id'], 'username': 'founder', 'role': 'admin', 'enabled': True, 'password': 'owner-new-password'})
+        self.assertTrue(renamed.json['ok'], renamed.json)
+        self.assertTrue(self.login('founder', 'owner-new-password').get('/api/me').json['is_owner'])
+        spoof = self.post(added, '/api/users', {'username': 'admin', 'role': 'admin', 'password': 'test-password', 'is_owner': True})
+        self.assertTrue(spoof.json['ok'])
+        self.assertFalse(self.login('admin').get('/api/me').json['is_owner'])
+        # Simulate upgrading/restarting an existing database: immutable ID, not name.
+        spec = importlib.util.spec_from_file_location('reloaded_owner_app', self.root / 'app.py')
+        restarted = importlib.util.module_from_spec(spec)
+        sys.modules['reloaded_owner_app'] = restarted
+        spec.loader.exec_module(restarted)
+        client = restarted.app.test_client()
+        self.assertEqual(client.post('/login', json={'username': 'founder', 'password': 'owner-new-password'}).status_code, 200)
+        self.assertTrue(client.get('/api/me').json['is_owner'])
+        self.assertEqual(client.get('/api/me').json['id'], owner['id'])
+
+    def test_mod_edit_reorder_preserve_fields_and_reject_stale_list(self):
+        mods = [{'modId': 'ABC', 'name': 'First', 'version': '1', 'required': False}, {'modId': 'DEF', 'name': 'Second'}]
+        cfg = json.loads(self.config.read_text())
+        cfg['game']['mods'] = mods
+        self.config.write_text(json.dumps(cfg))
+        changed = self.post(self.admin, '/api/mods/edit', {'modId': 'ABC', 'expected': mods, 'name': 'Updated', 'version': ''})
+        self.assertEqual(changed.status_code, 200)
+        result = json.loads(self.config.read_text())
+        self.assertEqual(result['game']['mods'][0], {'modId': 'ABC', 'name': 'Updated', 'required': False})
+        self.assertEqual(result['game']['scenarioId'], 'original')
+        stale = self.post(self.admin, '/api/mods/edit', {'modId': 'ABC', 'expected': mods, 'direction': 1})
+        self.assertEqual(stale.status_code, 409)
+        moved = self.post(self.admin, '/api/mods/edit', {'modId': 'ABC', 'expected': result['game']['mods'], 'direction': 1})
+        self.assertEqual(moved.status_code, 200)
+        self.assertEqual(json.loads(self.config.read_text())['game']['mods'][1]['modId'], 'ABC')
+
+    def test_metadata_only_reads_configured_mods(self):
+        with patch.object(self.module._mod_metadata, 'get') as fetch:
+            self.assertEqual(self.admin.get('/api/mods/metadata?modId=ABC').status_code, 404)
+            fetch.assert_not_called()
+            cfg = json.loads(self.config.read_text())
+            cfg['game']['mods'] = [{'modId': 'ABC'}]
+            self.config.write_text(json.dumps(cfg))
+            fetch.return_value = {'status': 'available', 'sizes': {'1.0': 1024}}
+            self.assertEqual(self.admin.get('/api/mods/metadata?modId=abc').json['sizes']['1.0'], 1024)
+            fetch.assert_called_once_with('ABC')
 
     def test_config_editor_preserves_unknown_fields_and_rejects_stale_drafts(self):
         cfg = json.loads(self.config.read_text())

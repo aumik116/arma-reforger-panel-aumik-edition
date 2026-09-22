@@ -900,7 +900,7 @@ def api_status():
         "missions_count": {"vanilla": sum(1 for m in missions if m.get("source") == "vanilla"),
                            "from_mods": sum(1 for m in missions if m.get("source") != "vanilla")},
         "password":       cfg.get("game", {}).get("password", "") if "configure" in g.permissions else "",
-        "password_admin": cfg.get("game", {}).get("passwordAdmin", "") if "configure" in g.permissions else "",
+        "password_admin": cfg.get("game", {}).get("passwordAdmin", "") if "admin_config" in g.permissions else "",
         "cpu":            cpu,
         "ram_process":    ram,
         "ram_used":       ram_used,
@@ -987,6 +987,8 @@ def api_config():
     err = _csrf_required()
     if err: return err
     data = request.get_json(silent=True) or {}
+    if 'password_admin' in data and 'admin_config' not in g.permissions:
+        return jsonify(ok=False, error='Admin only: administrator password'), 403
     cfg  = read_config()
     changed = False
     if "server_name" in data and data["server_name"].strip():
@@ -1217,6 +1219,50 @@ def api_mods_remove():
         return jsonify({"ok": True, "restart_required": get_server_pid() is not None, "mods": new})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
+
+from mod_metadata import ModMetadata
+_mod_metadata = ModMetadata()
+
+
+@app.get("/api/mods/metadata")
+def api_mods_metadata():
+    mod_id = request.args.get("modId", "").upper()
+    mods = read_config().get("game", {}).get("mods", [])
+    if not any(str(m.get("modId", "")).upper() == mod_id for m in mods):
+        return jsonify(ok=False, error="Mod is not configured"), 404
+    return jsonify(_mod_metadata.get(mod_id))
+
+
+@app.post("/api/mods/edit")
+def api_mods_edit():
+    data = request.get_json(silent=True) or {}
+    cfg = read_config()
+    mods = cfg.get("game", {}).get("mods", [])
+    if not isinstance(data.get("expected"), list) or data["expected"] != mods:
+        return jsonify(ok=False, error="The mod list changed. Close and reopen this editor to try again."), 409
+    mod_id = data.get("modId")
+    if not isinstance(mod_id, str):
+        return jsonify(ok=False, error="Invalid mod ID"), 400
+    index = next((i for i, m in enumerate(mods) if m.get("modId", "").upper() == mod_id.upper()), None)
+    if index is None:
+        return jsonify(ok=False, error="Mod not found"), 404
+    if "direction" in data:
+        direction = data["direction"]
+        if type(direction) is not int or direction not in (-1, 1) or not 0 <= index + direction < len(mods):
+            return jsonify(ok=False, error="Invalid move"), 400
+        mods[index], mods[index + direction] = mods[index + direction], mods[index]
+    else:
+        name, version = data.get("name", ""), data.get("version", "")
+        if not isinstance(name, str) or not isinstance(version, str) or len(name) > 200 or len(version) > 32 or any(ord(c) < 32 for c in name + version):
+            return jsonify(ok=False, error="Invalid name or version"), 400
+        for key, value in (("name", name.strip()), ("version", version.strip())):
+            if value:
+                mods[index][key] = value
+            else:
+                mods[index].pop(key, None)
+    write_config(cfg)
+    return jsonify(ok=True, restart_required=get_server_pid() is not None)
+
 
 def service_command(action):
     result = subprocess.run(

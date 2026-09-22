@@ -14,15 +14,15 @@ ROLES = {
     "viewer": {"view"},
     "operator": {"view", "control", "logs"},
     "manager": {"view", "control", "logs", "configure", "mods", "activity"},
-    "admin": {"view", "control", "logs", "configure", "mods", "activity", "users"},
+    "admin": {"view", "control", "logs", "configure", "mods", "activity", "users", "admin_config"},
 }
 MUTATIONS = {
     "api_start": "control", "api_stop": "control", "api_restart": "control",
-    "api_config": "configure", "api_persistence_set": "configure",
+    "api_config": "configure", "api_persistence_set": "admin_config",
     "config_editor_save": "configure", "config_editor_validate": "configure",
-    "admin_label_save": "configure",
-    "api_persistence_flush": "configure", "api_scenarios_rescan": "mods",
-    "api_mods_add": "mods", "api_mods_remove": "mods", "api_mods_import": "mods",
+    "admin_label_save": "admin_config",
+    "api_persistence_flush": "admin_config", "api_scenarios_rescan": "mods",
+    "api_mods_add": "mods", "api_mods_remove": "mods", "api_mods_import": "mods", "api_mods_edit": "mods",
     "presets_save": "mods", "presets_apply": "mods", "presets_delete": "mods",
     "users_save": "users", "users_delete": "users", "account_password": "view",
 }
@@ -56,10 +56,16 @@ def install(api):
             CREATE TABLE IF NOT EXISTS activity (
                 id INTEGER PRIMARY KEY, ts REAL NOT NULL, actor TEXT NOT NULL,
                 action TEXT NOT NULL, outcome TEXT NOT NULL, details TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS panel_owner (
+                singleton INTEGER PRIMARY KEY CHECK(singleton=1), user_id INTEGER NOT NULL);
         """)
         if not conn.execute("SELECT 1 FROM users LIMIT 1").fetchone():
             conn.execute("INSERT INTO users(username,password,role) VALUES(?,?,?)",
                          ("admin", api.PANEL_PASSWORD_HASH, "admin"))
+        # The bootstrap account was always ID 1. Never infer ownership from a
+        # mutable username or transfer it to another administrator on startup.
+        conn.execute("INSERT OR IGNORE INTO panel_owner(singleton,user_id) VALUES(1,1)")
+        owner_id = conn.execute("SELECT user_id FROM panel_owner WHERE singleton=1").fetchone()[0]
     os.chmod(path, 0o600)
 
     def audit(actor, action, outcome, details=None):
@@ -166,7 +172,8 @@ def install(api):
 
     @app.get("/api/me")
     def account_me():
-        return jsonify(username=g.user["username"], role=g.user["role"], permissions=sorted(g.permissions))
+        return jsonify(id=g.user['id'], username=g.user["username"], role=g.user["role"],
+                       is_owner=g.user['id'] == owner_id, permissions=sorted(g.permissions))
 
     def body():
         data = request.get_json(silent=True)
@@ -195,7 +202,7 @@ def install(api):
     def users_list():
         with db() as conn:
             rows = conn.execute("SELECT id,username,role,enabled FROM users ORDER BY username").fetchall()
-        return jsonify(users=[dict(row) for row in rows], roles=list(ROLES))
+        return jsonify(users=[dict(row, is_owner=row['id'] == owner_id) for row in rows], roles=list(ROLES))
 
     @app.post("/api/users")
     def users_save():
@@ -213,6 +220,11 @@ def install(api):
                 if data.get("id") is not None and not existing:
                     return jsonify(ok=False, error="Account not found"), 404
                 if existing:
+                    if existing['id'] == owner_id:
+                        if g.user['id'] != owner_id:
+                            return jsonify(ok=False, error="Only the Owner can change the Owner account"), 403
+                        if not enabled or role != 'admin':
+                            return jsonify(ok=False, error="The Owner cannot be disabled or demoted"), 400
                     if existing["id"] == g.user["id"] and (not enabled or role != "admin"):
                         return jsonify(ok=False, error="You cannot disable or demote your own administrator account"), 400
                     if existing["role"] == "admin" and existing["enabled"] and (not enabled or role != "admin"):
@@ -239,6 +251,8 @@ def install(api):
             user = conn.execute("SELECT * FROM users WHERE id=?", (body().get("id"),)).fetchone()
             if not user:
                 return jsonify(ok=False, error="Account not found"), 404
+            if user['id'] == owner_id:
+                return jsonify(ok=False, error="The Owner account cannot be deleted"), 400 if g.user['id'] == owner_id else 403
             if user["id"] == g.user["id"]:
                 return jsonify(ok=False, error="You cannot delete your own account"), 400
             if user["role"] == "admin" and user["enabled"]:

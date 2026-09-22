@@ -138,8 +138,9 @@ function renderConfigFields(missions) {
       input.setAttribute('aria-describedby', id + '-help');
       const original = configGet(configSnapshot, spec.path);
       displayConfigValue(input, spec, original);
+      if (spec.redacted) { input.value = ''; input.placeholder = 'Hidden · Admin only'; }
       const actions = configElement('div', 'config-field-actions');
-      const state = configElement('span', 'config-field-state', original === undefined ? 'Using engine default' : 'Configured');
+      const state = configElement('span', 'config-field-state', spec.read_only ? 'Read-only · Admin only' : original === undefined ? 'Using engine default' : 'Configured');
       actions.append(state);
       if (spec.kind === 'scenario') {
         const custom = configElement('input'); custom.type = 'text'; custom.placeholder = '{GUID}Missions/Custom.conf';
@@ -170,13 +171,14 @@ function renderConfigFields(missions) {
         };
         actions.append(rescan);
       }
-      if (spec.kind === 'password') {
+      if (spec.kind === 'password' && !spec.redacted) {
         const show = configElement('button', '', 'Show'); show.type = 'button';
         show.setAttribute('aria-label', 'Show ' + spec.label.toLowerCase());
         show.onclick = () => { input.type = input.type === 'password' ? 'text' : 'password'; show.textContent = input.type === 'password' ? 'Show' : 'Hide'; };
         actions.append(show);
       }
       function changed(value) {
+        if (spec.read_only) return;
         if ((value === null && original === undefined) || JSON.stringify(value) === JSON.stringify(original)) delete configChanges[spec.path];
         else configChanges[spec.path] = value;
         row.classList.toggle('is-dirty', Object.hasOwn(configChanges, spec.path));
@@ -184,7 +186,7 @@ function renderConfigFields(missions) {
         updateConfigDraft();
         configFeedback('Draft updated. Validate and save when ready.');
       }
-      if (!spec.required) {
+      if (!spec.required && !spec.read_only) {
         const reset = configElement('button', '', 'Use default'); reset.type = 'button';
         reset.setAttribute('aria-label', 'Use default for ' + spec.label.toLowerCase());
         reset.onclick = () => { displayConfigValue(input, spec, undefined); changed(null); input.dispatchEvent(new Event('change')); };
@@ -241,6 +243,10 @@ function renderConfigFields(missions) {
         renderNames(); row.append(names);
       }
 
+      if (spec.read_only) {
+        row.classList.add('config-field-locked');
+        row.querySelectorAll('input, select, textarea, button').forEach(control => { control.disabled = true; });
+      }
       grid.append(row);
       configControls.set(spec.path, {spec, input});
     });
@@ -270,6 +276,10 @@ async function loadConfiguration(force = false) {
     const data = await getFeature('/api/config/editor');
     configSnapshot = data.config; configRevision = data.revision;
     configGroups = data.groups; configMissions = data.missions; configChanges = {}; configAdminLabels = data.admin_labels || {};
+    byId('config-json-description').textContent = can('admin_config')
+      ? 'Read-only preview of the complete draft, including mods and custom fields. Passwords are included.'
+      : 'Read-only preview of your draft, including mods and custom fields. Admin and RCON passwords are omitted. The join password is included.';
+    byId('config-json-text').setAttribute('aria-label', can('admin_config') ? 'Complete configuration JSON' : 'Configuration JSON with admin secrets omitted');
     renderConfigFields(configMissions);
     byId('config-loading').textContent = data.rcon_overridden ? 'RCON connection overrides in config.env are active. Editing the server listener does not update those overrides.' : 'Unset fields use engine defaults. Custom fields and the mod list are preserved.';
     byId('config-fields').disabled = false;
@@ -335,7 +345,7 @@ async function submitConfiguration(save) {
 }
 
 async function copyConfigurationJson() {
-  try { await navigator.clipboard.writeText(byId('config-json-text').value); configFeedback('Configuration JSON copied. It includes passwords.'); }
+  try { await navigator.clipboard.writeText(byId('config-json-text').value); configFeedback(can('admin_config') ? 'Configuration JSON copied. It includes passwords.' : 'Configuration JSON copied. Admin and RCON passwords are omitted; the join password is included.'); }
   catch { byId('config-json-text').focus(); byId('config-json-text').select(); configFeedback('Select and copy the JSON using your keyboard.'); }
 }
 

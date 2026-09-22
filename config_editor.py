@@ -71,6 +71,29 @@ GROUPS = [
 ]
 FIELDS = {item['path']: item for group in GROUPS for item in group['fields']}
 
+# New fields default to administrator-only until explicitly delegated.
+MANAGER_FIELDS = frozenset({
+    'game.name', 'game.scenarioId', 'game.visible', 'game.maxPlayers',
+    'game.crossPlatform', 'game.password',
+    'game.gameProperties.disableThirdPerson', 'game.gameProperties.serverMaxViewDistance',
+    'game.gameProperties.networkViewDistance', 'game.gameProperties.serverMinGrassDistance',
+    'game.gameProperties.VONDisableUI', 'game.gameProperties.VONDisableDirectSpeechUI',
+    'game.gameProperties.VONCanTransmitCrossFaction', 'operating.disableAI', 'operating.aiLimit',
+    'operating.playerSaveTime', 'game.gameProperties.persistence.autoSaveInterval',
+    'game.gameProperties.persistence.saveRetention', 'game.gameProperties.persistence.loadSessionSave',
+    'game.gameProperties.persistence.keepSessionSave',
+})
+SECRET_FIELDS = {'game.passwordAdmin', 'rcon.password'}
+
+
+def config_for_permissions(config, permissions):
+    result = copy.deepcopy(config)
+    if 'admin_config' not in permissions:
+        for section, key in (('game', 'passwordAdmin'), ('rcon', 'password')):
+            if isinstance(result.get(section), dict):
+                result[section].pop(key, None)
+    return result
+
 
 def revision(config):
     return hashlib.sha256(json.dumps(config, sort_keys=True, ensure_ascii=True).encode()).hexdigest()
@@ -156,7 +179,7 @@ def apply_changes(config, changes):
 
 
 def install(api):
-    from flask import jsonify, request
+    from flask import g, jsonify, request
 
     def read_strict():
         with open(api.SERVER_CONFIG, encoding='utf-8-sig') as handle:
@@ -169,7 +192,12 @@ def install(api):
     def config_editor_get():
         try:
             config = read_strict()
-            return jsonify(config=config, revision=revision(config), groups=GROUPS,
+            groups = copy.deepcopy(GROUPS)
+            for group in groups:
+                for spec in group['fields']:
+                    spec['read_only'] = 'admin_config' not in g.permissions and spec['path'] not in MANAGER_FIELDS
+                    spec['redacted'] = spec['read_only'] and spec['path'] in SECRET_FIELDS
+            return jsonify(config=config_for_permissions(config, g.permissions), revision=revision(config), groups=groups,
                            missions=api.all_scenarios_cached(), admin_labels=api.get_admin_labels(),
                            rcon_overridden=any(api._cfg.get(k) for k in ('RCON_HOST', 'RCON_PORT', 'RCON_PASSWORD')))
         except (ValueError, OSError):
@@ -178,13 +206,18 @@ def install(api):
     def edit(save):
         data = request.get_json(silent=True) or {}
         try:
+            changes = data.get('changes')
+            if isinstance(changes, dict) and 'admin_config' not in g.permissions:
+                blocked = set(changes) - MANAGER_FIELDS
+                if blocked:
+                    return jsonify(ok=False, error='Admin only: ' + ', '.join(sorted(blocked))), 403
             config = read_strict()
             if data.get('revision') != revision(config):
                 return jsonify(ok=False, error='Configuration changed since you loaded it. Reload before saving; your draft has been kept.'), 409
-            updated = apply_changes(config, data.get('changes'))
+            updated = apply_changes(config, changes)
             if save:
                 api.write_config(updated)
-            return jsonify(ok=True, config=updated, revision=revision(updated), restart_required=save)
+            return jsonify(ok=True, config=config_for_permissions(updated, g.permissions), revision=revision(updated), restart_required=save)
         except ValueError as error:
             return jsonify(ok=False, error=str(error)), 400
         except OSError:

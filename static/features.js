@@ -14,6 +14,7 @@ function selectPanelTab(tab) {
     button.tabIndex = selected ? 0 : -1;
     byId(button.getAttribute('aria-controls')).hidden = !selected;
   });
+  document.body.classList.toggle('mods-active', tab.id === 'tab-mods');
   byId('page-title').textContent = tab.textContent;
   byId('page-description').textContent = {
     'tab-dashboard': 'Monitor your server and manage the action.',
@@ -80,7 +81,6 @@ function applyPermissions() {
   document.querySelectorAll('[data-permission]').forEach(el => {
     el.hidden = !can(el.dataset.permission);
   });
-  document.querySelectorAll('#mods-list button').forEach(el => { el.hidden = !can('mods'); });
   byId('users-controls').disabled = !can('users');
   byId('users-restricted').hidden = can('users');
   byId('configuration-readonly').hidden = can('configure');
@@ -160,16 +160,21 @@ async function loadUsers() {
   accountRows.forEach(user => {
     const row = document.createElement('div'); row.className = 'feature-row';
     const label = document.createElement('span');
-    label.textContent = `${user.username} · ${user.role}${user.enabled ? '' : ' · Disabled'}`;
+    label.textContent = `${user.username} · ${user.is_owner ? 'Owner' : user.role}${user.enabled ? '' : ' · Disabled'}`;
     row.append(label);
+    if (user.is_owner && user.id !== currentAccount.id) {
+      const note = document.createElement('small'); note.textContent = 'Protected Owner account';
+      row.append(note); byId('users-list').append(row); return;
+    }
     const edit = document.createElement('button'); edit.className = 'btn-save'; edit.textContent = 'Edit';
     edit.onclick = () => {
       byId('user-id').value = user.id; byId('user-name').value = user.username;
       byId('user-role').value = user.role; byId('user-enabled').checked = !!user.enabled;
+      byId('user-role').disabled = !!user.is_owner; byId('user-enabled').disabled = !!user.is_owner;
       byId('user-password').value = ''; byId('user-save').textContent = 'Update account';
     };
     row.append(edit);
-    if (user.username !== currentAccount.username) {
+    if (user.id !== currentAccount.id && !user.is_owner) {
       const remove = document.createElement('button'); remove.className = 'btn-save'; remove.textContent = 'Delete';
       remove.onclick = async () => {
         if (!confirm(`Delete account "${user.username}"? Its activity history will remain.`)) return;
@@ -185,6 +190,7 @@ async function loadUsers() {
 function resetUserForm() {
   byId('user-id').value = ''; byId('user-name').value = ''; byId('user-password').value = '';
   byId('user-role').value = 'viewer'; byId('user-enabled').checked = true;
+  byId('user-role').disabled = false; byId('user-enabled').disabled = false;
   byId('user-save').textContent = 'Create account';
 }
 
@@ -194,6 +200,10 @@ async function saveUser() {
       role:byId('user-role').value, enabled:byId('user-enabled').checked};
     if (byId('user-id').value) data.id = Number(byId('user-id').value);
     await changeFeature('/api/users', data);
+    if (data.id === currentAccount.id) {
+      currentAccount = await getFeature('/api/me');
+      byId('account-label').textContent = `${currentAccount.username} · ${currentAccount.is_owner ? 'Owner' : currentAccount.role}`;
+    }
     resetUserForm(); await loadUsers();
   } catch (e) { setLog(e.message, 'error'); }
 }
@@ -238,7 +248,7 @@ async function loadActivity(older = false) {
 async function initFeatures() {
   try {
     currentAccount = await getFeature('/api/me');
-    byId('account-label').textContent = `${currentAccount.username} · ${currentAccount.role}`;
+    byId('account-label').textContent = `${currentAccount.username} · ${currentAccount.is_owner ? 'Owner' : currentAccount.role}`;
     applyPermissions();
     await Promise.all([loadPlayers(), loadPresets(), can('users') ? loadUsers() : Promise.resolve(), can('activity') ? loadActivity() : Promise.resolve()]);
     setInterval(loadPlayers, 10000);

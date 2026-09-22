@@ -10,7 +10,8 @@ A self-hosted web panel for managing an Arma Reforger dedicated server on Linux.
 - **Detailed configuration:** grouped settings for identity, access, networking, gameplay, RCON, operating behavior and persistence.
 - **Raw JSON view:** inspect and copy the complete configuration draft alongside the visual controls.
 - **Named scenarios:** select built-in and discovered mod scenarios by name, or enter a custom scenario resource.
-- **Mod management:** add and remove mods, specify versions, import JSON lists and save reusable presets.
+- **Mod library:** browse thumbnail cards, search by name or ID, sort, reorder, and choose 8, 16, 24 or 48 mods per page. Add and remove mods, edit pinned versions, import/export JSON lists and save reusable presets.
+- **Mod download estimate:** view Workshop sizes on each card and a total across all configured mods, using pinned versions when specified. Unknown sizes are marked explicitly. The estimate excludes dependencies outside the configured list and files a player already has can reduce their download.
 - **Connected players:** view player names, IDs and when the panel first observed them.
 - **Administrator labels:** save a readable name beside an in-game administrator UUID or Steam ID.
 - **Individual accounts:** four permission levels and a history of panel operations.
@@ -72,7 +73,7 @@ Settings are grouped into Identity, Network, Access, Gameplay, Remote console, O
 
 Saving does not restart the server. **Use default** removes an explicit setting so the engine can use its default. Untouched settings, custom configuration fields and mods are preserved.
 
-**Raw JSON** is a read-only view of the complete draft, including unsaved edits. It includes passwords, so take care when copying or sharing it. Configuration access is restricted to Managers and Administrators.
+**Raw JSON** is a read-only view of the draft, including unsaved edits. Administrators see the complete configuration, including passwords. Managers receive a version with in-game administrator and RCON passwords omitted; the join password is still included. Copy and share it accordingly. Configuration access is restricted to Managers and Administrators.
 
 If the configuration changes after you load it, saving is blocked to prevent overwriting newer changes. **Reload from disk** loads the latest file and asks before discarding unsaved edits.
 
@@ -113,12 +114,16 @@ The player list refreshes every ten seconds. **First observed by panel** is the 
 |---|---|
 | Viewer | Status, metrics, connected players, mods and presets |
 | Operator | Viewer permissions plus server controls and console logs |
-| Manager | Operator permissions plus configuration, persistence, mod changes, presets, administrator labels and activity history |
-| Administrator | All features plus account management |
+| Manager | Operator permissions plus everyday server/gameplay settings, AI limits, save timing and retention, mods, presets and activity history |
+| Administrator | All features, including infrastructure/security settings and account management; cannot modify the protected Owner account |
+
+Only Administrators can change IP addresses, ports, A2S, RCON, in-game administrator access/passwords/name labels, BattlEye, fast validation, backend synchronization/shutdown behavior and the persistence Hive ID, or clear save files. Managers see these non-secret settings as **Read-only · Admin only**. Server name, scenario, join password, player limit, crossplay and browser visibility remain available to Managers.
 
 Create individual accounts in **Administration**. Every user can change their own password. New passwords require at least 10 characters and cannot exceed 72 UTF-8 bytes.
 
 Password changes, role changes and disabling an account invalidate its existing sessions. Administrators cannot delete or demote their own account.
+
+The original default account is marked **Owner**. Ownership is tied to its permanent database ID, so renaming it does not remove its protection. Other Administrators cannot rename it, reset its password, change its role, disable it or delete it. The Owner can change its own username/password, but cannot be disabled, demoted or deleted through the panel. Ownership cannot be assigned when creating or editing an account.
 
 Activity history records operations made through the panel. It does not record commands issued through SSH or directly in-game. Password values are excluded from activity records.
 

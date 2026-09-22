@@ -91,3 +91,6 @@
 .config-admin-entry span { display:block; font:10px/1.5 monospace; color:var(--muted); overflow-wrap:anywhere; margin-top:4px; }
 @media(max-width:1150px) { #config-visual { columns:2; } }
 @media(max-width:700px) { #config-visual { columns:1; } }
+/* Protected fields remain visible without exposing editable controls. */
+.config-field-locked .config-field-state { color:var(--accent); }
+.config-field-locked input:disabled,.config-field-locked textarea:disabled,.config-field-locked select:disabled { opacity:.7; cursor:not-allowed; }

@@ -456,6 +456,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 </style>
 <link rel="stylesheet" href="/static/workspace.css">
 <link rel="stylesheet" href="/static/configuration.css">
+<link rel="stylesheet" href="/static/mods.css">
 </head>
 <body>
 <div class="layout">
@@ -613,7 +614,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <fieldset id="config-fields" disabled>
       <div id="config-visual" role="tabpanel" aria-labelledby="config-visual-tab"></div>
       <div id="config-json" role="tabpanel" aria-labelledby="config-json-tab" hidden>
-        <div class="config-json-heading"><div><h3>Configuration JSON</h3><p>Read-only preview of the complete draft, including mods and custom fields. Passwords are included.</p></div><button class="config-button" type="button" onclick="copyConfigurationJson()">Copy JSON</button></div>
+        <div class="config-json-heading"><div><h3>Configuration JSON</h3><p id="config-json-description">Read-only preview of your configuration draft.</p></div><button class="config-button" type="button" onclick="copyConfigurationJson()">Copy JSON</button></div>
         <textarea id="config-json-text" readonly spellcheck="false" aria-label="Complete configuration JSON"></textarea>
       </div>
       <div class="config-savebar">
@@ -627,18 +628,33 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <summary>Save-file maintenance</summary>
     <p class="feature-note">Inspect or clear existing saves. Configure save timing and retention in Persistence above.</p>
     <div id="persist-stats" class="feature-note"></div>
-    <button class="config-button" id="btn-persist-flush" onclick="flushPersistence()">Flush saves</button>
+    <button class="config-button" id="btn-persist-flush" data-permission="admin_config" hidden onclick="flushPersistence()">Flush saves</button>
   </details>
 
   </section>
 
   <section class="tab-panel" id="panel-mods" role="tabpanel" aria-labelledby="tab-mods" hidden>
-  <p class="feature-note" id="mods-readonly" hidden>Your account can view mods and presets. A Manager or Administrator can change them.</p>
-  <!-- Mods -->
-  <div class="card" style="animation-delay:0.18s" id="mods-card" tabindex="-1">
-    <div class="card-label">Mod Presets</div>
-
-    <!-- Mod presets -->
+    <div class="mods-heading" id="mods-card" tabindex="-1"><div><h2>Mods</h2><span id="mods-count" class="mod-badge">0 configured</span></div>
+      <div class="mods-tabs" role="tablist" aria-label="Mod sections">
+        <button role="tab" id="mods-tab-configured" aria-selected="true" aria-controls="mods-configured" onclick="selectModView('configured')">Configured (0)</button>
+        <button role="tab" id="mods-tab-presets" aria-selected="false" aria-controls="mods-presets" tabindex="-1" onclick="selectModView('presets')">Presets</button>
+        <button role="tab" id="mods-tab-history" aria-selected="false" aria-controls="mods-history" tabindex="-1" data-permission="activity" onclick="selectModView('history')">History</button>
+      </div>
+    </div>
+    <p class="mods-notice">ⓘ &nbsp; Mod changes take effect after a server restart.<span id="mods-total">Estimated mod download: loading…</span></p>
+    <p class="feature-note" id="mods-readonly" hidden>Your account can view mods and presets. A Manager or Administrator can change them.</p>
+    <div id="mods-configured" role="tabpanel" aria-labelledby="mods-tab-configured">
+      <div class="mods-toolbar">
+        <input id="mods-search" type="search" aria-label="Search mods" placeholder="Search mods…">
+        <div class="mods-sort" aria-label="Sort mods"><button id="mods-sort-order" aria-pressed="true" onclick="sortModLibrary('order')">Load order</button><button id="mods-sort-name" aria-pressed="false" onclick="sortModLibrary('name')">Name</button><button id="mods-reorder" aria-pressed="false" data-permission="mods" onclick="toggleModReorder()">Reorder</button></div>
+        <div class="mods-actions"><button onclick="exportModLibrary()">Export JSON</button><button onclick="copyModLibrary()">Copy list</button><button data-permission="mods" onclick="openModDialog('import')">Import mods</button><button class="mod-primary" data-permission="mods" onclick="openModDialog('add')">＋ Add mod</button></div>
+      </div>
+      <p id="mods-reorder-help" class="feature-note" hidden>Use the arrows to move a mod in the configured load order. Each move is saved immediately.</p>
+      <div id="mods-list" class="mods-grid" aria-live="polite"></div>
+      <div class="mods-footer"><div class="mods-page-size"><label for="mods-per-page">Show</label><select id="mods-per-page"><option value="8">8</option><option value="16">16</option><option value="24">24</option><option value="48">48</option></select><span>items</span><span id="mods-range"></span></div><nav id="mods-pagination" aria-label="Mod pages"></nav></div>
+      <p class="mods-size-note">Sizes cover all configured mods at their selected versions. Extra dependencies are excluded; players with cached files may download less.</p>
+    </div>
+    <div id="mods-presets" role="tabpanel" aria-labelledby="mods-tab-presets" class="card" hidden>    <!-- Mod presets -->
     <div class="field"><label for="preset-select">Saved mod presets</label>
       <select id="preset-select" onchange="showPreset()"><option>Loading...</option></select></div>
     <p class="feature-note" id="preset-details"></p>
@@ -650,38 +666,9 @@ button:disabled { opacity:.45; cursor:not-allowed; }
       <button class="btn-save" onclick="savePreset()">Save current mods as preset</button>
       <p class="feature-note">Presets save the configured mod list and versions. Apply replaces that list; restart a running server to use it. The mission is unchanged.</p>
     </div>
-  </div>
-  <div class="card">
-    <div class="card-label">Mod Management</div>
-    <!-- Active mod list -->
-    <div id="mods-list" style="margin-bottom:16px;display:flex;flex-direction:column;gap:8px;">
-      <div style="color:var(--muted);font-size:13px">Loading mods...</div>
-    </div>
-    <div data-permission="mods" hidden>
-    <!-- Bulk import (paste JSON or upload file) -->
-    <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
-      <div style="font-size:10px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Bulk import</div>
-      <textarea id="mods-import-text" rows="6" maxlength="200000" placeholder='[
-  { "modId": "595F2BF2F44836FB", "name": "RHS - Status Quo", "version": "0.14.4899" }
-]' style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11.5px;padding:10px;line-height:1.5;resize:vertical;outline:none;"></textarea>
-      <div style="display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap;">
-        <select id="mods-import-mode" class="field-input" style="min-width:180px;">
-          <option value="replace">Replace full list</option>
-          <option value="merge">Merge with existing</option>
-        </select>
-        <button class="btn-save" type="button" onclick="importModsFromTextarea()" style="margin:0;flex:0 0 auto;">Import pasted JSON</button>
-        <label class="btn-save" style="margin:0;cursor:pointer;flex:0 0 auto;background:transparent;border:1px solid var(--border);color:var(--text);">
-          Upload .json file
-          <input type="file" id="mods-import-file" accept="application/json,.json" onchange="importModsFromFile(this)" style="display:none;" />
-        </label>
-      </div>
-      <div style="font-size:10.5px;color:var(--muted);margin-top:8px;line-height:1.5;">
-        Format: a JSON array of <code>{ "modId": "&lt;hex&gt;", "name": "&lt;optional&gt;", "version": "&lt;optional&gt;" }</code>.
-        File limit 2 MB. Replace overwrites the whole mod list; merge adds missing entries only.
-      </div>
-    </div>
-
-    <!-- Single-add form -->
+</div>
+    <div id="mods-history" role="tabpanel" aria-labelledby="mods-tab-history" class="card" hidden><h3>Mod activity</h3><div id="mods-history-events"></div><button id="mods-history-more" onclick="loadModHistory(false)" hidden>Load more</button></div>
+    <dialog id="mods-add-dialog" class="mods-dialog" aria-labelledby="mods-add-title"><div class="mods-dialog-heading"><h3 id="mods-add-title">Add mod</h3><button aria-label="Close add mod" onclick="this.closest('dialog').close()">✕</button></div>    <!-- Single-add form -->
     <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px;">
       <div style="font-size:10px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Add a single mod</div>
       <div class="config-grid">
@@ -701,9 +688,32 @@ button:disabled { opacity:.45; cursor:not-allowed; }
       <button class="btn-save" onclick="addMod()" id="btn-add-mod">Add mod</button>
       <div class="restart-notice" id="mods-restart-notice">⚠ Mod changes will be applied after server restart</div>
     </div>
+</dialog>
+    <dialog id="mods-import-dialog" class="mods-dialog" aria-labelledby="mods-import-title"><div class="mods-dialog-heading"><h3 id="mods-import-title">Import mods</h3><button aria-label="Close import mods" onclick="this.closest('dialog').close()">✕</button></div>    <!-- Bulk import (paste JSON or upload file) -->
+    <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px;">
+      <div style="font-size:10px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Bulk import</div>
+      <textarea id="mods-import-text" aria-label="Mod list JSON" rows="6" maxlength="200000" placeholder='[
+  { "modId": "595F2BF2F44836FB", "name": "RHS - Status Quo", "version": "0.14.4899" }
+]' style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:11.5px;padding:10px;line-height:1.5;resize:vertical;outline:none;"></textarea>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap;">
+        <select id="mods-import-mode" aria-label="Import mode" class="field-input" style="min-width:180px;">
+          <option value="replace">Replace full list</option>
+          <option value="merge">Merge with existing</option>
+        </select>
+        <button class="btn-save" type="button" onclick="importModsFromTextarea()" style="margin:0;flex:0 0 auto;">Import pasted JSON</button>
+        <label class="btn-save" style="margin:0;cursor:pointer;flex:0 0 auto;background:transparent;border:1px solid var(--border);color:var(--text);">
+          Upload .json file
+          <input type="file" id="mods-import-file" accept="application/json,.json" onchange="importModsFromFile(this)" style="display:none;" />
+        </label>
+      </div>
+      <div style="font-size:10.5px;color:var(--muted);margin-top:8px;line-height:1.5;">
+        Format: a JSON array of <code>{ "modId": "&lt;hex&gt;", "name": "&lt;optional&gt;", "version": "&lt;optional&gt;" }</code>.
+        File limit 2 MB. Replace overwrites the whole mod list; merge adds missing entries only.
+      </div>
     </div>
-  </div>
 
+</dialog>
+    <dialog id="mods-details-dialog" class="mods-dialog" aria-labelledby="mods-details-title"><div class="mods-dialog-heading"><h3 id="mods-details-title">Mod details</h3><button aria-label="Close mod details" onclick="this.closest('dialog').close()">✕</button></div><p id="mods-detail-id" class="feature-note"></p><div class="field"><label for="mods-detail-name">Name</label><input id="mods-detail-name" maxlength="200"></div><div class="field"><label for="mods-detail-version">Version</label><input id="mods-detail-version" maxlength="32" placeholder="Leave blank for latest available"></div><p class="feature-note">Leave the version blank to use the latest available version at server startup. Enter a version to pin it.</p><button class="mod-primary" id="mods-detail-save" data-permission="mods" onclick="saveModDetails()">Save changes</button><p id="mods-detail-result" role="status"></p></dialog>
   </section>
 
   <section class="tab-panel" id="panel-administration" role="tabpanel" aria-labelledby="tab-administration" hidden>
@@ -719,7 +729,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
   <div class="card clip">
     <div class="card-label">User accounts</div>
     <p class="feature-note" id="users-restricted">Administrator access required. You can change your own password above.</p>
-    <p class="feature-note">Viewer: status and players. Operator: also server controls and logs. Manager: also configuration, mods, presets and activity. Administrator: all features and account management.</p>
+    <p class="feature-note">Viewer: status and players. Operator: also server controls and logs. Manager: also everyday configuration, mods, presets and activity. Administrator: also infrastructure, security and account management. The original Owner account is protected from other administrators.</p>
     <fieldset class="account-controls" id="users-controls" aria-describedby="users-restricted" disabled>
     <div id="users-list"></div>
     <input id="user-id" type="hidden">
@@ -1007,36 +1017,7 @@ function updateUI(d) {
   if (typeof applyPermissions === 'function') applyPermissions();
 }
 
-function renderMods(mods) {
-  const container = document.getElementById('mods-list');
-  if (mods.length === 0) {
-    container.innerHTML = '<div style="color:var(--muted);font-size:13px;font-style:italic">No mods configured</div>';
-    return;
-  }
-  container.innerHTML = '';
-  mods.forEach(mod => {
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:var(--bg);border:1px solid var(--border)';
-    row.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:3px;min-width:0">
-        <div style="font-family:\'Barlow Condensed\',sans-serif;font-weight:700;font-size:15px;color:#fff;letter-spacing:0.04em">${escHtml(mod.name)}</div>
-        <div style="display:flex;gap:12px;align-items:center">
-          <span style="font-size:11px;color:var(--muted);font-family:\'JetBrains Mono\',monospace">${escHtml(mod.modId)}</span>
-          ${mod.version ? `<span style="font-size:11px;color:var(--accent);letter-spacing:0.05em">v${escHtml(mod.version)}</span>` : ''}
-        </div>
-      </div>
-      <button onclick="removeMod('${escHtml(mod.modId)}')" style="
-        background:transparent;border:1px solid var(--border);color:var(--muted);
-        font-family:\'Barlow Condensed\',sans-serif;font-size:11px;letter-spacing:0.15em;
-        text-transform:uppercase;padding:5px 12px;cursor:pointer;flex-shrink:0;
-        transition:all 0.2s;white-space:nowrap
-      " onmouseover="this.style.borderColor='var(--offline)';this.style.color='var(--offline)'"
-         onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
-        Remove ✕
-      </button>`;
-    container.appendChild(row);
-  });
-}
+function renderMods(mods) { updateModLibrary(mods); }
 
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -1055,6 +1036,7 @@ async function addMod() {
     const d = await r.json();
     if (d.ok) {
       setLog(`Mod "${modName}" added`, 'ok');
+      document.getElementById("mods-add-dialog").close();
       document.getElementById('mod-id').value = '';
       document.getElementById('mod-name').value = '';
       document.getElementById('mod-version').value = '';
@@ -1124,6 +1106,7 @@ function _afterImport(d) {
       msg += ` (${d.skipped.length} skipped: ${d.skipped.slice(0, 3).join('; ')}${d.skipped.length > 3 ? '…' : ''})`;
     }
     setLog(msg, 'ok');
+    document.getElementById("mods-import-dialog").close();
     document.getElementById('mods-import-text').value = '';
     document.getElementById('mods-restart-notice').classList.toggle('visible', d.restart_required);
     fetchStatus();
@@ -1133,6 +1116,8 @@ function _afterImport(d) {
 }
 
 function setLog(msg, type = 'info') {
+  const dialogStatus = document.querySelector('dialog[open] .mods-dialog-status');
+  if (dialogStatus) dialogStatus.textContent = msg;
   const el = document.getElementById('log-msg');
   el.className = 'log-entry ' + type;
   const ts = new Date().toLocaleTimeString('en-US');
@@ -1251,6 +1236,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+<script src="/static/mods.js"></script>
 <script src="/static/features.js"></script>
 <script src="/static/configuration.js"></script>
 </body>

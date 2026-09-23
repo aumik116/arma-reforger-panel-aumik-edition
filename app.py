@@ -699,6 +699,8 @@ def read_config():
         raise ConfigReadError('Server configuration cannot be read. Repair the file before saving changes.') from exc
 
 def write_config(cfg):
+    from config_editor import order_config
+    cfg = order_config(cfg)
     # Replace atomically so readers never see a partially-written configuration.
     folder = os.path.dirname(os.path.abspath(SERVER_CONFIG))
     fd, temporary = tempfile.mkstemp(dir=folder, prefix=".panel-config-")

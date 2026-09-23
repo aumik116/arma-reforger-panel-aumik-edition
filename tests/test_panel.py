@@ -58,6 +58,18 @@ class PanelTests(unittest.TestCase):
             self.assertEqual(status['password_admin'], '')
         self.assertEqual(self.module.app.test_client().get('/api/status').status_code, 401)
 
+    def test_config_writer_keeps_mods_at_bottom_without_changing_values(self):
+        config = {'game': {'mods': [{'modId': 'B'}, {'modId': 'A'}],
+                           'gameProperties': {'persistence': {'hiveId': 200}}, 'name': 'Test'},
+                  'operating': {'custom': True}, 'customRoot': {'keep': 42}}
+        original = json.dumps(config)
+        self.module.write_config(config)
+        saved = json.loads(self.config.read_text())
+        self.assertEqual(saved, config)
+        self.assertEqual(list(saved)[-1], 'game')
+        self.assertEqual(list(saved['game'])[-1], 'mods')
+        self.assertEqual(json.dumps(config), original)
+
     def test_software_routes_and_start_interlock(self):
         manager = self.module.software_manager
         self.create('software-manager', 'manager')

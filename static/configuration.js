@@ -26,6 +26,17 @@ function configDraft() {
       else parent[keys.at(-1)] = value;
     }
   }
+  // Put all settings before the potentially long mod list in preview/copy too.
+  if (draft.game && typeof draft.game === 'object' && !Array.isArray(draft.game)) {
+    const game = draft.game;
+    delete draft.game;
+    if (Object.hasOwn(game, 'mods')) {
+      const mods = game.mods;
+      delete game.mods;
+      game.mods = mods;
+    }
+    draft.game = game;
+  }
   return draft;
 }
 

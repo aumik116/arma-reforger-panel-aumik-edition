@@ -156,7 +156,7 @@ The installer manages game control through `arma-server.service`. Updating repla
 
 ### Saved setups
 
-Administrators can capture named backups and restore them under **Persistence → Saved setups**. For Camp Neptune, select `{6A144219C1118E40}Missions/GM_CampNeptune_Persistence.conf` with its required mods. Prepare the scene, wait for a completed autosave, stop the server, then capture a backup. The panel copies existing save files; it cannot force a new game save through standard RCON.
+Administrators can capture named backups and restore them under **Persistence → Saved setups**. For Camp Neptune, select `{394A32B84B229832}Missions/GM_CampNeptune_Persistence.conf` with its required mods. Prepare the scene, wait for a completed autosave, stop the server, then capture a backup. The panel copies existing save files; it cannot force a new game save through standard RCON.
 
 Backups include the full local persistence directory, including player state and storage settings. They support binary save payloads and require native `meta-info.json` save-point metadata. Restore requires a stopped server, matching scenario/mod configuration/hive/recorded Steam build, and verified file hashes. A rollback snapshot is created before replacement. Keep **Load latest session** enabled, then start the server from Dashboard. Custom database/storage overrides are not supported. Camp Neptune's actual restoration of individual modded objects still depends on the scenario and those objects' persistence support.
 

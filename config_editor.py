@@ -99,6 +99,17 @@ def revision(config):
     return hashlib.sha256(json.dumps(config, sort_keys=True, ensure_ascii=True).encode()).hexdigest()
 
 
+def order_config(config):
+    """Keep game last and its mods last without changing values or mod order."""
+    result = dict(config)
+    if isinstance(result.get('game'), dict):
+        game = dict(result.pop('game'))
+        if 'mods' in game:
+            game['mods'] = game.pop('mods')
+        result['game'] = game
+    return result
+
+
 def validate_value(spec, value):
     label = spec['label']
     kind = spec['kind']

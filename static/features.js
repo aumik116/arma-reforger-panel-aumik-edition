@@ -19,7 +19,7 @@ function selectPanelTab(tab) {
   byId('page-description').textContent = {
     'tab-dashboard': 'Monitor your server and manage the action.',
     'tab-configuration': 'Manage server settings, scenarios and software updates.',
-    'tab-persistence': 'Manage save settings, saved setups and save-file maintenance.',
+    'tab-persistence': 'Manage the game’s built-in save settings and save-file maintenance.',
     'tab-mods': 'Manage Workshop mods, imports and saved presets.',
     'tab-administration': 'Manage your account, permissions and activity.'
   }[tab.id];
@@ -28,7 +28,7 @@ function selectPanelTab(tab) {
     byId(tab.id === 'tab-persistence' ? 'persistence-savebar-slot' : 'configuration-savebar-slot').append(byId('shared-config-savebar'));
     loadConfiguration();
   }
-  if (tab.id === 'tab-persistence') { fetchPersistence(); loadSetups(); }
+  if (tab.id === 'tab-persistence') fetchPersistence();
   if (tab.id === 'tab-dashboard') {
     requestAnimationFrame(() => { cpuChart.resize(); ramChart.resize(); networkChart.resize(); diskChart.resize(); Object.values(extraCharts).forEach(chart => chart.resize()); });
     fetchMetrics();

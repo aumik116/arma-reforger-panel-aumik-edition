@@ -214,7 +214,7 @@ if [[ "$MODE" == "update" ]]; then
     cp "$SCRIPT_DIR/config_editor.py" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/mod_metadata.py" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/server_software.py" "$PANEL_DIR_EXISTING/"
-    cp "$SCRIPT_DIR/save_library.py" "$PANEL_DIR_EXISTING/"
+    rm -f "$PANEL_DIR_EXISTING/save_library.py" "$PANEL_DIR_EXISTING/static/saves.js"
     cp "$SCRIPT_DIR/index.html" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/login.html" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/static/"*   "$PANEL_DIR_EXISTING/static/"
@@ -360,7 +360,7 @@ if [[ "$MODE" == "full" ]]; then
     PUBLIC_IP="$PUBLIC_IP" GAME_PORT="$GAME_PORT" MAX_PLAYERS="$MAX_PLAYERS" \
     python3 - "$SERVER_CONFIG" <<'PYCONFIG'
 import json, os, sys
-cfg = {'bindAddress': '0.0.0.0', 'bindPort': 0, 'publicAddress': '', 'publicPort': 0, 'a2s': {'address': '', 'port': 17777}, 'game': {'name': '', 'password': '', 'passwordAdmin': '', 'scenarioId': '{ECC61978EDCC2B5A}Missions/23_Campaign.conf', 'maxPlayers': 0, 'visible': True, 'crossPlatform': True, 'supportedPlatforms': ['PLATFORM_PC', 'PLATFORM_XBL'], 'gameProperties': {'serverMaxViewDistance': 2500, 'serverMinGrassDistance': 50, 'networkViewDistance': 1000, 'disableThirdPerson': False, 'fastValidation': True, 'battlEye': True}, 'mods': []}}
+cfg = {'bindAddress': '0.0.0.0', 'bindPort': 0, 'publicAddress': '', 'publicPort': 0, 'a2s': {'address': '', 'port': 17777}, 'game': {'name': '', 'password': '', 'passwordAdmin': '', 'scenarioId': '{ECC61978EDCC2B5A}Missions/23_Campaign.conf', 'maxPlayers': 0, 'visible': True, 'crossPlatform': True, 'supportedPlatforms': ['PLATFORM_PC', 'PLATFORM_XBL'], 'gameProperties': {'serverMaxViewDistance': 2500, 'serverMinGrassDistance': 50, 'networkViewDistance': 1000, 'disableThirdPerson': False, 'fastValidation': True, 'battlEye': True, 'persistence': {'autoSaveInterval': 10, 'saveRetention': 10, 'loadSessionSave': True, 'keepSessionSave': False, 'hiveId': 0}}, 'mods': []}}
 e = os.environ
 port, players = int(e['GAME_PORT']), int(e['MAX_PLAYERS'])
 if not 1 <= port <= 65535 or players < 1:
@@ -388,7 +388,7 @@ After=network.target
 Type=simple
 User=${ARMA_USER}
 WorkingDirectory=${SERVER_DIR}
-ExecStart=${SERVER_DIR}/${ARMA_BINARY} -config ${SERVER_CONFIG} -loadSessionSave -maxFPS=${MAX_FPS} -logStats 1000
+ExecStart=${SERVER_DIR}/${ARMA_BINARY} -config ${SERVER_CONFIG} -maxFPS=${MAX_FPS} -logStats 1000
 Restart=on-failure
 RestartSec=10
 
@@ -418,14 +418,14 @@ fi
 mkdir -p "$PANEL_DIR/static"
 
 # Copy files from script directory
-for f in app.py panel_features.py player_query.py runtime_ops.py config_editor.py mod_metadata.py server_software.py save_library.py index.html login.html; do
+for f in app.py panel_features.py player_query.py runtime_ops.py config_editor.py mod_metadata.py server_software.py index.html login.html; do
     if [ -f "$SCRIPT_DIR/$f" ]; then
         cp "$SCRIPT_DIR/$f" "$PANEL_DIR/"
     else
         echo -e "      ${RED}WARNING: $f not found in script directory.${NC}"
     fi
 done
-for f in manifest.json service-worker.js features.js workspace.css configuration.js configuration.css mods.js mods.css software.js saves.js icon-192.png icon-512.png; do
+for f in manifest.json service-worker.js features.js workspace.css configuration.js configuration.css mods.js mods.css software.js icon-192.png icon-512.png; do
     if [ -f "$SCRIPT_DIR/static/$f" ]; then
         cp "$SCRIPT_DIR/static/$f" "$PANEL_DIR/static/"
     fi

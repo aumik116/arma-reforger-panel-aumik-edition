@@ -671,22 +671,11 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 
   <section class="tab-panel" id="panel-persistence" role="tabpanel" aria-labelledby="tab-persistence" hidden>
     <div class="card" id="persistence-summary" role="status">Loading persistence status…</div>
-    <p class="feature-note">Persistence settings share the configuration draft. Saving applies pending edits from both tabs.</p>
+    <p class="feature-note">These are the game’s built-in persistence settings. The selected scenario must include the persistence world system; saving this JSON cannot add support to an unrelated scenario. Save configuration, then restart the server.</p>
     <div data-permission="configure" hidden>
       <button class="config-button" onclick="reloadConfiguration()">Reload from disk</button>
       <fieldset id="persistence-fields" disabled><div id="persistence-settings"></div><div id="persistence-savebar-slot"></div></fieldset>
     </div>
-  <div class="card" data-permission="admin_config" id="setup-library" hidden>
-    <div class="card-label">Saved setups</div>
-    <p class="feature-note">Prepare your scene, wait for the scenario to autosave, then stop the server and capture a named setup. This copies existing persistence files; it does not request a new game save. Camp Neptune must use its Persistence scenario.</p>
-    <p class="feature-note" id="setup-detected">Checking save files…</p>
-    <div class="field"><label for="setup-name">Setup name</label><input id="setup-name" maxlength="80" placeholder="Training night"></div>
-    <button class="config-button" id="setup-capture" disabled onclick="setupAction('capture')">Capture setup backup</button>
-    <div class="field"><label for="setup-select">Saved setup</label><select id="setup-select" onchange="loadSetups()"><option value="">Select a saved setup</option></select></div>
-    <button class="config-button" id="setup-restore" disabled onclick="setupAction('restore')">Restore setup</button>
-    <p class="feature-note">Restores the full local persistence directory, including player save state. Requires matching scenario, mods, hive and recorded game build. An automatic rollback backup is made first. Start the server from Dashboard afterward with Load latest session enabled.</p>
-    <p class="feature-note" id="setup-result" role="status"></p>
-  </div>
   <details class="card config-maintenance" data-permission="configure" hidden>
     <summary>Save-file maintenance</summary>
     <p class="feature-note">Inspect or clear existing saves. Configure save timing and retention in Persistence above.</p>
@@ -1337,8 +1326,7 @@ function _fmtAge(ts) {
 
 function _renderPersistStats(s) {
   if ('autoSaveInterval' in s) {
-    const settings = typeof configSnapshot !== 'undefined' ? configSnapshot?.game?.gameProperties?.persistence : null;
-    const items = [['Autosave', s.enabled === false ? 'Saving disabled' : s.autoSaveInterval === 0 ? 'Periodic saves off' : `Every ${s.autoSaveInterval} minutes`], ['Startup loading', settings?.loadSessionSave === false ? 'Off' : 'Latest save'], ['Latest detected save metadata', s.saves?.newest_save ? new Date(s.saves.newest_save * 1000).toLocaleString() : 'Not detected']];
+    const items = [['Autosave', s.enabled === false ? 'Saving disabled' : s.autoSaveInterval === 0 ? 'Periodic saves off' : `Every ${s.autoSaveInterval} minutes`], ['Startup loading', s.loadSessionSave === false ? 'Off' : 'Latest save'], ['Latest detected save metadata', s.saves?.newest_save ? new Date(s.saves.newest_save * 1000).toLocaleString() : 'Not detected']];
     const summary = document.getElementById('persistence-summary'); summary.replaceChildren();
     for (const [label, value] of items) { const tile=document.createElement('div'), heading=document.createElement('span'), text=document.createElement('strong'); heading.textContent=label;text.textContent=value;tile.append(heading,text);summary.append(tile); }
   }
@@ -1412,6 +1400,5 @@ if ('serviceWorker' in navigator) {
 <script src="/static/features.js"></script>
 <script src="/static/configuration.js"></script>
 <script src="/static/software.js"></script>
-<script src="/static/saves.js"></script>
 </body>
 </html>

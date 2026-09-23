@@ -75,8 +75,14 @@ SERVER_BINARY  = "./ArmaReforgerServer"
 MAX_FPS        = _cfg.get("MAX_FPS", "").strip()
 
 def build_server_args():
-    """Reforger 1.7+ uses the JSON persistence settings for automatic loading."""
+    """Build the panel launch command from env and the native game settings."""
     args = ["-config", SERVER_CONFIG, "-logStats", "1000"]
+    try:
+        args.extend(_native_persistence_startup_args(read_config()))
+    except Exception:
+        # A broken config is reported by the normal configuration/startup path;
+        # do not prevent diagnostics from constructing a safe base command.
+        pass
     if MAX_FPS:
         args.append(f"-maxFPS={MAX_FPS}")
     return args
@@ -744,6 +750,24 @@ def _persistence_enabled(cfg=None):
         cfg = read_config()
     return cfg.get('game', {}).get('gameProperties', {}).get('missionHeader', {}).get('m_eSaveTypes') != 0
 
+def _native_persistence_startup_args(cfg):
+    """Return compatibility flags for the game's built-in save system.
+
+    The JSON block is authoritative. The flags make panel-launched servers
+    behave like older dedicated-server installs while respecting an explicit
+    load/keep setting and a mission save-types disable override.
+    """
+    properties = (cfg.get('game') or {}).get('gameProperties') or {}
+    if (properties.get('missionHeader') or {}).get('m_eSaveTypes') == 0:
+        return []
+    persistence = properties.get('persistence') or {}
+    args = []
+    if persistence.get('loadSessionSave', True):
+        args.append('-loadSessionSave')
+    if persistence.get('keepSessionSave', False):
+        args.append('-keepSessionSave')
+    return args
+
 # Subdirs the flush button targets. `settings/` is intentionally preserved
 # because it holds non-session config the server expects to regenerate from.
 _FLUSHABLE_SUBDIRS = ("game", "playersave")
@@ -1052,7 +1076,11 @@ def api_persistence_get():
     return jsonify({
         "enabled":          _persistence_enabled(cfg),
         "autoSaveInterval": block.get("autoSaveInterval", 10),
-        "hiveId":           block.get("hiveId", 1),
+        "saveRetention":    block.get("saveRetention", 10),
+        "loadSessionSave":  block.get("loadSessionSave", True),
+        "keepSessionSave":  block.get("keepSessionSave", False),
+        "hiveId":           block.get("hiveId", 0),
+        "scenarioId":       cfg.get("game", {}).get("scenarioId", ""),
         "saves":            saves,
         "profile_dir":      PROFILE_DIR,
     })
@@ -1071,26 +1099,31 @@ def api_persistence_set():
         if header.get('m_eSaveTypes') == 0:
             header.pop('m_eSaveTypes')  # Inherit the scenario's supported save types.
         block = _get_persistence_block(cfg) or {}
-        if "autoSaveInterval" in data:
-            try:
-                v = int(data["autoSaveInterval"])
-            except (TypeError, ValueError):
-                return jsonify({"ok": False, "error": "autoSaveInterval must be an integer"})
-            if not 0 <= v <= 60:
-                return jsonify({"ok": False, "error": "autoSaveInterval must be between 0 and 60"})
-            block["autoSaveInterval"] = v
-        else:
-            block.setdefault("autoSaveInterval", 10)
-        if "hiveId" in data:
-            try:
-                v = int(data["hiveId"])
-            except (TypeError, ValueError):
-                return jsonify({"ok": False, "error": "hiveId must be an integer"})
-            if not 0 <= v <= 16383:
-                return jsonify({"ok": False, "error": "hiveId must be between 0 and 16383"})
-            block["hiveId"] = v
-        else:
-            block.setdefault("hiveId", 1)
+        integer_fields = {
+            "autoSaveInterval": (0, 60),
+            "saveRetention": (1, 128),
+            "hiveId": (0, 16383),
+        }
+        defaults = {"autoSaveInterval": 10, "saveRetention": 10, "loadSessionSave": True,
+                    "keepSessionSave": False, "hiveId": 0}
+        for key, (minimum, maximum) in integer_fields.items():
+            if key in data:
+                try:
+                    value = int(data[key])
+                except (TypeError, ValueError):
+                    return jsonify({"ok": False, "error": f"{key} must be an integer"})
+                if not minimum <= value <= maximum:
+                    return jsonify({"ok": False, "error": f"{key} must be between {minimum} and {maximum}"})
+                block[key] = value
+            else:
+                block.setdefault(key, defaults[key])
+        for key in ("loadSessionSave", "keepSessionSave"):
+            if key in data:
+                if type(data[key]) is not bool:
+                    return jsonify({"ok": False, "error": f"{key} must be a boolean"})
+                block[key] = data[key]
+            else:
+                block.setdefault(key, defaults[key])
         _set_persistence_block(cfg, block)
     else:
         cfg.setdefault('game', {}).setdefault('gameProperties', {}).setdefault('missionHeader', {})['m_eSaveTypes'] = 0
@@ -1378,9 +1411,6 @@ install_features(sys.modules[__name__])
 
 from server_software import install as install_server_software
 install_server_software(sys.modules[__name__])
-
-from save_library import install as install_save_library
-install_save_library(sys.modules[__name__])
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=PANEL_PORT, threaded=True)

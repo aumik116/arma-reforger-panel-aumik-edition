@@ -169,3 +169,19 @@ class RuntimeTests(unittest.TestCase):
             binary = os.path.join('/test/server', 'ArmaReforgerServer')
             execute.assert_called_once_with(binary,
                 [binary, '-config', '/test/custom.json', '-logStats', '1000', '-maxFPS=45'])
+
+    def test_service_launcher_adds_native_persistence_flags_from_json(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            env = root / 'config.env'
+            config = root / 'server.json'
+            env.write_text(f'SERVER_DIR={directory}\nSERVER_CONFIG={config}\nMAX_FPS=60\n')
+            config.write_text(json.dumps({'game': {'gameProperties': {'persistence': {
+                'loadSessionSave': True, 'keepSessionSave': True}}}}))
+            with patch('runtime_ops.os.chdir') as chdir, patch('runtime_ops.os.execv') as execute:
+                launch_server(str(env))
+            binary = os.path.join(directory, 'ArmaReforgerServer')
+            chdir.assert_called_once_with(directory)
+            execute.assert_called_once_with(binary,
+                [binary, '-config', str(config), '-logStats', '1000',
+                 '-loadSessionSave', '-keepSessionSave', '-maxFPS=60'])

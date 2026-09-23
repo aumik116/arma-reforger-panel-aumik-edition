@@ -18,7 +18,6 @@ ROLES = {
 }
 MUTATIONS = {
     "software_check": "admin_config", "software_update": "admin_config",
-    "saves_capture": "admin_config", "saves_restore": "admin_config",
     "api_start": "control", "api_stop": "control", "api_restart": "control",
     "api_config": "configure", "api_persistence_set": "admin_config",
     "config_editor_save": "configure", "config_editor_validate": "configure",
@@ -133,7 +132,6 @@ def install(api):
         g.permissions = ROLES[user["role"]]
         needed = MUTATIONS.get(request.endpoint) if request.method == "POST" else {
             "software_status": "admin_config",
-            "saves_list": "admin_config",
             "api_logs": "logs", "users_list": "users", "activity_list": "activity",
             "api_persistence_get": "configure",
             "config_editor_get": "configure",
@@ -157,7 +155,7 @@ def install(api):
             g.audit_actor = user["username"]
             g.audit_details = {}
             if request.endpoint == "api_persistence_set":
-                g.audit_details = {k: data[k] for k in ("enabled", "autoSaveInterval", "hiveId") if k in data}
+                g.audit_details = {k: data[k] for k in ("enabled", "autoSaveInterval", "saveRetention", "loadSessionSave", "keepSessionSave", "hiveId") if k in data}
 
     @app.teardown_request
     def release_lock(exc):

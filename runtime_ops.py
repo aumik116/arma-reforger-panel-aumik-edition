@@ -314,7 +314,20 @@ def launch_server(config_path):
                 settings[key.strip()] = value.strip().strip('"').strip("'")
     directory = settings.get('SERVER_DIR', '/home/arma/server')
     binary = os.path.join(directory, 'ArmaReforgerServer')
-    args = [binary, '-config', settings.get('SERVER_CONFIG', directory + '/config.json'), '-logStats', '1000']
+    server_config = settings.get('SERVER_CONFIG', directory + '/config.json')
+    args = [binary, '-config', server_config, '-logStats', '1000']
+    try:
+        with open(server_config, encoding='utf-8-sig') as stream:
+            config = json.load(stream)
+        properties = (config.get('game') or {}).get('gameProperties') or {}
+        if (properties.get('missionHeader') or {}).get('m_eSaveTypes') != 0:
+            persistence = properties.get('persistence') or {}
+            if persistence.get('loadSessionSave', True):
+                args.append('-loadSessionSave')
+            if persistence.get('keepSessionSave', False):
+                args.append('-keepSessionSave')
+    except (OSError, ValueError, TypeError):
+        pass
     if settings.get('MAX_FPS', '').strip():
         args.append('-maxFPS=' + settings['MAX_FPS'].strip())
     os.chdir(directory)

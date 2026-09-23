@@ -152,17 +152,11 @@ The update replaces panel files and restarts the panel service. It preserves `co
 
 The installer manages game control through `arma-server.service`. Updating replaces custom `ExecStart` overrides with the panel's launcher; other service settings are preserved. The launcher reads your saved `SERVER_DIR`, `SERVER_CONFIG` and `MAX_FPS` settings.
 
-## Panel settings and backups
-
-### Saved setups
-
-Administrators can capture named backups and restore them under **Persistence → Saved setups**. For Camp Neptune, select `{394A32B84B229832}Missions/GM_CampNeptune_Persistence.conf` with its required mods. Prepare the scene, wait for a completed autosave, stop the server, then capture a backup. The panel copies existing save files; it cannot force a new game save through standard RCON.
-
-Backups include the full local persistence directory, including player state and storage settings. They support binary save payloads and require native `meta-info.json` save-point metadata. Restore requires a stopped server, matching scenario/mod configuration/hive/recorded Steam build, and verified file hashes. A rollback snapshot is created before replacement. Keep **Load latest session** enabled, then start the server from Dashboard. Custom database/storage overrides are not supported. Camp Neptune's actual restoration of individual modded objects still depends on the scenario and those objects' persistence support.
-
-Snapshots live in `.save-library` beside the panel; include that directory in host backups. Limits are 30 snapshots, 1 GiB and 10,000 files per snapshot. Preserve game-build compatibility when updating: game updates can invalidate older saves. This is a local-file backup library, not a guarantee that the game saved every placed object.
+## Panel settings
 
 Persistence follows [Bohemia's server configuration](https://community.bistudio.com/wiki/Arma_Reforger%3AServer_Config) and [persistence system](https://community.bistudio.com/wiki/Arma_Reforger%3APersistence_System). Autosave interval 0 disables periodic saves only. Removing the persistence configuration restores defaults; explicitly disabling persistence requires `missionHeader.m_eSaveTypes = 0`.
+
+The Persistence tab writes the game's built-in session settings under `game.gameProperties.persistence`. The selected scenario must include the persistence world system and mark the entities it supports; JSON settings cannot add persistence to an unsupported scenario. Save configuration and restart the server after changing these values. The panel does not manufacture save points or copy them into a separate backup library.
 
 ### Game server software updates
 

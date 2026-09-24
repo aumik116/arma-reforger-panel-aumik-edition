@@ -256,6 +256,42 @@ class PanelTests(unittest.TestCase):
             self.assertEqual(self.admin.get('/api/mods/metadata?modId=abc').json['sizes']['1.0'], 1024)
             fetch.assert_called_once_with('ABC')
 
+    def test_mod_update_review_changes_only_selected_pins(self):
+        cfg = json.loads(self.config.read_text())
+        original = [{'modId': 'A1', 'name': 'First', 'version': '1.0', 'required': False},
+                    {'modId': 'B2', 'name': 'Second', 'version': '2.0'},
+                    {'modId': 'C3', 'name': 'Latest'}]
+        cfg['game']['mods'] = original
+        self.config.write_text(json.dumps(cfg))
+        self.create('mod-viewer', 'viewer')
+        viewer = self.login('mod-viewer')
+        changes = [{'modId': 'A1', 'from': '1.0', 'to': '1.1'}]
+        payload = {'expected': original, 'changes': changes}
+        self.assertEqual(self.post(viewer, '/api/mods/update-pins', payload).status_code, 403)
+        self.assertEqual(self.admin.post('/api/mods/update-pins', json=payload).status_code, 403)
+        with patch.object(self.module._mod_metadata, 'get', return_value={'status': 'available', 'current_version': '1.1'}):
+            self.assertEqual(self.post(self.admin, '/api/mods/update-pins', {'expected': [], 'changes': changes}).status_code, 409)
+            self.assertEqual(self.post(self.admin, '/api/mods/update-pins', {'expected': original, 'changes': changes * 2}).status_code, 409)
+            saved = self.post(self.admin, '/api/mods/update-pins', payload)
+        self.assertTrue(saved.json['ok'], saved.json)
+        self.assertEqual(saved.json['updated'], 1)
+        result = json.loads(self.config.read_text())['game']['mods']
+        self.assertEqual(result, [dict(original[0], version='1.1'), original[1], original[2]])
+        self.assertEqual(self.post(self.admin, '/api/mods/update-pins', payload).status_code, 409)
+        self.assertIn('api_mods_update_pins', [row['action'] for row in self.admin.get('/api/activity').json['events']])
+
+    def test_mod_update_review_rejects_unverified_workshop_version(self):
+        cfg = json.loads(self.config.read_text())
+        cfg['game']['mods'] = [{'modId': 'A1', 'version': '1.0'}]
+        self.config.write_text(json.dumps(cfg))
+        before = self.config.read_text()
+        payload = {'expected': cfg['game']['mods'], 'changes': [{'modId': 'A1', 'from': '1.0', 'to': '1.1'}]}
+        with patch.object(self.module._mod_metadata, 'get', return_value={'status': 'pending'}):
+            self.assertEqual(self.post(self.admin, '/api/mods/update-pins', payload).status_code, 409)
+        with patch.object(self.module._mod_metadata, 'get', return_value={'status': 'available', 'current_version': '1.2'}):
+            self.assertEqual(self.post(self.admin, '/api/mods/update-pins', payload).status_code, 409)
+        self.assertEqual(self.config.read_text(), before)
+
     def test_config_editor_preserves_unknown_fields_and_rejects_stale_drafts(self):
         cfg = json.loads(self.config.read_text())
         cfg['customExtension'] = {'keep': [1, 2]}

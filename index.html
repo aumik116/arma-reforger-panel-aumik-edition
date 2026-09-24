@@ -799,6 +799,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <div class="mods-heading" id="mods-card" tabindex="-1"><div><h2>Mods</h2><span id="mods-count" class="mod-badge">0 configured</span></div>
       <div class="mods-tabs" role="tablist" aria-label="Mod sections">
         <button role="tab" id="mods-tab-configured" aria-selected="true" aria-controls="mods-configured" onclick="selectModView('configured')">Configured (0)</button>
+        <button role="tab" id="mods-tab-updates" aria-selected="false" aria-controls="mods-updates" tabindex="-1" onclick="selectModView('updates')">Updates</button>
         <button role="tab" id="mods-tab-presets" aria-selected="false" aria-controls="mods-presets" tabindex="-1" onclick="selectModView('presets')">Presets</button>
         <button role="tab" id="mods-tab-history" aria-selected="false" aria-controls="mods-history" tabindex="-1" data-permission="activity" onclick="selectModView('history')">History</button>
       </div>
@@ -816,6 +817,11 @@ button:disabled { opacity:.45; cursor:not-allowed; }
       <div id="mods-list" class="mods-grid" aria-live="polite"></div>
       <div class="mods-footer"><div class="mods-page-size"><label for="mods-per-page">Show</label><select id="mods-per-page"><option value="8">8</option><option value="16">16</option><option value="24">24</option><option value="48">48</option></select><span>items</span><span id="mods-range"></span></div><nav id="mods-pagination" aria-label="Mod pages"></nav></div>
       <p class="mods-size-note">Sizes cover all configured mods at their selected versions. Extra dependencies are excluded; players with cached files may download less.</p>
+    </div>
+    <div id="mods-updates" role="tabpanel" aria-labelledby="mods-tab-updates" class="card" hidden>
+      <div class="mods-update-heading"><div><h3>Mod update review</h3><p>Compare pinned versions with the current Workshop release. Only selected pins will change; restart the game server to load them.</p></div><button id="mods-update-review" class="mod-primary" data-permission="mods" onclick="reviewModUpdates()" disabled>Review selected</button></div>
+      <p id="mods-update-status" class="feature-note" role="status">Checking Workshop versions…</p>
+      <div id="mods-update-list" class="mods-update-list"></div>
     </div>
     <div id="mods-presets" role="tabpanel" aria-labelledby="mods-tab-presets" class="card" hidden>    <!-- Mod presets -->
     <div class="field"><label for="preset-select">Saved mod presets</label>
@@ -877,6 +883,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 
 </dialog>
     <dialog id="mods-details-dialog" class="mods-dialog" aria-labelledby="mods-details-title"><div class="mods-dialog-heading"><h3 id="mods-details-title">Mod details</h3><button aria-label="Close mod details" onclick="this.closest('dialog').close()">✕</button></div><p id="mods-detail-id" class="feature-note"></p><div class="field"><label for="mods-detail-name">Name</label><input id="mods-detail-name" maxlength="200"></div><div class="field"><label for="mods-detail-version">Version</label><input id="mods-detail-version" maxlength="32" placeholder="Leave blank for latest available"></div><p class="feature-note">Leave the version blank to use the latest available version at server startup. Enter a version to pin it.</p><button class="mod-primary" id="mods-detail-save" data-permission="mods" onclick="saveModDetails()">Save changes</button><p id="mods-detail-result" role="status"></p></dialog>
+    <dialog id="mods-update-dialog" class="mods-dialog" aria-labelledby="mods-update-dialog-title"><div class="mods-dialog-heading"><h3 id="mods-update-dialog-title">Review version changes</h3><button aria-label="Close update review" onclick="this.closest('dialog').close()">✕</button></div><p class="feature-note">These version pins will be changed in the server configuration. The running server will need a restart.</p><div id="mods-update-preview" class="mods-update-preview"></div><div class="mods-update-dialog-actions"><button type="button" onclick="modEl('mods-update-dialog').close()">Cancel</button><button type="button" class="mod-primary" id="mods-update-save" onclick="saveModUpdates()">Save selected pins</button></div><p id="mods-update-error" role="alert"></p></dialog>
   </section>
 
   <section class="tab-panel" id="panel-administration" role="tabpanel" aria-labelledby="tab-administration" hidden>

@@ -1364,6 +1364,45 @@ def api_mods_edit():
     return jsonify(ok=True, restart_required=get_server_pid() is not None)
 
 
+@app.post('/api/mods/update-pins')
+def api_mods_update_pins():
+    data = request.get_json(silent=True) or {}
+    cfg = read_config()
+    mods = cfg.get('game', {}).get('mods', [])
+    if not isinstance(data.get('expected'), list) or data['expected'] != mods:
+        return jsonify(ok=False, error='The mod list changed. Review updates again.'), 409
+    changes = data.get('changes')
+    if not isinstance(changes, list) or not 1 <= len(changes) <= 300:
+        return jsonify(ok=False, error='Select at least one mod to update.'), 400
+    by_id = {str(mod.get('modId', '')).upper(): mod for mod in mods}
+    if len(by_id) != len(mods):
+        return jsonify(ok=False, error='Duplicate mod IDs in configuration. Resolve them before updating pins.'), 409
+    seen = set()
+    for change in changes:
+        if not isinstance(change, dict):
+            return jsonify(ok=False, error='Invalid update selection.'), 400
+        mod_id, old, new = change.get('modId'), change.get('from'), change.get('to')
+        if not isinstance(mod_id, str) or not isinstance(old, str) or not isinstance(new, str):
+            return jsonify(ok=False, error='Invalid update selection.'), 400
+        mod_id = mod_id.upper()
+        mod = by_id.get(mod_id)
+        if mod_id in seen or mod is None or not old or mod.get('version') != old or old == new:
+            return jsonify(ok=False, error='A selected mod changed. Review updates again.'), 409
+        if not 1 <= len(new) <= 32 or any(ord(c) < 33 or c in '\\"' for c in new):
+            return jsonify(ok=False, error='Invalid Workshop version.'), 400
+        metadata = _mod_metadata.get(mod_id)
+        if metadata.get('status') != 'available' or metadata.get('current_version') != new:
+            return jsonify(ok=False, error='Workshop data changed or is unavailable. Review updates again.'), 409
+        seen.add(mod_id)
+    for change in changes:
+        by_id[change['modId'].upper()]['version'] = change['to']
+    try:
+        write_config(cfg)
+    except OSError:
+        return jsonify(ok=False, error='Could not save the server configuration.'), 503
+    return jsonify(ok=True, updated=len(changes), restart_required=get_server_pid() is not None)
+
+
 def service_command(action):
     result = subprocess.run(
         ["sudo", "-n", "/usr/bin/systemctl", action, "arma-server.service"],

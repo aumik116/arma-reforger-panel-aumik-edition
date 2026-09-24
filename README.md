@@ -12,7 +12,7 @@ A self-hosted web panel for managing an Arma Reforger dedicated server on Linux.
 - **Detailed configuration:** grouped settings for identity, access, networking, gameplay, RCON, operating behavior and persistence.
 - **Raw JSON view:** inspect and copy the complete configuration draft alongside the visual controls.
 - **Named scenarios:** select built-in and discovered mod scenarios by name, or enter a custom scenario resource.
-- **Mod library:** browse thumbnail cards, search by name or ID, sort, reorder, and choose 8, 16, 24 or 48 mods per page. Add and remove mods, edit pinned versions, import/export JSON lists and save reusable presets.
+- **Mod library:** browse thumbnail cards, search by name or ID, sort, reorder, and choose 8, 16, 24 or 48 mods per page. Add and remove mods, review pinned versions against current Workshop releases, import/export JSON lists and save reusable presets.
 - **Mod download estimate:** view Workshop sizes on each card and a total across all configured mods, using pinned versions when specified. Unknown sizes are marked explicitly. The estimate excludes dependencies outside the configured list and files a player already has can reduce their download.
 - **Connected players:** view player names, IDs and when the panel first observed them.
 - **Administrator labels:** save a readable name beside an in-game administrator UUID or Steam ID.
@@ -96,6 +96,8 @@ Persistence behavior depends on the scenario. On Reforger 1.7+, the launcher res
 ### Mods
 
 Add individual Workshop mods by ID or import a JSON mod list. Imports can replace the configured list or merge new entries into it. A version can be specified for each mod.
+
+The **Updates** tab compares pinned versions with the current Workshop release. Select mods, review the proposed version changes, then save the selected pins together. Mods set to use the latest release already follow Workshop automatically and are not listed. Workshop metadata can be cached for up to one hour; unavailable metadata is never treated as an update. Restart the game server to load changed pins.
 
 Save named presets to reuse mod lists. Applying a preset replaces the configured mods and versions without changing the scenario or restarting the game. Restart the server to load the new list, and ensure the scenario matches your chosen mods.
 

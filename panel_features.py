@@ -25,7 +25,7 @@ MUTATIONS = {
     "config_editor_save": "configure", "config_editor_validate": "configure",
     "admin_label_save": "admin_config",
     "api_persistence_flush": "admin_config", "api_scenarios_rescan": "mods",
-    "api_mods_add": "mods", "api_mods_remove": "mods", "api_mods_import": "mods", "api_mods_edit": "mods",
+    "api_mods_add": "mods", "api_mods_remove": "mods", "api_mods_import": "mods", "api_mods_edit": "mods", "api_mods_update_pins": "mods",
     "presets_save": "mods", "presets_apply": "mods", "presets_delete": "mods",
     "users_save": "users", "users_delete": "users", "account_password": "view",
     "files_preview": "admin_config", "files_save": "admin_config",

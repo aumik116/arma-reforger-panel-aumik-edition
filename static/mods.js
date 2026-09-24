@@ -1,6 +1,7 @@
 // Configured mod library. Polling preserves local search, pagination and edit drafts.
 const modLibrary = {mods:[], signature:null, page:1, size:8, sort:'order', reorder:false, edit:null, historyCursor:null, metadata:new Map()};
 const modEl = id => document.getElementById(id);
+const modUpdates = {selected:new Set(), draft:null};
 let modView = 'cards';
 function setModView(view) {
   modView = ['cards','list','details'].includes(view) ? view : 'cards';
@@ -28,6 +29,7 @@ function updateModLibrary(mods) {
   modEl('mods-tab-configured').textContent = `Configured (${mods.length})`;
   drawModLibrary();
   refreshModMetadata();
+  renderModUpdates();
 }
 function modButton(text, action, className='') {
   const b = document.createElement('button'); b.type='button'; b.textContent=text; b.className=className; b.onclick=action; return b;
@@ -115,6 +117,7 @@ async function refreshModMetadata() {
     // Update only metadata nodes so focused controls survive background reads.
     document.querySelectorAll('#mods-list .mod-tile').forEach(card=>{const mod=modLibrary.mods.find(m=>m.modId===card.dataset.modId);if(mod)applyModMetadata(card.querySelector('.mod-art'),mod);});
     drawModTotal();
+    renderModUpdates();
   }finally{modMetadataLoading=false;}
 }
 setInterval(()=>{if(!document.hidden)refreshModMetadata();},2000);
@@ -129,9 +132,64 @@ function toggleModReorder() {
   if(modLibrary.reorder) { modEl('mods-search').value=''; sortModLibrary('order'); } else drawModLibrary();
 }
 function selectModView(view) {
-  ['configured','presets','history'].forEach(name=>{ const active=name===view; modEl('mods-'+name).hidden=!active; const tab=modEl('mods-tab-'+name);tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1; });
+  ['configured','updates','presets','history'].forEach(name=>{ const active=name===view; modEl('mods-'+name).hidden=!active; const tab=modEl('mods-tab-'+name);tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1; });
+  if(view==='updates') renderModUpdates();
   if(view==='presets') loadPresets().catch(e=>setLog(e.message,'error'));
   if(view==='history') loadModHistory(true);
+}
+function modUpdateCandidate(mod) {
+  if(!mod.version)return null;
+  const latest=modLibrary.metadata.get(String(mod.modId).toUpperCase());
+  return latest?.status==='available' && typeof latest.current_version==='string' && /^[^\s\\"]{1,32}$/.test(latest.current_version) && latest.current_version!==mod.version
+    ? {mod, from:mod.version, to:latest.current_version} : null;
+}
+function selectedModUpdates() {
+  return modLibrary.mods.map(modUpdateCandidate).filter(item=>item && modUpdates.selected.has(String(item.mod.modId).toUpperCase()));
+}
+function renderModUpdates() {
+  const candidates=modLibrary.mods.map(modUpdateCandidate).filter(Boolean);
+  const valid=new Set(candidates.map(item=>String(item.mod.modId).toUpperCase()));
+  for(const id of modUpdates.selected)if(!valid.has(id))modUpdates.selected.delete(id);
+  const pinned=modLibrary.mods.filter(mod=>mod.version);
+  const checking=pinned.filter(mod=>{const data=modLibrary.metadata.get(String(mod.modId).toUpperCase());return !data || data.status==='pending';}).length;
+  const unavailable=pinned.filter(mod=>modLibrary.metadata.get(String(mod.modId).toUpperCase())?.status==='unavailable').length;
+  modEl('mods-tab-updates').textContent=`Updates (${candidates.length})`;
+  modEl('mods-update-status').textContent=`${candidates.length} pinned ${candidates.length===1?'mod differs':'mods differ'} from the current Workshop release · ${checking} checking · ${unavailable} unavailable. Workshop results are cached for up to one hour.`;
+  const list=modEl('mods-update-list');
+  if(modEl('mods-updates').hidden){modEl('mods-update-review').disabled=!modUpdates.selected.size;return;}
+  list.replaceChildren();
+  for(const {mod,from,to} of candidates){
+    const id=String(mod.modId).toUpperCase();
+    const row=document.createElement('label');row.className='mods-update-row';
+    const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=modUpdates.selected.has(id);checkbox.disabled=!can('mods');checkbox.setAttribute('aria-label',`Update ${mod.name||id} from ${from} to ${to}`);
+    checkbox.onchange=()=>{if(checkbox.checked)modUpdates.selected.add(id);else modUpdates.selected.delete(id);modEl('mods-update-review').disabled=!modUpdates.selected.size;};
+    const info=document.createElement('span');info.className='mods-update-info';
+    const name=document.createElement('strong');name.textContent=mod.name||id;
+    const code=document.createElement('code');code.textContent=id;
+    info.append(name,code);
+    const versions=document.createElement('span');versions.className='mods-update-versions';versions.textContent=`${from} → ${to}`;
+    row.append(checkbox,info,versions);list.append(row);
+  }
+  if(!candidates.length){const empty=document.createElement('p');empty.className='feature-note';empty.textContent=checking?'Still checking pinned mods…':'No pinned mods differ from their current Workshop release.';list.append(empty);}
+  modEl('mods-update-review').disabled=!can('mods')||!modUpdates.selected.size;
+}
+function reviewModUpdates() {
+  const selected=selectedModUpdates();if(!selected.length)return;
+  modUpdates.draft={expected:JSON.parse(JSON.stringify(modLibrary.mods)),changes:selected.map(({mod,from,to})=>({modId:mod.modId,from,to}))};
+  const preview=modEl('mods-update-preview');preview.replaceChildren();
+  for(const {mod,from,to} of selected){const row=document.createElement('div');row.className='mods-update-preview-row';const name=document.createElement('strong');name.textContent=mod.name||mod.modId;const versions=document.createElement('span');versions.textContent=`${from} → ${to}`;row.append(name,versions);preview.append(row);}
+  modEl('mods-update-error').textContent='';modEl('mods-update-dialog').showModal();
+}
+async function saveModUpdates() {
+  if(!modUpdates.draft)return;
+  const button=modEl('mods-update-save');button.disabled=true;
+  try {
+    const result=await changeFeature('/api/mods/update-pins',modUpdates.draft);
+    modEl('mods-update-dialog').close();modUpdates.draft=null;modUpdates.selected.clear();
+    setLog(`${result.updated} mod ${result.updated===1?'pin':'pins'} updated. ${result.restart_required?'Restart the server to apply.':''}`,'ok');
+    await fetchStatus();renderModUpdates();
+  }catch(error){modEl('mods-update-error').textContent=error.message;}
+  finally{button.disabled=false;}
 }
 document.querySelectorAll('.mods-tabs [role="tab"]').forEach(tab=>tab.addEventListener('keydown',event=>{
   const tabs=[...document.querySelectorAll('.mods-tabs [role="tab"]')].filter(t=>!t.hidden); let index=tabs.indexOf(tab);
@@ -176,7 +234,7 @@ async function loadModHistory(reset) {
   try {
     const data=await getFeature('/api/activity'+(modLibrary.historyCursor?'?before='+modLibrary.historyCursor:''));
     container.querySelector('.mods-history-empty')?.remove();
-    const labels={api_mods_add:'Add mod',api_mods_remove:'Remove mod',api_mods_import:'Import mods',api_mods_edit:'Edit mods',presets_save:'Save preset',presets_apply:'Apply preset',presets_delete:'Delete preset'};
+    const labels={api_mods_add:'Add mod',api_mods_remove:'Remove mod',api_mods_import:'Import mods',api_mods_edit:'Edit mods',api_mods_update_pins:'Update version pins',presets_save:'Save preset',presets_apply:'Apply preset',presets_delete:'Delete preset'};
     data.events.filter(e=>/mod|preset/.test(e.action)).forEach(e=>{const row=document.createElement('article');const title=document.createElement('div');title.textContent=`${e.actor} · ${labels[e.action]||'Mod change'} · ${e.outcome}`;const time=document.createElement('small');time.textContent=new Date(e.ts*1000).toLocaleString();row.append(title,time);container.append(row);});
     modLibrary.historyCursor=data.next_before;more.hidden=!data.next_before;
     if(!container.children.length){const empty=document.createElement('p');empty.className='mods-history-empty';empty.textContent=data.next_before?'No mod events in this batch. Load more to check older activity.':'No mod activity found.';container.append(empty);}

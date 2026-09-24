@@ -52,10 +52,26 @@
 .mods-dialog input { width:100%; }
 #mods-history-events article { border-bottom:1px solid var(--border); padding:16px 0; line-height:1.6; }
 #mods-history-events small { color:var(--muted); }
+.mods-update-heading { display:flex; justify-content:space-between; align-items:start; gap:20px; }
+.mods-update-heading h3 { margin:0 0 6px; color:var(--accent2); }
+.mods-update-heading p { margin:0; color:var(--muted); font-size:13px; line-height:1.5; }
+.mods-update-list { border-top:1px solid var(--border); }
+.mods-update-row { display:grid; grid-template-columns:20px minmax(0,1fr) auto; gap:14px; align-items:center; padding:13px 4px; border-bottom:1px solid var(--border); cursor:pointer; }
+.mods-update-row input { width:16px; height:16px; accent-color:var(--accent); }
+.mods-update-info { display:flex; flex-direction:column; gap:4px; min-width:0; }
+.mods-update-info strong { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.mods-update-info code { color:var(--muted); font-size:11px; }
+.mods-update-versions { color:var(--accent2); font:12px 'Roboto Mono',monospace; white-space:nowrap; }
+.mods-update-preview { max-height:45vh; overflow:auto; border-top:1px solid var(--border); }
+.mods-update-preview-row { display:flex; justify-content:space-between; gap:16px; padding:10px 0; border-bottom:1px solid var(--border); }
+.mods-update-preview-row span { color:var(--accent2); font:12px 'Roboto Mono',monospace; white-space:nowrap; }
+.mods-update-dialog-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
+#mods-update-error { color:#e68b82; min-height:1em; }
 @media(min-width:1500px) { .mods-active .layout { padding-left:26px; padding-right:26px; } }
 @media(max-width:1200px) { .mods-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
 @media(max-width:950px) { .mods-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .mods-heading { align-items:flex-start; flex-wrap:wrap; } }
 @media(max-width:500px) { .mods-grid { grid-template-columns:minmax(0,1fr); } .mods-actions { margin-left:0; } .mods-tabs { width:100%; } .mods-tabs button { flex:1; } #mods-search { max-width:none; } .mods-footer { align-items:flex-start; } }
+@media(max-width:600px) { .mods-update-heading { flex-direction:column; } .mods-update-row { grid-template-columns:20px minmax(0,1fr); } .mods-update-versions { grid-column:2; white-space:normal; } .mods-update-preview-row { flex-direction:column; gap:4px; } }
 
 /* The same mod entries and actions serve both views. */
 .mods-grid.mods-list-view { grid-template-columns:minmax(0,1fr); gap:10px; }

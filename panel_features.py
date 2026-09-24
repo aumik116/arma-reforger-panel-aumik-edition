@@ -28,6 +28,7 @@ MUTATIONS = {
     "api_mods_add": "mods", "api_mods_remove": "mods", "api_mods_import": "mods", "api_mods_edit": "mods",
     "presets_save": "mods", "presets_apply": "mods", "presets_delete": "mods",
     "users_save": "users", "users_delete": "users", "account_password": "view",
+    "files_preview": "admin_config", "files_save": "admin_config",
 }
 
 
@@ -137,6 +138,7 @@ def install(api):
             "api_logs": "logs", "users_list": "users", "activity_list": "activity",
             "api_persistence_get": "configure",
             "config_editor_get": "configure",
+            "files_list": "admin_config", "files_content": "admin_config", "files_download": "admin_config",
         }.get(request.endpoint, "view")
         if needed and needed not in g.permissions:
             return jsonify(ok=False, error="Your account does not have permission for this action"), 403

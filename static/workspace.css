@@ -19,6 +19,7 @@ header { position:fixed; top:0; left:232px; right:0; height:66px; margin:0; padd
 #tab-configuration::before { content:'⚙'; }
 #tab-console::before { content:'⌁'; }
 #tab-network::before { content:'⇄'; }
+#tab-files::before { content:'▤'; }
 #tab-mods::before { content:'◇'; }
 #tab-administration::before { content:'◈'; }
 .panel-tab[aria-selected="true"] { border-color:#625535; color:#e8c96a; background:#2b2619; }

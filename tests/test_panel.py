@@ -61,6 +61,38 @@ class PanelTests(unittest.TestCase):
         self.assertEqual([service['port'] for service in result.json['services']], [2001, 2101, 2201])
         self.assertNotIn('rcon-secret', result.get_data(as_text=True))
 
+    def test_files_review_backup_and_permissions(self):
+        profile = self.root / 'profile'
+        profile.mkdir()
+        logs = self.root / 'logs'
+        logs.mkdir()
+        config = profile / 'ServerAdminTools' / 'settings.json'
+        config.parent.mkdir()
+        config.write_text('{"enabled":true}\n', encoding='utf-8')
+        self.module.PROFILE_DIR = str(profile)
+        self.module.LOG_DIR = str(logs)
+        self.create('manager2', 'manager')
+        manager = self.login('manager2')
+        self.assertEqual(manager.get('/api/files').status_code, 403)
+        self.assertEqual(self.post(manager, '/api/files/save', {}).status_code, 403)
+        self.assertEqual(self.admin.get('/api/files?root=profile&path=..%2F').status_code, 400)
+        listing = self.admin.get('/api/files?root=profile&path=ServerAdminTools').json
+        self.assertEqual([entry['name'] for entry in listing['entries']], ['settings.json'])
+        opened = self.admin.get('/api/files/content?root=profile&path=ServerAdminTools%2Fsettings.json').json
+        self.assertTrue(opened['editable'])
+        data = {'root':'profile', 'path':'ServerAdminTools/settings.json',
+                'revision':opened['revision'], 'content':'{"enabled":false}\n'}
+        self.assertEqual(self.post(self.admin, '/api/files/preview', dict(data, content='{bad')).status_code, 400)
+        review = self.post(self.admin, '/api/files/preview', data).json
+        self.assertTrue(review['changed'])
+        self.assertIn('+{"enabled":false}', review['diff'])
+        saved = self.post(self.admin, '/api/files/save', data).json
+        self.assertTrue(saved['ok'], saved)
+        self.assertEqual(config.read_text(encoding='utf-8'), '{"enabled":false}\n')
+        self.assertEqual(Path(saved['backup']).read_text(encoding='utf-8'), '{"enabled":true}\n')
+        self.assertEqual(self.post(self.admin, '/api/files/save', data).status_code, 409)
+        self.assertFalse(self.admin.get('/api/files?root=server-config').json['entries'][0]['editable'])
+
     def test_roles_are_enforced_and_secrets_are_redacted(self):
         from panel_features import MUTATIONS, ROLES
         routes = {rule.endpoint: rule.rule for rule in self.module.app.url_map.iter_rules()}

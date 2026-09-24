@@ -458,6 +458,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 <link rel="stylesheet" href="/static/configuration.css">
 <link rel="stylesheet" href="/static/mods.css">
 <link rel="stylesheet" href="/static/network.css">
+<link rel="stylesheet" href="/static/files.css">
 <link rel="stylesheet" href="/static/sharp.css">
 </head>
 <body>
@@ -479,6 +480,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <button class="panel-tab" id="tab-console" role="tab" aria-selected="false" aria-controls="panel-console" tabindex="-1" data-permission="logs" hidden>Console</button>
     <button class="panel-tab" id="tab-configuration" role="tab" aria-selected="false" aria-controls="panel-configuration" tabindex="-1">Server config</button>
     <button class="panel-tab" id="tab-network" role="tab" aria-selected="false" aria-controls="panel-network" tabindex="-1">Network</button>
+    <button class="panel-tab" id="tab-files" role="tab" aria-selected="false" aria-controls="panel-files" tabindex="-1" data-permission="admin_config" hidden>Files</button>
     <button class="panel-tab" id="tab-persistence" role="tab" aria-selected="false" aria-controls="panel-persistence" tabindex="-1" data-permission="configure" hidden>Persistence</button>
     <button class="panel-tab" id="tab-mods" role="tab" aria-selected="false" aria-controls="panel-mods" tabindex="-1">Mods</button>
     <button class="panel-tab" id="tab-administration" role="tab" aria-selected="false" aria-controls="panel-administration" tabindex="-1">Administration</button>
@@ -748,6 +750,33 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <div class="network-bottom-grid">
       <div class="network-card network-join"><h3>DIRECT JOIN</h3><p>Paste this address into the game server browser’s Direct Connect field.</p><div class="network-copy-row"><code id="network-endpoint">Checking address…</code><button id="network-copy" onclick="copyNetworkEndpoint()" disabled>Copy</button></div><small id="network-endpoint-note"></small></div>
       <div class="network-card network-ports"><h3>UDP LISTENERS</h3><p>Ports from server configuration; listener state is checked against the game process.</p><table><thead><tr><th>Service</th><th>Port</th><th>Proto</th><th>Listener</th></tr></thead><tbody id="network-services"><tr><td colspan="4">Checking listeners…</td></tr></tbody></table></div>
+    </div>
+  </section>
+
+  <section class="tab-panel" id="panel-files" role="tabpanel" aria-labelledby="tab-files" hidden>
+    <div class="files-toolbar">
+      <div class="files-roots" role="group" aria-label="File locations">
+        <button type="button" data-files-root="profile" aria-pressed="true">Game profile</button>
+        <button type="button" data-files-root="logs" aria-pressed="false">Server logs</button>
+        <button type="button" data-files-root="server-config" aria-pressed="false">Server config</button>
+      </div>
+      <button class="files-plain-button" type="button" onclick="refreshFiles()">Refresh</button>
+    </div>
+    <p class="files-intro">Browse the game profile for mod-created text configs. Logs and the server config are read-only here; use Server config for changes to IPs, ports and gameplay settings. Saving a file does not restart or reload the game server.</p>
+    <div class="files-workspace">
+      <div class="files-browser">
+        <div class="files-browser-head"><h3>FILES</h3><div id="files-breadcrumbs" aria-label="Current folder"></div></div>
+        <div class="files-search"><input id="files-search" type="search" placeholder="Filter this folder…" aria-label="Filter files in current folder"></div>
+        <div class="files-list" id="files-list" aria-label="Files and folders"><p>Open Files to browse.</p></div>
+        <p class="files-list-note" id="files-list-note" role="status"></p>
+      </div>
+      <div class="files-editor">
+        <div class="files-editor-head"><div><h3 id="files-current-name">Select a file</h3><p id="files-current-meta">Choose a text file to inspect it.</p></div><button type="button" class="files-plain-button" id="files-download" onclick="downloadSelectedFile()" disabled>Download</button></div>
+        <textarea id="files-content" spellcheck="false" aria-label="File contents" readonly placeholder="Select a text file from the browser."></textarea>
+        <div class="files-editor-actions"><span id="files-edit-state">No file selected</span><button type="button" class="files-plain-button" id="files-reload" onclick="reloadSelectedFile()" disabled>Reload file</button><button type="button" class="files-plain-button" id="files-review" onclick="reviewSelectedFile()" disabled>Review changes</button><button type="button" class="files-save-button" id="files-save" onclick="saveSelectedFile()" disabled>Save file</button></div>
+        <p class="files-feedback" id="files-feedback" role="status" aria-live="polite"></p>
+        <div class="files-diff" id="files-diff-panel" hidden><div class="files-diff-head"><h3>CHANGE REVIEW</h3><span>− on disk · + your edit</span></div><pre id="files-diff"></pre></div>
+      </div>
     </div>
   </section>
 
@@ -1496,6 +1525,7 @@ if ('serviceWorker' in navigator) {
 <script src="/static/console.js"></script>
 <script src="/static/configuration.js"></script>
 <script src="/static/network.js"></script>
+<script src="/static/files.js"></script>
 <script src="/static/software.js"></script>
 </body>
 </html>

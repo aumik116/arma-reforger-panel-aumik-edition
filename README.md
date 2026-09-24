@@ -7,6 +7,7 @@ A self-hosted web panel for managing an Arma Reforger dedicated server on Linux.
 - **Server controls:** start, stop and restart the game server.
 - **Live dashboard:** CPU, memory, native server FPS, AI/vehicle counts, network traffic, disk activity and free-space monitoring, with optional player latency telemetry.
 - **Network view:** live host bandwidth, a rough per-player uplink estimate, native player count, direct-join address, UDP listener checks and controls for view distances and player slots.
+- **Files:** administrators can browse game-profile text configs, review a diff, and save with an automatic backup. Server logs and the main server config are read-only in this view.
 - **Server console:** live logs with severity filters, search and export; a dedicated Console page groups repeated errors, shows player join/leave events detected in the recent logs, and allows panel administrators to send RCON commands. The current player roster remains on the Dashboard.
 - **Detailed configuration:** grouped settings for identity, access, networking, gameplay, RCON, operating behavior and persistence.
 - **Raw JSON view:** inspect and copy the complete configuration draft alongside the visual controls.
@@ -82,6 +83,12 @@ If the configuration changes after you load it, saving is blocked to prevent ove
 
 The scenario picker displays readable names. Use **Rescan installed scenarios** after installing mods, or select **Custom scenario** to enter a resource directly. The selected scenario must be available to the game server.
 
+### Files
+
+Administrators can browse supported UTF-8 text files under the configured game profile and logs directories. Select **Game profile** to find JSON files created by server-side mods, including Server Admin Tools if it writes its files there. Open a file, edit it, choose **Review changes**, inspect the diff, then choose **Save file**. Each save first creates a copy of the previous file under the panel’s `.file-backups` directory. If another process changed the file after you opened it, reload before saving. The editor supports files up to 512 KiB; larger text files can be downloaded for inspection. Backups are retained until you remove them manually. Saving a file does not restart or reload the game server; the mod determines when it reads the changed file.
+
+The **Server logs** and **Server config** locations are read-only in Files. Use **Server config** for changes to the main game configuration; its permissions and validation still apply. Files does not create, delete or upload files.
+
 Under **In-game administrators**, enter UUIDs or Steam IDs and save the configuration to update access. Each ID also has a name field with its own **Save name** button. These labels are stored in the panel and do not grant or remove administrator access.
 
 Persistence behavior depends on the scenario. On Reforger 1.7+, the launcher respects the JSON Load latest session setting (enabled by default), without forcing it through a startup flag. **Save-file maintenance** lets you inspect and flush existing saves; the server must be stopped before flushing them.
@@ -130,7 +137,7 @@ Replace this file atomically at least every ten seconds. Samples older than 15 s
 | Viewer | Status, metrics, connected players, mods and presets |
 | Operator | Viewer permissions plus server controls and console logs |
 | Manager | Operator permissions plus everyday server/gameplay settings, AI limits, save timing and retention, mods, presets and activity history |
-| Administrator | All features, including infrastructure/security settings and account management; cannot modify the protected Owner account |
+| Administrator | All features, including file editing, infrastructure/security settings and account management; cannot modify the protected Owner account |
 
 Only Administrators can change IP addresses, ports, A2S, RCON, in-game administrator access/passwords/name labels, BattlEye, fast validation, backend synchronization/shutdown behavior and the persistence Hive ID, or clear save files. Managers see these non-secret settings as **Read-only · Admin only**. Server name, scenario, join password, player limit, crossplay and browser visibility remain available to Managers.
 

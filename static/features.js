@@ -21,6 +21,7 @@ function selectPanelTab(tab) {
     'tab-console': 'Inspect live output, player events and RCON responses.',
     'tab-configuration': 'Manage server settings, scenarios and software updates.',
     'tab-network': 'Watch node traffic, tune view distances and check UDP listeners.',
+    'tab-files': 'Browse server logs and edit mod-created profile configuration files.',
     'tab-persistence': 'Manage the game’s built-in save settings and save-file maintenance.',
     'tab-mods': 'Manage Workshop mods, imports and saved presets.',
     'tab-administration': 'Manage your account, permissions and activity.'
@@ -32,6 +33,7 @@ function selectPanelTab(tab) {
   }
   if (tab.id === 'tab-persistence') fetchPersistence();
   if (tab.id === 'tab-network' && typeof openNetworkPanel === 'function') openNetworkPanel();
+  if (tab.id === 'tab-files' && typeof openFilesPanel === 'function') openFilesPanel();
   if (tab.id === 'tab-console' && typeof fetchLogs === 'function') fetchLogs(30);
   if (tab.id === 'tab-dashboard') {
     requestAnimationFrame(() => { cpuChart.resize(); ramChart.resize(); networkChart.resize(); diskChart.resize(); Object.values(extraCharts).forEach(chart => chart.resize()); });

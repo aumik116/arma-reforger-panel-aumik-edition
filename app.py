@@ -1442,6 +1442,9 @@ install_config_editor(sys.modules[__name__])
 from panel_features import install as install_features
 install_features(sys.modules[__name__])
 
+from file_manager import install as install_file_manager
+install_file_manager(sys.modules[__name__])
+
 from server_software import install as install_server_software
 install_server_software(sys.modules[__name__])
 

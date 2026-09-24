@@ -6,7 +6,7 @@ A self-hosted web panel for managing an Arma Reforger dedicated server on Linux.
 
 - **Server controls:** start, stop and restart the game server.
 - **Live dashboard:** CPU, memory, native server FPS, AI/vehicle counts, network traffic, disk activity and free-space monitoring, with optional player latency telemetry.
-- **Server console:** live logs with highlighted errors and warnings.
+- **Server console:** live logs with severity filters, search and export; a dedicated Console page groups repeated errors, shows player join/leave events detected in the recent logs, and allows panel administrators to send RCON commands. The current player roster remains on the Dashboard.
 - **Detailed configuration:** grouped settings for identity, access, networking, gameplay, RCON, operating behavior and persistence.
 - **Raw JSON view:** inspect and copy the complete configuration draft alongside the visual controls.
 - **Named scenarios:** select built-in and discovered mod scenarios by name, or enter a custom scenario resource.
@@ -60,7 +60,7 @@ Start, stop or restart the server and monitor its activity:
 
 Charts refresh while the dashboard is visible. Counters need an initial sample before rates appear. Missing or inaccessible counters show **unavailable**. Network totals can include virtual interfaces; disk activity is not a disk-capacity indicator.
 
-The live console displays recent server output. Full historical output remains in the server log files.
+The live console displays recent server output on Dashboard and in the dedicated Console page. The Console page filters recent lines by severity, source, event type, keyword or regex, groups repeated errors, and exports the visible lines. Its Players tab shows join/leave events recognized in the recent logs; use Dashboard for the current roster. Connect, Disconnect, Kill and Chat are log filters, not server actions. Full historical output remains in the server log files. Administrators can send RCON commands from the Console page when the game's RCON permission is set to `admin`; the server's whitelist and blacklist still apply. The Restart, Shutdown, List Players and Show Roles shortcuts fill the RCON field for review; press Enter or Execute to send. Broadcast uses Server Admin Tools' `#message` command and requires that mod on the server. The command box is separate from the server process controls.
 
 ### Server config
 

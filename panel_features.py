@@ -8,6 +8,7 @@ import time
 from contextlib import contextmanager
 
 import bcrypt
+import player_query
 from flask import g, jsonify, request, session, redirect
 
 ROLES = {
@@ -17,6 +18,7 @@ ROLES = {
     "admin": {"view", "control", "logs", "configure", "mods", "activity", "users", "admin_config"},
 }
 MUTATIONS = {
+    "rcon_command": "admin_config",
     "software_check": "admin_config", "software_update": "admin_config",
     "api_start": "control", "api_stop": "control", "api_restart": "control",
     "api_config": "configure", "api_persistence_set": "admin_config",
@@ -342,8 +344,7 @@ def install(api):
         return jsonify(events=[dict(row, details=json.loads(row["details"])) for row in rows[:50]],
                        next_before=rows[49]["id"] if len(rows) > 50 else None)
 
-    from player_query import PlayerQuery
-    query = PlayerQuery()
+    query = player_query.PlayerQuery()
 
     @app.get("/api/players")
     def players_list():
@@ -351,3 +352,34 @@ def install(api):
             query.clear()
             return jsonify(available=True, players=[], message="Server is offline")
         return jsonify(query.read(api.read_config().get("rcon", {}), api._cfg))
+
+    @app.post('/api/rcon/command')
+    def rcon_command():
+        data = request.get_json(silent=True) or {}
+        command = data.get('command')
+        if not isinstance(command, str) or not 1 <= len(command.strip()) <= 256 or any(ord(char) < 32 for char in command):
+            return jsonify(ok=False, error='Enter one RCON command (up to 256 characters).'), 400
+        command = command.strip()
+        if command.lower().split()[0] in {'#login', '#logout', '@logout'}:
+            return jsonify(ok=False, error='Authentication commands are managed by the panel.'), 400
+        if not api.get_server_pid():
+            return jsonify(ok=False, error='The game server is offline.'), 409
+        config = api.read_config().get('rcon') or {}
+        settings = api._cfg
+        if config.get('permission', 'monitor') != 'admin':
+            return jsonify(ok=False, error='Set RCON permission to admin in Server config and restart the game server.'), 409
+        password = settings.get('RCON_PASSWORD') or config.get('password')
+        if not password:
+            return jsonify(ok=False, error='Configure an RCON password first.'), 409
+        host = settings.get('RCON_HOST') or config.get('address') or '127.0.0.1'
+        if host == '0.0.0.0':
+            host = '127.0.0.1'
+        try:
+            port = int(settings.get('RCON_PORT') or config.get('port', 19999))
+            if not 1 <= port <= 65535:
+                raise ValueError('Invalid RCON port')
+            output = player_query.query_command(host, port, password, command)
+            g.audit_details = {'command': command.split()[0]}
+            return jsonify(ok=True, output=output[:65536])
+        except (OSError, TimeoutError, ValueError) as error:
+            return jsonify(ok=False, error=str(error)), 502

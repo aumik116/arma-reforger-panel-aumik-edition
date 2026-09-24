@@ -457,6 +457,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 <link rel="stylesheet" href="/static/workspace.css">
 <link rel="stylesheet" href="/static/configuration.css">
 <link rel="stylesheet" href="/static/mods.css">
+<link rel="stylesheet" href="/static/sharp.css">
 </head>
 <body>
 <div class="layout">
@@ -474,6 +475,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
   <div class="nav-label">WORKSPACE</div>
   <nav class="panel-tabs" role="tablist" aria-label="Panel sections" aria-orientation="vertical">
     <button class="panel-tab" id="tab-dashboard" role="tab" aria-selected="true" aria-controls="panel-dashboard" tabindex="0">Dashboard</button>
+    <button class="panel-tab" id="tab-console" role="tab" aria-selected="false" aria-controls="panel-console" tabindex="-1" data-permission="logs" hidden>Console</button>
     <button class="panel-tab" id="tab-configuration" role="tab" aria-selected="false" aria-controls="panel-configuration" tabindex="-1">Server config</button>
     <button class="panel-tab" id="tab-persistence" role="tab" aria-selected="false" aria-controls="panel-persistence" tabindex="-1" data-permission="configure" hidden>Persistence</button>
     <button class="panel-tab" id="tab-mods" role="tab" aria-selected="false" aria-controls="panel-mods" tabindex="-1">Mods</button>
@@ -481,7 +483,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
   </nav>
   <div class="nav-label">QUICK ACCESS</div>
   <div class="quick-links">
-    <button data-permission="logs" hidden onclick="openPanelSection('dashboard','console-card')">Console <span>↗</span></button>
+    <button data-permission="logs" hidden onclick="openPanelSection('console','console-workspace')">Console <span>↗</span></button>
     <button onclick="openPanelSection('dashboard','players-card')">Players <span>↗</span></button>
     <button onclick="openPanelSection('mods','mods-card')">Mods & presets <span>↗</span></button>
   </div>
@@ -629,6 +631,53 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <div id="log-output" class="hide-performance"></div>
   </div>
 
+  </section>
+
+  <section class="tab-panel" id="panel-console" role="tabpanel" aria-labelledby="tab-console" hidden>
+    <div class="console-workspace" id="console-workspace" tabindex="-1">
+      <div class="console-workspace-top">
+        <div class="console-view-tabs" role="tablist" aria-label="Console views">
+          <button type="button" id="console-tab-logs" role="tab" aria-selected="true" aria-controls="console-view-logs" onclick="setConsoleView('logs')">Logs</button>
+          <button type="button" id="console-tab-players" role="tab" aria-selected="false" aria-controls="console-view-players" onclick="setConsoleView('players')">Players <span id="console-player-count">0</span></button>
+          <button type="button" id="console-tab-errors" role="tab" aria-selected="false" aria-controls="console-view-errors" onclick="setConsoleView('errors')">Errors <span id="console-error-count">0</span></button>
+        </div>
+        <div class="console-workspace-actions"><span class="console-live"><span class="log-live-dot off" id="console-live-dot"></span><span id="console-live-label">Connecting</span></span><button type="button" id="console-export" onclick="exportConsoleLog()">Export</button><button type="button" id="console-autoscroll" aria-pressed="true" onclick="toggleConsoleAutoscroll()">Auto-scroll on</button></div>
+      </div>
+      <div class="console-workspace-filters" id="console-filters">
+        <div class="console-levels" role="group" aria-label="Log severity">
+          <button type="button" data-console-level="err" aria-pressed="false" onclick="setConsoleLevel('err')">ERROR <span id="console-count-err">0</span></button>
+          <button type="button" data-console-level="warn" aria-pressed="false" onclick="setConsoleLevel('warn')">WARN <span id="console-count-warn">0</span></button>
+          <button type="button" data-console-level="info" aria-pressed="false" onclick="setConsoleLevel('info')">INFO <span id="console-count-info">0</span></button>
+          <button type="button" data-console-level="debug" aria-pressed="false" onclick="setConsoleLevel('debug')">DEBUG <span id="console-count-debug">0</span></button>
+        </div>
+        <div class="console-filter-tools">
+          <button type="button" id="console-connect" aria-pressed="false" title="Filter connection events" onclick="setConsoleEvent('connect')">Connect</button><button type="button" id="console-disconnect" aria-pressed="false" title="Filter disconnection events" onclick="setConsoleEvent('disconnect')">Disconnect</button>
+          <button type="button" id="console-kill" aria-pressed="false" title="Filter kill events" onclick="setConsoleEvent('kill')">Kill</button>
+          <button type="button" id="console-chat" aria-pressed="false" title="Filter chat events" onclick="setConsoleEvent('chat')">Chat</button>
+          <button type="button" id="console-event-clear" hidden title="Clear event filter" onclick="setConsoleEvent('')">all</button>
+          <button type="button" id="console-regex" aria-pressed="false" title="Toggle regex search" onclick="toggleConsoleRegex()">.*</button>
+          <input type="search" id="console-keyword" aria-label="Search console entries" placeholder="Player / keyword…" oninput="refreshConsoleView()">
+        </div>
+      </div>
+      <div id="console-view-logs" role="tabpanel" aria-labelledby="console-tab-logs"><div id="console-log-output" class="console-log-output" role="log" aria-label="Server logs"></div></div>
+      <div id="console-view-players" role="tabpanel" aria-labelledby="console-tab-players" hidden><p id="console-player-message" class="console-tab-empty">No player events detected<br><span>Player joins/leaves will appear here as they happen</span></p><div id="console-player-list" class="console-player-list"></div></div>
+      <div id="console-view-errors" role="tabpanel" aria-labelledby="console-tab-errors" hidden><div id="console-errors-output" class="console-errors-output" aria-label="Grouped server errors"><p class="console-tab-empty">No errors<br><span>Errors will be grouped and counted here</span></p></div></div>
+    </div>
+    <form class="console-broadcast" id="console-broadcast-form" data-permission="admin_config" hidden onsubmit="runConsoleBroadcast(event)">
+      <span>SAY</span><input id="console-broadcast-input" maxlength="240" autocomplete="off" placeholder="Broadcast to all players… (Server Admin Tools)" aria-label="Broadcast message"><button type="submit" id="console-broadcast-submit" title="Uses Server Admin Tools #message over RCON" disabled>Broadcast</button>
+    </form>
+    <div class="console-server-actions" data-permission="admin_config" hidden>
+      <button type="button" id="console-restart" title="Insert #restart" onclick="insertConsoleCommand('#restart')">Restart</button>
+      <button type="button" id="console-stop" title="Insert #shutdown" onclick="insertConsoleCommand('#shutdown')">Shutdown</button>
+      <button type="button" id="console-players-command" title="Insert #players" onclick="insertConsoleCommand('#players')">List Players</button>
+      <button type="button" id="console-roles-command" title="Insert #roles" onclick="insertConsoleCommand('#roles')">Show Roles</button>
+    </div>
+    <div class="console-command-card" data-permission="admin_config" hidden>
+      <form id="console-command-form" onsubmit="runConsoleCommand(event)"><span>$</span><input id="console-command-input" maxlength="256" autocomplete="off" spellcheck="false" placeholder="RCON command… (↑↓ history)" aria-label="RCON command"><button type="submit" id="console-command-submit" disabled>Execute</button></form>
+      <pre id="console-command-output" role="status" aria-live="polite" hidden></pre>
+    </div>
+    <div class="console-workspace-footer"><span id="console-footer-note">Click source tags to filter · Recent server output · Keyword search</span><span id="console-visible-count">0 entries</span></div>
+    <label class="console-performance-option"><input type="checkbox" id="console-performance" onchange="toggleConsolePerformance()"> Show performance logs</label>
   </section>
 
   <section class="tab-panel" id="panel-configuration" role="tabpanel" aria-labelledby="tab-configuration" hidden>
@@ -1065,6 +1114,9 @@ function isPerformanceLog(text) {
 function togglePerformanceLogs() {
   const show = document.getElementById('show-performance-logs').checked;
   document.getElementById('log-output').classList.toggle('hide-performance', !show);
+  const consoleToggle = document.getElementById('console-performance');
+  if (consoleToggle) consoleToggle.checked = show;
+  if (typeof refreshConsoleView === 'function') refreshConsoleView();
   try { localStorage.setItem('panel-show-performance-logs', String(show)); } catch (_) {}
 }
 try {
@@ -1079,6 +1131,7 @@ function appendLog(text) {
   span.textContent = text;
   span.hidden = !text.toLowerCase().includes(document.getElementById('console-search').value.toLowerCase());
   el.appendChild(span);
+  if (typeof renderConsoleLine === 'function') renderConsoleLine(text);
   // Auto-scroll only when the user is near the bottom
   if (!document.getElementById('pause-console-scroll').checked && el.scrollHeight - el.scrollTop < el.clientHeight + 120) {
     el.scrollTop = el.scrollHeight;
@@ -1095,6 +1148,7 @@ function filterConsole() {
 
 function clearLog() {
   document.getElementById('log-output').innerHTML = '';
+  if (typeof resetConsoleLog === 'function') resetConsoleLog();
 }
 
 function startLogStream() {
@@ -1120,12 +1174,17 @@ async function fetchLogs(count) {
       if (!r.ok) return;
       const d = await r.json();
       if (d.error || !d.lines) return;
-      if (d.reset) document.getElementById('log-output').innerHTML = '';
+      if (d.reset) clearLog();
       d.lines.forEach(line => appendLog(line));
       if (d.cursor) logCursor = d.cursor;
+      if (typeof refreshConsoleView === 'function') refreshConsoleView();
+      if (typeof syncConsoleControls === 'function') syncConsoleControls(Boolean(window.consoleServerRunning), busy);
       if (!d.more) break;
     }
-  } catch(e) {}
+  } catch(e) {
+    document.getElementById('console-live-dot').classList.add('off');
+    document.getElementById('console-live-label').textContent = 'Disconnected';
+  }
   finally { logsPending = false; }
 }
 
@@ -1166,10 +1225,12 @@ function updateUI(d) {
   }
 
   if (d.csrf) CSRF = d.csrf;
+  window.consoleServerRunning = d.running;
 
   // Render the mod list
   renderMods(d.mods || []);
   if (typeof applyPermissions === 'function') applyPermissions();
+  if (typeof syncConsoleControls === 'function') syncConsoleControls(d.running, busy);
 }
 
 function renderMods(mods) { updateModLibrary(mods); }
@@ -1286,6 +1347,7 @@ function setBusy(state) {
     if (el) el.disabled = state;
   });
   if (typeof applyPermissions === 'function') applyPermissions();
+  if (typeof syncConsoleControls === 'function') syncConsoleControls(Boolean(window.consoleServerRunning), state);
 }
 
 async function serverAction(action) {
@@ -1398,6 +1460,7 @@ if ('serviceWorker' in navigator) {
 </script>
 <script src="/static/mods.js"></script>
 <script src="/static/features.js"></script>
+<script src="/static/console.js"></script>
 <script src="/static/configuration.js"></script>
 <script src="/static/software.js"></script>
 </body>

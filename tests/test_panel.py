@@ -135,6 +135,22 @@ class PanelTests(unittest.TestCase):
         self.assertEqual(admin_loaded['config']['rcon']['password'], 'rcon-secret')
         self.assertEqual(self.post(self.admin, '/api/config/editor', {'revision': admin_loaded['revision'], 'changes': {'bindPort': 2400}}).status_code, 200)
 
+    def test_console_rcon_command_is_admin_only_and_uses_configured_listener(self):
+        self.create('operator', 'operator')
+        operator = self.login('operator')
+        self.assertEqual(self.post(operator, '/api/rcon/command', {'command': '#players'}).status_code, 403)
+        self.assertEqual(self.post(self.admin, '/api/rcon/command', {'command': '#players'}).status_code, 409)
+        cfg = json.loads(self.config.read_text())
+        cfg['rcon'] = {'address':'0.0.0.0', 'port':19999, 'password':'rcon-secret', 'permission':'admin'}
+        self.config.write_text(json.dumps(cfg))
+        self.module.get_server_pid = lambda: 12
+        with patch('player_query.query_command', return_value='Players on server:') as send:
+            response = self.post(self.admin, '/api/rcon/command', {'command': '#players'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['output'], 'Players on server:')
+        send.assert_called_once_with('127.0.0.1', 19999, 'rcon-secret', '#players')
+        self.assertEqual(self.post(self.admin, '/api/rcon/command', {'command': '#login secret'}).status_code, 400)
+
     def test_owner_is_protected_from_added_admins_and_survives_rename(self):
         owner = self.admin.get('/api/me').json
         self.assertTrue(owner['is_owner'])

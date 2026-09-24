@@ -1,0 +1,75 @@
+/* Square panel chrome and a compact, terminal-first console. */
+:where(.layout, .layout *, .sidebar, .sidebar *, header, header *, .mods-dialog, .mods-dialog *):not(.dot):not(.log-live-dot):not([role="switch"]) {
+  border-radius:0 !important;
+}
+
+.layout:has(#panel-console:not([hidden])) { max-width:none; padding-top:78px; }
+.layout:has(#panel-console:not([hidden])) .page-heading { display:none; }
+#panel-console { gap:7px; }
+#panel-console .console-workspace { border:0; background:transparent; overflow:visible; }
+#panel-console .console-workspace-top { border:0; padding:0 0 9px; gap:8px; }
+#panel-console .console-workspace-filters { border:0; background:transparent; padding:0 0 8px; gap:8px; }
+#panel-console .console-view-tabs { gap:0; }
+#panel-console .console-view-tabs button { padding:8px 16px; border-color:var(--border); background:#111419; font-size:11px; }
+#panel-console .console-view-tabs button + button { border-left:0; }
+#panel-console .console-view-tabs button[aria-selected="true"] { background:#1d1b14; border-color:#625535; }
+#panel-console .console-workspace-actions { gap:8px; }
+#panel-console .console-workspace-actions button { padding:7px 11px; font-size:11px; }
+#panel-console .console-live { margin-right:5px; font-size:10px; }
+#panel-console .console-levels { gap:6px; }
+#panel-console .console-levels button { padding:5px 9px; background:#17191c; color:#a7a49c; font-size:10px; }
+#panel-console .console-levels button[data-console-level="err"] { color:#e99a92; border-color:#63403d; }
+#panel-console .console-levels button[data-console-level="warn"] { color:#e8c67f; border-color:#605037; }
+#panel-console .console-levels button[data-console-level="info"] { color:#a9b8c1; border-color:#37434b; }
+#panel-console .console-levels button[data-console-level="debug"] { color:#777c82; border-color:#303337; }
+#panel-console .console-levels button[aria-pressed="true"] { background:#302819; box-shadow:inset 0 -2px 0 currentColor; }
+#panel-console .console-filter-tools { justify-content:flex-end; gap:5px; }
+#panel-console .console-filter-tools button { padding:5px 9px; font-size:10px; color:#a7a39a; background:#111419; border:1px solid var(--border); cursor:pointer; }
+#panel-console .console-filter-tools button[aria-pressed="true"] { color:var(--accent2); border-color:#665735; background:#2b2619; }
+#panel-console .console-filter-tools input[type="search"] { min-width:0; width:176px; padding:6px 10px; font-size:11px; background:#0d1013; }
+#panel-console .console-filter-tools input[aria-invalid="true"] { border-color:#a65e59; }
+#panel-console .console-log-output { height:clamp(320px,calc(100vh - 310px),760px); min-height:320px; max-height:none; padding:8px 12px; border:1px solid var(--border); background:#090b0e; font:11px/1.65 'Roboto Mono',monospace; overflow:auto; }
+#panel-console .console-row { display:grid; grid-template-columns:7px 82px 36px max-content; align-items:start; gap:7px; width:max-content; min-width:100%; padding:2px 0; border:0; white-space:pre; overflow-wrap:normal; }
+#panel-console .console-row::before { content:'·'; color:#747e83; line-height:19px; }
+#panel-console .console-row-time { color:#828b91; }
+#panel-console .console-row-source { display:inline-block; grid-column:auto; padding:0 2px; border:1px solid #293239; color:#b9a065; text-align:center; font-size:9px; line-height:16px; cursor:pointer; overflow:visible; }
+#panel-console .console-row-source:hover { border-color:var(--accent); }
+#panel-console .console-row-message { grid-column:auto; grid-row:auto; color:#c5c1b8; white-space:pre; }
+#panel-console .console-row.err .console-row-message { color:#ea918a; }
+#panel-console .console-row.warn .console-row-message { color:#e8c77e; }
+#panel-console .console-row.debug .console-row-message { color:#797f84; }
+#panel-console #console-view-players { min-height:320px; height:clamp(320px,calc(100vh - 310px),760px); overflow:auto; padding:14px; border:1px solid var(--border); background:#090b0e; }
+#panel-console #console-view-errors { min-height:320px; height:clamp(320px,calc(100vh - 310px),760px); overflow:auto; border:1px solid var(--border); background:#090b0e; }
+#panel-console .console-player-list { display:block; }
+#panel-console .console-tab-empty { margin:0; padding:35px 12px; color:#c6c0b1; text-align:center; font-size:13px; }
+#panel-console .console-tab-empty span { display:inline-block; margin-top:6px; color:#83827e; font-size:11px; }
+#panel-console .console-error-group { display:grid; grid-template-columns:42px minmax(0,1fr); gap:11px; padding:11px 14px; border-bottom:1px solid #292c2e; }
+#panel-console .console-error-count { align-self:start; padding:2px 4px; border:1px solid #724440; color:#e69c95; text-align:center; font:600 11px 'Roboto Mono',monospace; }
+#panel-console .console-error-group strong { display:block; color:#e6d2c4; font:500 12px/1.5 'Roboto Mono',monospace; overflow-wrap:anywhere; }
+#panel-console .console-error-group small { display:block; margin-top:4px; color:#82817b; font-size:10px; }
+#panel-console .console-player-entry { border:0; border-bottom:1px solid #26292c; background:transparent; padding:9px 5px; }
+#panel-console .console-broadcast { display:flex; align-items:center; gap:9px; min-height:43px; padding:5px 8px; border:1px solid #46402f; background:#111318; }
+#panel-console .console-broadcast > span, #panel-console #console-command-form > span { color:var(--accent); font:600 11px 'Roboto Mono',monospace; }
+#panel-console .console-broadcast input, #panel-console #console-command-form input { flex:1; min-width:0; padding:5px; background:transparent; border:0; color:var(--text); font:11px 'Roboto Mono',monospace; outline:none; }
+#panel-console .console-broadcast button, #panel-console #console-command-form button { padding:7px 12px; background:#1a1e23; border:1px solid var(--border); color:var(--accent2); font:600 11px 'Barlow',sans-serif; cursor:pointer; }
+#panel-console .console-server-actions { grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; }
+#panel-console .console-server-actions button { padding:7px 10px; border:1px solid #474030; background:#211c14; color:#e4c877; font-size:11px; }
+#panel-console #console-stop { border-color:#59383a; background:#211719; color:#e89490; }
+#panel-console #console-players-command, #panel-console #console-roles-command { border-color:#344455; background:#141b23; color:#a8bfd2; }
+#panel-console .console-command-card { border:0; background:transparent; padding:0; overflow:visible; }
+#panel-console #console-command-form { display:flex; align-items:center; gap:9px; min-height:37px; padding:4px 8px; border:1px solid var(--border); background:#0d1014; }
+#panel-console #console-command-output { padding:8px 10px; margin:5px 0 0; min-height:0; border:1px solid var(--border); background:#0b0e11; }
+#panel-console .console-workspace-footer { display:flex; justify-content:space-between; gap:12px; border:0; padding:2px 0; font:10px 'Barlow',sans-serif; }
+#panel-console .console-performance-option { color:#797b79; font-size:10px; }
+#panel-console .console-performance-option input { accent-color:var(--accent); vertical-align:middle; }
+@media(max-width:1000px) {
+  #panel-console .console-workspace-top, #panel-console .console-workspace-filters { flex-wrap:wrap; }
+  #panel-console .console-filter-tools { justify-content:flex-start; }
+}
+@media(max-width:700px) {
+  .layout:has(#panel-console:not([hidden])) { padding-top:20px; }
+  #panel-console .console-workspace-actions, #panel-console .console-filter-tools { width:100%; }
+  #panel-console .console-filter-tools input[type="search"] { flex:1; }
+  #panel-console .console-server-actions { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  #panel-console .console-row { grid-template-columns:7px 75px 33px max-content; gap:5px; font-size:10px; }
+}

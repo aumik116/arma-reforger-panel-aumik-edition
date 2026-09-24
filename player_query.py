@@ -1,4 +1,4 @@
-"""Read-only Reforger #players query over the BattlEye RCON protocol."""
+"""Short-lived Reforger BattlEye RCON queries and player-list parsing."""
 import re
 import socket
 import struct
@@ -35,7 +35,10 @@ def parse_players(text):
     return players
 
 
-def query_players(host, port, password):
+def query_command(host, port, password, command):
+    """Run one command over a short-lived BattlEye RCON connection."""
+    if not isinstance(command, str) or not command or len(command) > 256 or any(ord(char) < 32 for char in command):
+        raise ValueError('Invalid RCON command')
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
         sock.settimeout(2)
         sock.connect((host, port))
@@ -72,11 +75,15 @@ def query_players(host, port, password):
         if receive(0) != b'\x01':
             raise ValueError('RCON authentication failed')
         try:
-            sock.send(packet(b'\x01\x00#players'))
-            return parse_players(receive(1, 0).decode('utf-8', errors='replace'))
+            sock.send(packet(b'\x01\x00' + command.encode('utf-8')))
+            return receive(1, 0).decode('utf-8', errors='replace')
         finally:
             # Reforger 1.2.1+: release the connection slot after each query.
             sock.send(packet(b'\x01\x01@logout'))
+
+
+def query_players(host, port, password):
+    return parse_players(query_command(host, port, password, '#players'))
 
 
 class PlayerQuery:

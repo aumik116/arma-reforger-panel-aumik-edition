@@ -13,6 +13,28 @@
 
 set -e
 
+# Keep both fresh installs and updates on the same file-copy path.
+PANEL_PY_FILES=(app.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py mod_metadata.py server_software.py)
+
+copy_panel_files() {
+    local destination="$1" file
+    for file in "${PANEL_PY_FILES[@]}" index.html login.html; do
+        if [[ ! -f "$SCRIPT_DIR/$file" ]]; then
+            echo "ERROR: Required panel file $file is missing from the checkout." >&2
+            return 1
+        fi
+    done
+    if [[ ! -d "$SCRIPT_DIR/static" ]] || ! compgen -G "$SCRIPT_DIR/static/*" > /dev/null; then
+        echo "ERROR: Panel static files are missing from the checkout." >&2
+        return 1
+    fi
+    mkdir -p "$destination/static"
+    for file in "${PANEL_PY_FILES[@]}" index.html login.html; do
+        cp "$SCRIPT_DIR/$file" "$destination/"
+    done
+    cp "$SCRIPT_DIR/static/"* "$destination/static/"
+}
+
 # These helpers can be sourced by tests without running the installer.
 run_steamcmd_logged() {
     local log_file="$1"
@@ -207,17 +229,8 @@ if [[ "$MODE" == "update" ]]; then
         echo "ERROR: Cannot locate installed panel service and config.env." >&2
         exit 1
     fi
-    for f in app.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py mod_metadata.py server_software.py; do
-        if [[ ! -f "$SCRIPT_DIR/$f" ]]; then
-            echo "ERROR: Required panel file $f is missing from the update checkout." >&2
-            exit 1
-        fi
-        cp "$SCRIPT_DIR/$f" "$PANEL_DIR_EXISTING/"
-    done
+    copy_panel_files "$PANEL_DIR_EXISTING"
     rm -f "$PANEL_DIR_EXISTING/save_library.py" "$PANEL_DIR_EXISTING/static/saves.js"
-    cp "$SCRIPT_DIR/index.html" "$PANEL_DIR_EXISTING/"
-    cp "$SCRIPT_DIR/login.html" "$PANEL_DIR_EXISTING/"
-    cp "$SCRIPT_DIR/static/"*   "$PANEL_DIR_EXISTING/static/"
     chown -R "$EXISTING_USER:$EXISTING_USER" "$PANEL_DIR_EXISTING"
     configure_server_control "$PANEL_DIR_EXISTING" "$EXISTING_USER"
     systemctl restart arma-panel
@@ -421,21 +434,7 @@ if [[ "$MODE" == "panel" ]]; then
     apt-get install -y -qq python3 binutils python3-flask python3-bcrypt
 fi
 
-mkdir -p "$PANEL_DIR/static"
-
-# Copy files from script directory
-for f in app.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py mod_metadata.py server_software.py index.html login.html; do
-    if [ -f "$SCRIPT_DIR/$f" ]; then
-        cp "$SCRIPT_DIR/$f" "$PANEL_DIR/"
-    else
-        echo -e "      ${RED}WARNING: $f not found in script directory.${NC}"
-    fi
-done
-for f in manifest.json service-worker.js features.js console.js workspace.css configuration.js configuration.css network.js network.css files.js files.css mods.js mods.css sharp.css software.js icon-192.png icon-512.png; do
-    if [ -f "$SCRIPT_DIR/static/$f" ]; then
-        cp "$SCRIPT_DIR/static/$f" "$PANEL_DIR/static/"
-    fi
-done
+copy_panel_files "$PANEL_DIR"
 
 # Hash the panel password with bcrypt so it isn't stored in plaintext.
 # Falls back to plaintext only if bcrypt isn't available (shouldn't happen).

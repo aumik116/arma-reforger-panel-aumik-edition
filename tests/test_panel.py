@@ -44,6 +44,23 @@ class PanelTests(unittest.TestCase):
         self.assertTrue(result.json['ok'], result.json)
         return next(u for u in self.admin.get('/api/users').json['users'] if u['username'] == name)
 
+    def test_network_view_exposes_only_safe_config_and_listener_state(self):
+        self.config.write_text(json.dumps({
+            'publicAddress':'203.0.113.42', 'publicPort':2001, 'bindPort':2001,
+            'a2s':{'port':2101}, 'rcon':{'port':2201,'password':'rcon-secret'},
+            'game':{'name':'Test','maxPlayers':48,'gameProperties':{
+                'networkViewDistance':1200,'serverMaxViewDistance':6400}, 'mods':[]}
+        }))
+        with patch.object(self.module, 'udp_listener_status', side_effect=lambda pid, port: 'offline'):
+            result = self.admin.get('/api/network')
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json['endpoint'], '203.0.113.42:2001')
+        self.assertEqual(result.json['max_players'], 48)
+        self.assertEqual(result.json['network_view_distance'], 1200)
+        self.assertEqual(result.json['server_view_distance'], 6400)
+        self.assertEqual([service['port'] for service in result.json['services']], [2001, 2101, 2201])
+        self.assertNotIn('rcon-secret', result.get_data(as_text=True))
+
     def test_roles_are_enforced_and_secrets_are_redacted(self):
         from panel_features import MUTATIONS, ROLES
         routes = {rule.endpoint: rule.rule for rule in self.module.app.url_map.iter_rules()}

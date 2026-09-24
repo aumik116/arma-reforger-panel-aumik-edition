@@ -26,7 +26,7 @@ def read_cpu_frequency():
 
 class ServerFPS:
     """Read newly appended native logStats records, never revive old log samples."""
-    empty_sample = dict(server_fps=None, ai_count=None, vehicle_count=None,
+    empty_sample = dict(server_fps=None, player_count=None, ai_count=None, vehicle_count=None,
                         frame_time_avg=None, frame_time_max=None)
 
     def __init__(self):
@@ -61,6 +61,7 @@ class ServerFPS:
                                 if math.isfinite(value):
                                     sample = dict(self.empty_sample, server_fps=value)
                                     patterns = {
+                                        'player_count': r'\bPlayer:\s*(\d+)\s*(?:,|$)',
                                         'ai_count': r'\bAI:\s*(\d+)\s*(?:,|$)',
                                         'vehicle_count': r'\bVeh:\s*\d+\s*\((\d+)\)',
                                         'frame_time_avg': r'\bframe time\s*\(avg:\s*([0-9]+(?:\.[0-9]+)?)\s*ms',

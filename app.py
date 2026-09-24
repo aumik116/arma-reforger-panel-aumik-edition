@@ -26,6 +26,7 @@ import glob
 import sys
 import tempfile
 from runtime_ops import ProcessMetrics, TrafficMetrics, HostMetrics, ServerFPS, read_game_telemetry, read_console, read_cpu_frequency
+from network_status import udp_listener_status
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
@@ -992,6 +993,38 @@ def api_metrics():
         "ram_used": ram_used, "ram_total": ram_total,
         "running": pid is not None, "ts": int(time.time()),
     })
+
+
+@app.route('/api/network')
+def api_network():
+    if not session.get('logged_in'):
+        return jsonify(error='unauthorized'), 401
+    cfg = read_config()
+    game = cfg.get('game') or {}
+    props = game.get('gameProperties') or {}
+    rcon = cfg.get('rcon') or {}
+    a2s = cfg.get('a2s') or {}
+    pid = get_server_pid()
+    game_port = cfg.get('bindPort', 2001)
+    query_port = a2s.get('port', 17777) if a2s else None
+    rcon_port = rcon.get('port', 19999) if rcon.get('password') else None
+    public_address = cfg.get('publicAddress') or ''
+    if public_address in ('0.0.0.0', '::'):
+        public_address = ''
+    public_port = cfg.get('publicPort') or game_port
+    services = [
+        dict(name='Game', port=game_port, status=udp_listener_status(pid, game_port)),
+        dict(name='A2S / Query', port=query_port, status=udp_listener_status(pid, query_port)),
+        dict(name='RCON', port=rcon_port, status=udp_listener_status(pid, rcon_port)),
+    ]
+    return jsonify(
+        running=pid is not None,
+        max_players=game.get('maxPlayers', 64),
+        network_view_distance=props.get('networkViewDistance', 1500),
+        server_view_distance=props.get('serverMaxViewDistance', 1600),
+        endpoint=f'{public_address}:{public_port}' if public_address else None,
+        services=services,
+    )
 
 @app.route("/api/logs")
 def api_logs():

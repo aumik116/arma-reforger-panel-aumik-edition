@@ -418,14 +418,14 @@ fi
 mkdir -p "$PANEL_DIR/static"
 
 # Copy files from script directory
-for f in app.py panel_features.py player_query.py runtime_ops.py config_editor.py mod_metadata.py server_software.py index.html login.html; do
+for f in app.py panel_features.py player_query.py runtime_ops.py network_status.py config_editor.py mod_metadata.py server_software.py index.html login.html; do
     if [ -f "$SCRIPT_DIR/$f" ]; then
         cp "$SCRIPT_DIR/$f" "$PANEL_DIR/"
     else
         echo -e "      ${RED}WARNING: $f not found in script directory.${NC}"
     fi
 done
-for f in manifest.json service-worker.js features.js console.js workspace.css configuration.js configuration.css mods.js mods.css sharp.css software.js icon-192.png icon-512.png; do
+for f in manifest.json service-worker.js features.js console.js workspace.css configuration.js configuration.css network.js network.css mods.js mods.css sharp.css software.js icon-192.png icon-512.png; do
     if [ -f "$SCRIPT_DIR/static/$f" ]; then
         cp "$SCRIPT_DIR/static/$f" "$PANEL_DIR/static/"
     fi

@@ -6,6 +6,7 @@ A self-hosted web panel for managing an Arma Reforger dedicated server on Linux.
 
 - **Server controls:** start, stop and restart the game server.
 - **Live dashboard:** CPU, memory, native server FPS, AI/vehicle counts, network traffic, disk activity and free-space monitoring, with optional player latency telemetry.
+- **Network view:** live host bandwidth, a rough per-player uplink estimate, native player count, direct-join address, UDP listener checks and controls for view distances and player slots.
 - **Server console:** live logs with severity filters, search and export; a dedicated Console page groups repeated errors, shows player join/leave events detected in the recent logs, and allows panel administrators to send RCON commands. The current player roster remains on the Dashboard.
 - **Detailed configuration:** grouped settings for identity, access, networking, gameplay, RCON, operating behavior and persistence.
 - **Raw JSON view:** inspect and copy the complete configuration draft alongside the visual controls.
@@ -63,6 +64,8 @@ Charts refresh while the dashboard is visible. Counters need an initial sample b
 The live console displays recent server output on Dashboard and in the dedicated Console page. The Console page filters recent lines by severity, source, event type, keyword or regex, groups repeated errors, and exports the visible lines. Its Players tab shows join/leave events recognized in the recent logs; use Dashboard for the current roster. Connect, Disconnect, Kill and Chat are log filters, not server actions. Full historical output remains in the server log files. Administrators can send RCON commands from the Console page when the game's RCON permission is set to `admin`; the server's whitelist and blacklist still apply. The Restart, Shutdown, List Players and Show Roles shortcuts fill the RCON field for review; press Enter or Execute to send. Broadcast uses Server Admin Tools' `#message` command and requires that mod on the server. The command box is separate from the server process controls.
 
 ### Server config
+
+The **Network** section shows host-wide upload and download rates, which can include other services on the machine. The per-player uplink figure divides host upload by the live game player count; it is only a rough estimate. It also shows the configured Direct Connect address and checks whether the game process owns its configured UDP listeners. An unavailable listener state means the panel could not inspect the process, not that the port is closed. Managers and Administrators can save the three tuning fields there; restart the game server to apply them. Only panel Administrators can edit addresses and ports under **Server config**.
 
 Settings are grouped into Identity, Network, Access, Gameplay, Remote console, Operating and Persistence cards.
 

@@ -71,6 +71,7 @@ function updateConfigDraft() {
     tile.append(configElement('span', '', label), configElement('strong', '', value), configElement('small', '', detail));
     return tile;
   }));
+  if (typeof syncNetworkForm === 'function') syncNetworkForm();
 }
 
 function configInputValue(spec, input) {
@@ -302,7 +303,7 @@ async function loadConfiguration(force = false) {
     configFeedback('Changes apply on the next server start. Saving does not restart it.');
     fetchPersistence();
   } catch (error) { byId('config-loading').textContent = error.message; }
-  finally { configPending = false; }
+  finally { configPending = false; if (typeof syncNetworkForm === 'function') syncNetworkForm(); }
 }
 
 function reloadConfiguration() {

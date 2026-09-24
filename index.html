@@ -457,6 +457,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 <link rel="stylesheet" href="/static/workspace.css">
 <link rel="stylesheet" href="/static/configuration.css">
 <link rel="stylesheet" href="/static/mods.css">
+<link rel="stylesheet" href="/static/network.css">
 <link rel="stylesheet" href="/static/sharp.css">
 </head>
 <body>
@@ -477,6 +478,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <button class="panel-tab" id="tab-dashboard" role="tab" aria-selected="true" aria-controls="panel-dashboard" tabindex="0">Dashboard</button>
     <button class="panel-tab" id="tab-console" role="tab" aria-selected="false" aria-controls="panel-console" tabindex="-1" data-permission="logs" hidden>Console</button>
     <button class="panel-tab" id="tab-configuration" role="tab" aria-selected="false" aria-controls="panel-configuration" tabindex="-1">Server config</button>
+    <button class="panel-tab" id="tab-network" role="tab" aria-selected="false" aria-controls="panel-network" tabindex="-1">Network</button>
     <button class="panel-tab" id="tab-persistence" role="tab" aria-selected="false" aria-controls="panel-persistence" tabindex="-1" data-permission="configure" hidden>Persistence</button>
     <button class="panel-tab" id="tab-mods" role="tab" aria-selected="false" aria-controls="panel-mods" tabindex="-1">Mods</button>
     <button class="panel-tab" id="tab-administration" role="tab" aria-selected="false" aria-controls="panel-administration" tabindex="-1">Administration</button>
@@ -716,6 +718,37 @@ button:disabled { opacity:.45; cursor:not-allowed; }
   </div>
 
 
+  </section>
+
+  <section class="tab-panel" id="panel-network" role="tabpanel" aria-labelledby="tab-network" hidden>
+    <div class="network-summary" aria-label="Live network summary">
+      <div class="network-card"><span>UPSTREAM</span><strong id="network-up">—</strong><small>Node uplink, now</small></div>
+      <div class="network-card"><span>DOWNSTREAM</span><strong id="network-down">—</strong><small>Node downlink, now</small></div>
+      <div class="network-card"><span>PER-PLAYER UPSTREAM</span><strong id="network-per-player">—</strong><small id="network-per-player-note">Rough node uplink estimate</small></div>
+      <div class="network-card"><span>PLAYERS</span><strong id="network-players">—</strong><small>From native server statistics</small></div>
+    </div>
+    <div class="network-main-grid">
+      <div class="network-card network-bandwidth">
+        <div class="network-heading"><div><h3>NODE BANDWIDTH</h3><p>Host-wide traffic across non-loopback interfaces. Other services may be included.</p></div><span class="network-live" id="network-live">COLLECTING</span></div>
+        <div class="network-chart"><canvas id="network-bandwidth-chart" role="img" aria-label="Recent node uplink and downlink in megabits per second"></canvas></div>
+        <div class="network-legend"><span class="network-legend-up">Up Mbps</span><span class="network-legend-down">Down Mbps</span><span class="network-legend-est">≈ kbps/player is an estimate</span></div>
+      </div>
+      <form class="network-card network-tuning" id="network-tuning-form" onsubmit="saveNetworkLevers(event)">
+        <div class="network-heading"><div><h3>TUNING LEVERS</h3><p>Adjust gameplay networking without leaving this view.</p></div></div>
+        <fieldset id="network-tuning-fields" disabled>
+          <label>Network view distance <span>m</span><input id="network-view-distance" type="number" min="500" max="5000" step="1" required></label>
+          <label>Server view distance <span>m</span><input id="network-server-distance" type="number" min="500" max="10000" step="1" required></label>
+          <label>Max players <span>slots</span><input id="network-max-players" type="number" min="1" max="128" step="1" required></label>
+          <button type="submit" id="network-save" disabled>Save levers</button>
+        </fieldset>
+        <p class="network-guidance">Save, restart the game server, then watch the graph. Pending edits in other configuration tabs stay in your draft.</p>
+        <p class="network-feedback" id="network-feedback" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+    <div class="network-bottom-grid">
+      <div class="network-card network-join"><h3>DIRECT JOIN</h3><p>Paste this address into the game server browser’s Direct Connect field.</p><div class="network-copy-row"><code id="network-endpoint">Checking address…</code><button id="network-copy" onclick="copyNetworkEndpoint()" disabled>Copy</button></div><small id="network-endpoint-note"></small></div>
+      <div class="network-card network-ports"><h3>UDP LISTENERS</h3><p>Ports from server configuration; listener state is checked against the game process.</p><table><thead><tr><th>Service</th><th>Port</th><th>Proto</th><th>Listener</th></tr></thead><tbody id="network-services"><tr><td colspan="4">Checking listeners…</td></tr></tbody></table></div>
+    </div>
   </section>
 
   <section class="tab-panel" id="panel-persistence" role="tabpanel" aria-labelledby="tab-persistence" hidden>
@@ -1462,6 +1495,7 @@ if ('serviceWorker' in navigator) {
 <script src="/static/features.js"></script>
 <script src="/static/console.js"></script>
 <script src="/static/configuration.js"></script>
+<script src="/static/network.js"></script>
 <script src="/static/software.js"></script>
 </body>
 </html>

@@ -207,13 +207,13 @@ if [[ "$MODE" == "update" ]]; then
         echo "ERROR: Cannot locate installed panel service and config.env." >&2
         exit 1
     fi
-    cp "$SCRIPT_DIR/app.py"     "$PANEL_DIR_EXISTING/"
-    cp "$SCRIPT_DIR/panel_features.py" "$PANEL_DIR_EXISTING/"
-    cp "$SCRIPT_DIR/player_query.py" "$PANEL_DIR_EXISTING/"
-    cp "$SCRIPT_DIR/runtime_ops.py" "$PANEL_DIR_EXISTING/"
-    cp "$SCRIPT_DIR/config_editor.py" "$PANEL_DIR_EXISTING/"
-    cp "$SCRIPT_DIR/mod_metadata.py" "$PANEL_DIR_EXISTING/"
-    cp "$SCRIPT_DIR/server_software.py" "$PANEL_DIR_EXISTING/"
+    for f in app.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py mod_metadata.py server_software.py; do
+        if [[ ! -f "$SCRIPT_DIR/$f" ]]; then
+            echo "ERROR: Required panel file $f is missing from the update checkout." >&2
+            exit 1
+        fi
+        cp "$SCRIPT_DIR/$f" "$PANEL_DIR_EXISTING/"
+    done
     rm -f "$PANEL_DIR_EXISTING/save_library.py" "$PANEL_DIR_EXISTING/static/saves.js"
     cp "$SCRIPT_DIR/index.html" "$PANEL_DIR_EXISTING/"
     cp "$SCRIPT_DIR/login.html" "$PANEL_DIR_EXISTING/"
@@ -221,6 +221,12 @@ if [[ "$MODE" == "update" ]]; then
     chown -R "$EXISTING_USER:$EXISTING_USER" "$PANEL_DIR_EXISTING"
     configure_server_control "$PANEL_DIR_EXISTING" "$EXISTING_USER"
     systemctl restart arma-panel
+    sleep 2
+    if ! systemctl is-active --quiet arma-panel; then
+        echo "ERROR: Panel service failed to start after updating. Recent service log:" >&2
+        journalctl -u arma-panel -n 30 --no-pager >&2 || true
+        exit 1
+    fi
     echo -e "${GREEN}✓ Panel updated and restarted.${NC}"
     echo ""
     exit 0

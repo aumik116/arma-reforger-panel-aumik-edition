@@ -8,7 +8,9 @@ import time
 from contextlib import contextmanager
 
 import bcrypt
+import config_backups
 import player_query
+from config_editor import revision
 from flask import g, jsonify, request, session, redirect
 
 ROLES = {
@@ -27,6 +29,7 @@ MUTATIONS = {
     "api_persistence_flush": "admin_config", "api_scenarios_rescan": "mods",
     "api_mods_add": "mods", "api_mods_remove": "mods", "api_mods_import": "mods", "api_mods_edit": "mods", "api_mods_update_pins": "mods",
     "presets_save": "mods", "presets_apply": "mods", "presets_delete": "mods",
+    "config_backup_restore": "admin_config",
     "users_save": "users", "users_delete": "users", "account_password": "view",
     "files_preview": "admin_config", "files_save": "admin_config",
 }
@@ -56,13 +59,15 @@ def install(api):
                 version INTEGER NOT NULL DEFAULT 1);
             CREATE TABLE IF NOT EXISTS presets (
                 id INTEGER PRIMARY KEY, name TEXT UNIQUE COLLATE NOCASE NOT NULL,
-                mods TEXT NOT NULL, updated_by TEXT NOT NULL, updated_at REAL NOT NULL);
+                mods TEXT NOT NULL, scenario_id TEXT, updated_by TEXT NOT NULL, updated_at REAL NOT NULL);
             CREATE TABLE IF NOT EXISTS activity (
                 id INTEGER PRIMARY KEY, ts REAL NOT NULL, actor TEXT NOT NULL,
                 action TEXT NOT NULL, outcome TEXT NOT NULL, details TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS panel_owner (
                 singleton INTEGER PRIMARY KEY CHECK(singleton=1), user_id INTEGER NOT NULL);
         """)
+        if 'scenario_id' not in {row['name'] for row in conn.execute('PRAGMA table_info(presets)')}:
+            conn.execute('ALTER TABLE presets ADD COLUMN scenario_id TEXT')
         if not conn.execute("SELECT 1 FROM users LIMIT 1").fetchone():
             conn.execute("INSERT INTO users(username,password,role) VALUES(?,?,?)",
                          ("admin", api.PANEL_PASSWORD_HASH, "admin"))
@@ -138,6 +143,7 @@ def install(api):
             "api_logs": "logs", "users_list": "users", "activity_list": "activity",
             "api_persistence_get": "configure",
             "config_editor_get": "configure",
+            "config_backups_list": "admin_config", "config_backup_preview": "admin_config",
             "files_list": "admin_config", "files_content": "admin_config", "files_download": "admin_config",
         }.get(request.endpoint, "view")
         if needed and needed not in g.permissions:
@@ -287,8 +293,12 @@ def install(api):
     def presets_list():
         with db() as conn:
             rows = conn.execute("SELECT * FROM presets ORDER BY name").fetchall()
-        active = api.read_config().get("game", {}).get("mods", [])
-        return jsonify(presets=[dict(row, mods=json.loads(row["mods"]), active=json.loads(row["mods"]) == active) for row in rows])
+        game = api.read_config().get('game', {})
+        scenarios = {item['id']: item.get('name') or item['id'] for item in api.all_scenarios_cached()}
+        return jsonify(presets=[dict(row, mods=json.loads(row['mods']),
+                                     scenario_name=scenarios.get(row['scenario_id'], row['scenario_id']),
+                                     active=json.loads(row['mods']) == game.get('mods', []) and
+                                     (row['scenario_id'] is None or row['scenario_id'] == game.get('scenarioId'))) for row in rows])
 
     @app.post("/api/presets")
     def presets_save():
@@ -296,21 +306,24 @@ def install(api):
         name = data.get("name", "")
         if not isinstance(name, str) or not 1 <= len(name.strip()) <= 80:
             return jsonify(ok=False, error="Enter a preset name of 1–80 characters"), 400
-        mods = api.read_config().get("game", {}).get("mods", [])
+        game = api.read_config().get('game', {})
+        mods, scenario_id = game.get('mods', []), game.get('scenarioId')
+        if not isinstance(scenario_id, str) or not scenario_id:
+            return jsonify(ok=False, error='Select a scenario before saving a server preset'), 400
         with db() as conn:
             if data.get("id") is not None:
                 if not conn.execute("SELECT 1 FROM presets WHERE id=?", (data["id"],)).fetchone():
                     return jsonify(ok=False, error="Preset not found"), 404
             try:
                 if data.get("id") is None:
-                    conn.execute("INSERT INTO presets(name,mods,updated_by,updated_at) VALUES(?,?,?,?)",
-                                 (name.strip(), json.dumps(mods), g.user["username"], time.time()))
+                    conn.execute("INSERT INTO presets(name,mods,scenario_id,updated_by,updated_at) VALUES(?,?,?,?,?)",
+                                 (name.strip(), json.dumps(mods), scenario_id, g.user["username"], time.time()))
                 else:
-                    conn.execute("UPDATE presets SET name=?,mods=?,updated_by=?,updated_at=? WHERE id=?",
-                                 (name.strip(), json.dumps(mods), g.user["username"], time.time(), data["id"]))
+                    conn.execute("UPDATE presets SET name=?,mods=?,scenario_id=?,updated_by=?,updated_at=? WHERE id=?",
+                                 (name.strip(), json.dumps(mods), scenario_id, g.user["username"], time.time(), data["id"]))
             except sqlite3.IntegrityError:
                 return jsonify(ok=False, error="A preset with this name already exists"), 400
-        g.audit_details = {"preset": name.strip(), "mod_count": len(mods)}
+        g.audit_details = {"preset": name.strip(), "mod_count": len(mods), "scenario": scenario_id}
         return jsonify(ok=True)
 
     @app.post("/api/presets/apply")
@@ -321,9 +334,49 @@ def install(api):
             return jsonify(ok=False, error="Preset not found"), 404
         cfg = api.read_config()
         cfg.setdefault("game", {})["mods"] = json.loads(row["mods"])
+        if row['scenario_id'] is not None:
+            cfg['game']['scenarioId'] = row['scenario_id']
         api.write_config(cfg)
-        g.audit_details = {"preset": row["name"]}
+        g.audit_details = {"preset": row["name"], "scenario": row['scenario_id']}
         return jsonify(ok=True, restart_required=api.get_server_pid() is not None)
+
+    @app.get('/api/config/backups')
+    def config_backups_list():
+        try:
+            return jsonify(backups=config_backups.list_backups(api.SERVER_CONFIG))
+        except (OSError, ValueError):
+            return jsonify(ok=False, error='Unable to list configuration backups'), 500
+
+    @app.get('/api/config/backups/preview')
+    def config_backup_preview():
+        try:
+            current = api.read_config()
+            backup = config_backups.load_backup(api.SERVER_CONFIG, request.args.get('name'))
+            diff, truncated = config_backups.preview(current, backup)
+            return jsonify(diff=diff, truncated=truncated, current_revision=revision(current),
+                           backup_revision=revision(backup))
+        except ValueError as exc:
+            return jsonify(ok=False, error=str(exc)), 400
+        except OSError:
+            return jsonify(ok=False, error='Unable to read configuration backup'), 500
+
+    @app.post('/api/config/backups/restore')
+    def config_backup_restore():
+        data = body()
+        try:
+            current = api.read_config()
+            backup = config_backups.load_backup(api.SERVER_CONFIG, data.get('name'))
+            if data.get('current_revision') != revision(current) or data.get('backup_revision') != revision(backup):
+                return jsonify(ok=False, error='Configuration or backup changed. Review it again before restoring.'), 409
+            if backup == current:
+                return jsonify(ok=False, error='The selected backup already matches the current configuration'), 409
+            api.write_config(backup)
+            g.audit_details = {'backup': data['name']}
+            return jsonify(ok=True, restart_required=api.get_server_pid() is not None)
+        except ValueError as exc:
+            return jsonify(ok=False, error=str(exc)), 400
+        except OSError:
+            return jsonify(ok=False, error='Unable to restore configuration backup'), 500
 
     @app.post("/api/presets/delete")
     def presets_delete():

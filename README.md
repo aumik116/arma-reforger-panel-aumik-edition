@@ -7,7 +7,7 @@ A self-hosted web panel for one Arma Reforger dedicated server on Linux.
 - Start, stop and restart the server; monitor CPU, RAM, FPS, players, AI, vehicles, network and disk activity.
 - View and filter live logs, use RCON, and inspect network listeners.
 - Edit server settings through grouped controls or inspect the raw JSON draft.
-- Manage Workshop mods, version pins, load order and presets. Review current Workshop releases before changing pins.
+- Manage Workshop mods, version pins, load order and scenario-plus-mod presets. Review current Workshop releases before changing pins.
 - Edit game-profile text files with a diff and automatic backup. Logs and the main server config are read-only in Files.
 - Manage panel accounts and view an activity history.
 
@@ -35,7 +35,9 @@ Open `http://YOUR_SERVER_IP:8888`, or the port chosen during installation. Sign 
 
 **Server config** lets you edit settings, select a scenario by name, validate changes and save. `Use default` removes an explicit value. The Raw JSON view shows the current draft, including unsaved edits. Restart the game server to apply saved changes.
 
-**Mods** supports adding mods, importing or exporting JSON lists, reordering, and saving presets. The Updates tab compares pinned versions with the current Workshop release; select changes, review them, then save. Unpinned mods already use the latest release. Workshop metadata may be cached for up to one hour.
+**Mods** supports adding mods, importing or exporting JSON lists, reordering, and saving scenario-plus-mod presets. Existing mod-only presets still work. The Updates tab compares pinned versions with the current Workshop release; select changes, review them, then save. Unpinned mods already use the latest release. Workshop metadata may be cached for up to one hour.
+
+**Configuration backups** are created before panel-managed server JSON changes. Administrators can review and restore the latest 20 versions in **Server config**. Backups live in `.panel-config-backups` beside the server JSON; they include passwords but not game saves. Restoring also backs up the current JSON.
 
 **Persistence** exposes the game's native save settings. The selected scenario must support persistence; panel settings cannot add that support to a scenario. Stop the game server before using **Flush saves**.
 

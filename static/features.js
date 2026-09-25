@@ -31,6 +31,7 @@ function selectPanelTab(tab) {
     byId(tab.id === 'tab-persistence' ? 'persistence-savebar-slot' : 'configuration-savebar-slot').append(byId('shared-config-savebar'));
     loadConfiguration();
   }
+  if (tab.id === 'tab-configuration' && can('admin_config') && typeof loadConfigBackups === 'function') loadConfigBackups();
   if (tab.id === 'tab-persistence') fetchPersistence();
   if (tab.id === 'tab-network' && typeof openNetworkPanel === 'function') openNetworkPanel();
   if (tab.id === 'tab-files' && typeof openFilesPanel === 'function') openFilesPanel();
@@ -138,21 +139,21 @@ async function loadPresets() {
   savedPresets = data.presets;
   const selected = byId('preset-select').value;
   byId('preset-select').replaceChildren(new Option('Select a saved mod preset', ''));
-  savedPresets.forEach(p => byId('preset-select').add(new Option(`${p.name} (${p.mods.length} mods)${p.active ? ' — matches configured mods' : ''}`, p.id)));
+  savedPresets.forEach(p => byId('preset-select').add(new Option(`${p.name} · ${p.scenario_name || 'Mods only'} · ${p.mods.length} mods${p.active ? ' · Active' : ''}`, p.id)));
   byId('preset-select').value = selected;
   showPreset();
 }
 
 function showPreset() {
   const p = savedPresets.find(p => String(p.id) === byId('preset-select').value);
-  byId('preset-details').textContent = p ? `Saved by ${p.updated_by}: ${p.mods.map(m => m.name || m.modId).join(', ') || 'No mods'}` : '';
+  byId('preset-details').textContent = p ? `${p.scenario_name ? `Scenario: ${p.scenario_name}` : 'Legacy preset: mods only'} · ${p.mods.length} mods · Saved by ${p.updated_by}${p.mods.length ? ` · ${p.mods.slice(0, 6).map(m => m.name || m.modId).join(', ')}${p.mods.length > 6 ? ` and ${p.mods.length - 6} more` : ''}` : ''}` : '';
 }
 
 async function savePreset(overwrite = false) {
   try {
     const selected = savedPresets.find(p => String(p.id) === byId('preset-select').value);
     if (overwrite && !selected) throw new Error('Select a preset to overwrite');
-    if (overwrite && !confirm(`Replace the mods saved in "${selected.name}" with the current configured mods?`)) return;
+    if (overwrite && !confirm(`Replace the scenario and mods saved in "${selected.name}" with the current configuration?`)) return;
     await changeFeature('/api/presets', {name: overwrite ? selected.name : byId('preset-name').value.trim(), ...(overwrite ? {id:selected.id} : {})});
     byId('preset-name').value = '';
     await loadPresets();
@@ -163,9 +164,12 @@ async function presetAction(action) {
   try {
     const selected = savedPresets.find(p => String(p.id) === byId('preset-select').value);
     if (!selected) throw new Error('Select a preset first');
-    if (!confirm(action === 'apply' ? `Replace the configured mod list with "${selected.name}"? Restart a running server afterward to use it.` : `Delete preset "${selected.name}"?`)) return;
+    if (action === 'apply' && Object.keys(configChanges).length) throw new Error('Save or discard your unsaved configuration edits before applying a preset.');
+    const target = selected.scenario_name ? `scenario and mod list` : 'mod list';
+    if (!confirm(action === 'apply' ? `Replace the configured ${target} with "${selected.name}"? Restart a running server afterward to use it.` : `Delete preset "${selected.name}"?`)) return;
     await changeFeature(`/api/presets/${action}`, {id: selected.id});
     await fetchStatus();
+    if (action === 'apply' && can('configure')) await loadConfiguration(true);
     await loadPresets();
   } catch (e) { setLog(e.message, 'error'); }
 }

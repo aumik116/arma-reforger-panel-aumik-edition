@@ -709,6 +709,16 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     </fieldset>
   </div>
 
+  <div class="card" id="config-backups-card" data-permission="admin_config" hidden>
+    <div class="card-label">Configuration backups</div>
+    <p class="feature-note">The panel saves the previous server JSON before every configuration change. Backups include passwords and are available only to panel administrators.</p>
+    <div class="field"><label for="config-backup-select">Saved versions</label><select id="config-backup-select" onchange="clearConfigBackupReview()"><option value="">Loading backups…</option></select></div>
+    <div class="feature-row"><button class="config-button" type="button" onclick="loadConfigBackups()">Refresh backups</button><button class="config-button" type="button" id="config-backup-review" onclick="reviewConfigBackup()" disabled>Review changes</button></div>
+    <p class="feature-note" id="config-backup-status" role="status"></p>
+    <pre id="config-backup-diff" class="config-backup-diff" hidden></pre>
+    <button class="config-button" type="button" id="config-backup-restore" onclick="restoreConfigBackup()" disabled>Restore reviewed backup</button>
+  </div>
+
   <div class="card" id="software-card" data-permission="admin_config" hidden>
     <div class="card-label">Server software</div>
     <p id="software-build">Installed Steam build: loading…</p>
@@ -824,7 +834,7 @@ button:disabled { opacity:.45; cursor:not-allowed; }
       <div id="mods-update-list" class="mods-update-list"></div>
     </div>
     <div id="mods-presets" role="tabpanel" aria-labelledby="mods-tab-presets" class="card" hidden>    <!-- Mod presets -->
-    <div class="field"><label for="preset-select">Saved mod presets</label>
+    <div class="field"><label for="preset-select">Saved server presets</label>
       <select id="preset-select" onchange="showPreset()"><option>Loading...</option></select></div>
     <p class="feature-note" id="preset-details"></p>
     <div data-permission="mods" hidden>
@@ -832,8 +842,8 @@ button:disabled { opacity:.45; cursor:not-allowed; }
         <button class="btn-save" onclick="savePreset(true)">Overwrite selected preset</button>
         <button class="btn-save" onclick="presetAction('delete')">Delete preset</button></div>
       <div class="field"><label for="preset-name">New preset name</label><input id="preset-name" maxlength="80" placeholder="e.g. Weekend conflict"></div>
-      <button class="btn-save" onclick="savePreset()">Save current mods as preset</button>
-      <p class="feature-note">Presets save the configured mod list and versions. Apply replaces that list; restart a running server to use it. The mission is unchanged.</p>
+      <button class="btn-save" onclick="savePreset()">Save current scenario and mods</button>
+      <p class="feature-note">New presets save the selected scenario and configured mod list. Older mod-only presets still change mods only. Applying a preset requires a game-server restart.</p>
     </div>
 </div>
     <div id="mods-history" role="tabpanel" aria-labelledby="mods-tab-history" class="card" hidden><h3>Mod activity</h3><div id="mods-history-events"></div><button id="mods-history-more" onclick="loadModHistory(false)" hidden>Load more</button></div>
@@ -1531,6 +1541,7 @@ if ('serviceWorker' in navigator) {
 <script src="/static/features.js"></script>
 <script src="/static/console.js"></script>
 <script src="/static/configuration.js"></script>
+<script src="/static/config_backups.js"></script>
 <script src="/static/network.js"></script>
 <script src="/static/files.js"></script>
 <script src="/static/software.js"></script>

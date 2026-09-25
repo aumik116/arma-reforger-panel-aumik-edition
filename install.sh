@@ -14,7 +14,7 @@
 set -e
 
 # Keep both fresh installs and updates on the same file-copy path.
-PANEL_PY_FILES=(app.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py mod_metadata.py server_software.py)
+PANEL_PY_FILES=(app.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py config_backups.py mod_metadata.py server_software.py)
 
 copy_panel_files() {
     local destination="$1" file

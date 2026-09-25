@@ -99,3 +99,4 @@
 /* Protected fields remain visible without exposing editable controls. */
 .config-field-locked .config-field-state { color:var(--accent); }
 .config-field-locked input:disabled,.config-field-locked textarea:disabled,.config-field-locked select:disabled { opacity:.7; cursor:not-allowed; }
+.config-backup-diff { max-height:320px; overflow:auto; padding:14px; margin:12px 0; border:1px solid var(--border); background:var(--bg); color:var(--text); font:12px/1.5 'Roboto Mono',monospace; white-space:pre-wrap; overflow-wrap:anywhere; }

@@ -707,6 +707,7 @@ def read_config():
 
 def write_config(cfg):
     from config_editor import order_config
+    from config_backups import backup_current
     cfg = order_config(cfg)
     # Replace atomically so readers never see a partially-written configuration.
     folder = os.path.dirname(os.path.abspath(SERVER_CONFIG))
@@ -716,6 +717,7 @@ def write_config(cfg):
             json.dump(cfg, f, indent="\t")
         if os.path.exists(SERVER_CONFIG):
             os.chmod(temporary, os.stat(SERVER_CONFIG).st_mode & 0o777)
+            backup_current(SERVER_CONFIG)
         os.replace(temporary, SERVER_CONFIG)
     finally:
         if os.path.exists(temporary):

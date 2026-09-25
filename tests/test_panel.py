@@ -432,6 +432,10 @@ class PanelTests(unittest.TestCase):
         self.assertTrue(self.post(self.admin, '/api/presets', {'name':'Weekend'}).json['ok'])
         preset = self.admin.get('/api/presets').json['presets'][0]
         self.post(self.admin, '/api/mods/remove', {'modId':'ABC123'})
+        changed = json.loads(self.config.read_text())
+        changed['game']['scenarioId'] = 'different'
+        self.config.write_text(json.dumps(changed))
+        self.assertFalse(self.admin.get('/api/presets').json['presets'][0]['active'])
         self.module.get_server_pid = lambda: 123
         result = self.post(self.admin, '/api/presets/apply', {'id':preset['id']})
         self.assertTrue(result.json['restart_required'])
@@ -449,6 +453,43 @@ class PanelTests(unittest.TestCase):
             self.assertGreater(db.execute('SELECT count(*) FROM activity').fetchone()[0], 3)
             self.assertEqual(db.execute('SELECT name FROM presets').fetchone()[0], 'Weekend')
         db.close()
+
+    def test_legacy_mod_only_preset_leaves_scenario_unchanged(self):
+        self.assertTrue(self.post(self.admin, '/api/presets', {'name':'Old mods'}).json['ok'])
+        import sqlite3
+        with sqlite3.connect(self.root / '.panel-data.sqlite3') as db:
+            db.execute('UPDATE presets SET scenario_id=NULL')
+        db.close()
+        preset = self.admin.get('/api/presets').json['presets'][0]
+        self.assertIsNone(preset['scenario_id'])
+        config = json.loads(self.config.read_text())
+        config['game']['scenarioId'] = 'another-scenario'
+        self.config.write_text(json.dumps(config))
+        self.assertTrue(self.post(self.admin, '/api/presets/apply', {'id':preset['id']}).json['ok'])
+        self.assertEqual(json.loads(self.config.read_text())['game']['scenarioId'], 'another-scenario')
+
+    def test_config_backups_review_restore_and_admin_access(self):
+        original = json.loads(self.config.read_text())
+        self.assertTrue(self.post(self.admin, '/api/config', {'password':'changed-secret'}).json['ok'])
+        backups = self.admin.get('/api/config/backups').json['backups']
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0]['scenario'], 'original')
+        name = backups[0]['name']
+        preview = self.admin.get('/api/config/backups/preview?name=' + name).json
+        self.assertIn('changed-secret', preview['diff'])
+        self.assertEqual(self.post(self.admin, '/api/config/backups/restore',
+            {'name':name, 'current_revision':'stale', 'backup_revision':preview['backup_revision']}).status_code, 409)
+        result = self.post(self.admin, '/api/config/backups/restore',
+            {'name':name, 'current_revision':preview['current_revision'], 'backup_revision':preview['backup_revision']})
+        self.assertTrue(result.json['ok'], result.json)
+        self.assertEqual(json.loads(self.config.read_text()), original)
+        self.assertEqual(len(self.admin.get('/api/config/backups').json['backups']), 2)
+        self.create('manager', 'manager')
+        manager = self.login('manager')
+        self.assertEqual(manager.get('/api/config/backups').status_code, 403)
+        self.assertEqual(manager.get('/api/config/backups/preview?name=' + name).status_code, 403)
+        self.assertEqual(self.post(manager, '/api/config/backups/restore',
+            {'name':name, 'current_revision':preview['current_revision'], 'backup_revision':preview['backup_revision']}).status_code, 403)
 
     def test_preset_validation_and_failed_actions(self):
         self.assertEqual(self.post(self.admin, '/api/presets', {'name':''}).status_code, 400)

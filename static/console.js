@@ -5,6 +5,7 @@ let consoleAutoscroll = true;
 let consoleView = 'logs';
 let consoleSource = '';
 let consoleEvent = '';
+let consoleHideRcon = false;
 let consoleRegex = false;
 let consoleSearchError = '';
 const consoleEventPatterns = {
@@ -22,7 +23,7 @@ function consoleEntry(text) {
   const marked = colorLine(text);
   const level = marked === 'err' || marked === 'warn' ? marked : /\bDEBUG\b|\(D\):/.test(text) ? 'debug' : 'info';
   return {text, time: match ? match[1] : '', source, message: match ? match[3] : text,
-    level, performance: isPerformanceLog(text)};
+    level, performance: isPerformanceLog(text), rcon: /\bRCON\b/i.test(text)};
 }
 
 function consoleRow(entry) {
@@ -30,6 +31,7 @@ function consoleRow(entry) {
   row.className = 'console-row ' + entry.level;
   row.dataset.level = entry.level || 'other';
   row.dataset.performance = String(entry.performance);
+  row.dataset.rcon = String(entry.rcon);
   row.dataset.text = entry.text.toLowerCase();
   row.dataset.original = entry.text;
   row.dataset.source = entry.source;
@@ -142,6 +144,7 @@ function refreshConsoleView() {
     const match = (consoleLevel === 'all' || row.dataset.level === consoleLevel) &&
       (!consoleSource || row.dataset.source === consoleSource) &&
       (!consoleEvent || consoleEventPatterns[consoleEvent].test(row.dataset.original)) &&
+      (!consoleHideRcon || row.dataset.rcon !== 'true') &&
       (showPerformance || row.dataset.performance !== 'true') && matchesSearch(row);
     row.hidden = !match;
     if (match) visible++;
@@ -174,7 +177,7 @@ function setConsoleSource(source) {
 
 function updateConsoleFilterNote() {
   if (consoleView !== 'logs') return;
-  const filters = [consoleSource && `Source: ${consoleSource}`, consoleEvent && `Event: ${consoleEvent}`].filter(Boolean);
+  const filters = [consoleSource && `Source: ${consoleSource}`, consoleEvent && `Event: ${consoleEvent}`, consoleHideRcon && 'RCON hidden'].filter(Boolean);
   document.getElementById('console-footer-note').textContent =
     `Click source tags to filter · Recent server output${filters.length ? ' · ' + filters.join(' · ') : ''} · ${consoleRegex ? 'Regex' : 'Keyword'} search${consoleSearchError ? ' · ' + consoleSearchError : ''}`;
 }
@@ -193,6 +196,12 @@ function setConsoleEvent(event) {
 function toggleConsoleRegex() {
   consoleRegex = !consoleRegex;
   document.getElementById('console-regex').setAttribute('aria-pressed', String(consoleRegex));
+  refreshConsoleView();
+}
+
+function toggleConsoleRcon() {
+  consoleHideRcon = !consoleHideRcon;
+  document.getElementById('console-hide-rcon').setAttribute('aria-pressed', String(consoleHideRcon));
   refreshConsoleView();
 }
 

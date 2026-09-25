@@ -93,6 +93,29 @@ class PanelTests(unittest.TestCase):
         self.assertEqual(self.post(self.admin, '/api/files/save', data).status_code, 409)
         self.assertFalse(self.admin.get('/api/files?root=server-config').json['entries'][0]['editable'])
 
+    def test_persistence_detects_session_saves_without_counting_settings_as_a_save(self):
+        profile = self.root / 'profile'
+        sessions = profile / '.save' / 'sessions' / 'save-point'
+        sessions.mkdir(parents=True)
+        save = sessions / 'data.json'
+        save.write_text('{}')
+        settings = profile / '.save' / 'settings'
+        settings.mkdir()
+        (settings / 'preferences.json').write_text('{}')
+        self.module.PROFILE_DIR = str(profile)
+
+        result = self.admin.get('/api/persistence').json['saves']
+        self.assertEqual(result['world_files'], 1)
+        self.assertEqual(result['buckets']['sessions']['count'], 1)
+        self.assertEqual(result['total']['count'], 2)
+        self.assertEqual(result['newest_save'], save.stat().st_mtime)
+
+        self.assertEqual(self.module._flush_saves(), 1)
+        after = self.module._scan_saves()
+        self.assertEqual(after['world_files'], 0)
+        self.assertIsNone(after['newest_save'])
+        self.assertEqual(after['buckets']['settings']['count'], 1)
+
     def test_roles_are_enforced_and_secrets_are_redacted(self):
         from panel_features import MUTATIONS, ROLES
         routes = {rule.endpoint: rule.rule for rule in self.module.app.url_map.iter_rules()}

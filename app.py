@@ -27,6 +27,7 @@ import sys
 import tempfile
 from runtime_ops import ProcessMetrics, TrafficMetrics, HostMetrics, ServerFPS, read_game_telemetry, read_console, read_cpu_frequency
 from network_status import udp_listener_status
+from persistence_saves import list_save_points, named_saves_for, save_named_point, selection_for, set_startup_save
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 
@@ -767,13 +768,17 @@ def _native_persistence_startup_args(cfg):
     args = []
     if persistence.get('loadSessionSave', True):
         args.append('-loadSessionSave')
+        selected = selection_for(_BASE_DIR, (cfg.get('game') or {}).get('scenarioId', ''))
+        if selected:
+            args.append(selected['uuid'])
     if persistence.get('keepSessionSave', False):
         args.append('-keepSessionSave')
     return args
 
 # Subdirs the flush button targets. `settings/` is intentionally preserved
 # because it holds non-session config the server expects to regenerate from.
-_FLUSHABLE_SUBDIRS = ("game", "playersave")
+_WORLD_SAVE_SUBDIRS = ("game", "session", "sessions")
+_FLUSHABLE_SUBDIRS = (*_WORLD_SAVE_SUBDIRS, "playersave")
 
 def _save_root():
     for sub in _SAVE_SUBDIRS:
@@ -804,8 +809,11 @@ def _scan_dir(path):
 def _scan_saves():
     root = _save_root()
     if not os.path.isdir(root):
-        return {"path": root, "exists": False, "total": {"count": 0, "bytes": 0, "newest": None}, "buckets": {}}
-    buckets = {name: _scan_dir(os.path.join(root, name)) for name in ("game", "playersave", "settings")}
+        return {"path": root, "exists": False, "newest_save": None,
+                "save_points": 0, "world_files": 0,
+                "total": {"count": 0, "bytes": 0, "newest": None}, "buckets": {}}
+    buckets = {name: _scan_dir(os.path.join(root, name))
+               for name in (*_WORLD_SAVE_SUBDIRS, "playersave", "settings")}
     all_files = _scan_dir(root)
     native_meta = []
     for path in glob.glob(os.path.join(root, "**", "meta-info.json"), recursive=True):
@@ -813,26 +821,21 @@ def _scan_saves():
             if os.path.isfile(path): native_meta.append(os.path.getmtime(path))
         except OSError:
             pass
-    total_count = all_files["count"]
-    total_bytes = all_files["bytes"]
-    newest_vals = [b["newest"] for b in buckets.values() if b["newest"]]
+    world = [buckets[name] for name in _WORLD_SAVE_SUBDIRS]
+    world_newest = [b["newest"] for b in world if b["newest"]]
     return {
         "path":    root,
         "exists":  True,
         "buckets": buckets,
-        "newest_save": max(native_meta) if native_meta else None,
-        "total":   {
-            "count":  total_count,
-            "bytes":  total_bytes,
-            "newest": max(newest_vals) if newest_vals else None,
-        },
+        "newest_save": max(world_newest + native_meta) if world_newest or native_meta else None,
+        "save_points": len(native_meta),
+        "world_files": sum(b["count"] for b in world),
+        "total": all_files,
     }
 
 def _flush_saves():
-    """Remove the contents of `.save/game/` and `.save/playersave/` (world
-    session + per-player data). `.save/settings/` is left alone — it holds
-    non-session config the server regenerates from. Returns the count of files
-    deleted."""
+    """Remove world-session and per-player saves from the known save folders.
+    `.save/settings/` is left alone. Returns the count of files deleted."""
     import shutil
     root = _save_root()
     if not os.path.isdir(root):
@@ -1108,6 +1111,7 @@ def api_persistence_get():
     cfg = read_config()
     block = _get_persistence_block(cfg) or {}
     saves = _scan_saves()
+    scenario_id = cfg.get("game", {}).get("scenarioId", "")
     return jsonify({
         "enabled":          _persistence_enabled(cfg),
         "autoSaveInterval": block.get("autoSaveInterval", 10),
@@ -1115,10 +1119,56 @@ def api_persistence_get():
         "loadSessionSave":  block.get("loadSessionSave", True),
         "keepSessionSave":  block.get("keepSessionSave", False),
         "hiveId":           block.get("hiveId", 0),
-        "scenarioId":       cfg.get("game", {}).get("scenarioId", ""),
+        "scenarioId":       scenario_id,
+        "savePoints":       list_save_points(PROFILE_DIR),
+        "namedSaves":       named_saves_for(_BASE_DIR, scenario_id),
+        "selectedSave":     selection_for(_BASE_DIR, scenario_id),
+        "running":          get_server_pid() is not None,
         "saves":            saves,
         "profile_dir":      PROFILE_DIR,
     })
+
+
+@app.route("/api/persistence/startup-save", methods=["POST"])
+def api_persistence_startup_save():
+    if not session.get("logged_in"):
+        return jsonify({"error": "unauthorized"}), 401
+    err = _csrf_required()
+    if err: return err
+    data = request.get_json(silent=True) or {}
+    uuid = data.get("uuid", "")
+    if not isinstance(uuid, str):
+        return jsonify(ok=False, error="Invalid save point UUID"), 400
+    scenario_id = (read_config().get("game") or {}).get("scenarioId", "")
+    if not scenario_id:
+        return jsonify(ok=False, error="Select a scenario before choosing a startup save"), 400
+    try:
+        selected = set_startup_save(_BASE_DIR, PROFILE_DIR, scenario_id, uuid)
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+    except OSError:
+        return jsonify(ok=False, error="Could not preserve the selected save point"), 503
+    return jsonify(ok=True, selectedSave=selected, restart_required=get_server_pid() is not None)
+
+
+@app.route("/api/persistence/named-save", methods=["POST"])
+def api_persistence_named_save():
+    if not session.get("logged_in"):
+        return jsonify({"error": "unauthorized"}), 401
+    err = _csrf_required()
+    if err: return err
+    data = request.get_json(silent=True) or {}
+    scenario_id = (read_config().get("game") or {}).get("scenarioId", "")
+    if not scenario_id:
+        return jsonify(ok=False, error="Select a scenario before backing up a save"), 400
+    try:
+        saved = save_named_point(_BASE_DIR, PROFILE_DIR, scenario_id,
+                                 data.get("uuid"), data.get("name"))
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+    except OSError:
+        return jsonify(ok=False, error="Could not back up the save point"), 503
+    return jsonify(ok=True, saved=saved)
 
 @app.route("/api/persistence", methods=["POST"])
 def api_persistence_set():
@@ -1182,6 +1232,9 @@ def api_persistence_flush():
     # handles and may rewrite them mid-flush, which leaves us with partials.
     if get_server_pid():
         return jsonify({"ok": False, "error": "Stop the server before flushing saves"})
+    scenario_id = (read_config().get("game") or {}).get("scenarioId", "")
+    if selection_for(_BASE_DIR, scenario_id):
+        return jsonify({"ok": False, "error": "Clear the pinned startup save before flushing saves"}), 409
     try:
         removed = _flush_saves()
         return jsonify({"ok": True, "removed": removed, "saves": _scan_saves()})

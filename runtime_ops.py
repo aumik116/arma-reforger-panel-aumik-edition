@@ -320,15 +320,24 @@ def launch_server(config_path):
     try:
         with open(server_config, encoding='utf-8-sig') as stream:
             config = json.load(stream)
-        properties = (config.get('game') or {}).get('gameProperties') or {}
-        if (properties.get('missionHeader') or {}).get('m_eSaveTypes') != 0:
-            persistence = properties.get('persistence') or {}
-            if persistence.get('loadSessionSave', True):
-                args.append('-loadSessionSave')
-            if persistence.get('keepSessionSave', False):
-                args.append('-keepSessionSave')
     except (OSError, ValueError, TypeError):
-        pass
+        config = None
+    properties = ((config.get('game') or {}).get('gameProperties') or {}) if config is not None else {}
+    if config is not None and (properties.get('missionHeader') or {}).get('m_eSaveTypes') != 0:
+        persistence = properties.get('persistence') or {}
+        if persistence.get('loadSessionSave', True):
+            from persistence_saves import prepare_startup_save
+            profile_dir = settings.get('PROFILE_DIR') or os.path.join(
+                os.path.dirname(settings.get('LOG_DIR', '/home/arma/.config/ArmaReforger/logs')),
+                'profile')
+            scenario_id = (config.get('game') or {}).get('scenarioId', '')
+            pinned_uuid = prepare_startup_save(os.path.dirname(os.path.abspath(config_path)),
+                                               profile_dir, scenario_id)
+            args.append('-loadSessionSave')
+            if pinned_uuid:
+                args.append(pinned_uuid)
+        if persistence.get('keepSessionSave', False):
+            args.append('-keepSessionSave')
     if settings.get('MAX_FPS', '').strip():
         args.append('-maxFPS=' + settings['MAX_FPS'].strip())
     os.chdir(directory)

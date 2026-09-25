@@ -115,6 +115,20 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-v
 #copy-player-uuid { margin-top:8px; }
 #persistence-summary { display:flex; flex-wrap:wrap; gap:16px 30px; }
 #persistence-summary span { display:block; color:var(--muted); font-size:12px; margin-bottom:6px; }
+#persistence-summary .persistence-warning { flex-basis:100%; margin:0; color:#e8c67f; font-size:12px; }
+.persistence-startup-card h3 { margin:0 0 8px; }
+.persistence-startup-card .feature-note { margin:0 0 12px; }
+.persistence-startup-controls { display:flex; align-items:end; gap:10px; flex-wrap:wrap; }
+.persistence-startup-controls label { flex-basis:100%; font-size:11px; color:var(--muted); }
+.persistence-startup-controls select { flex:1 1 340px; min-width:0; }
+#persistence-startup-status { margin-top:12px; }
+.persistence-backup { margin-top:18px; padding-top:14px; border-top:1px solid var(--border); }
+.persistence-backup > label { display:block; margin-bottom:8px; color:var(--muted); font-size:11px; }
+.persistence-backup input { flex:1 1 340px; min-width:0; }
+#persistence-backup-list { margin-top:12px; }
+.persistence-backup-row { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 0; border-top:1px solid var(--border); }
+.persistence-backup-row strong,.persistence-backup-row small { display:block; }
+.persistence-backup-row small { margin-top:3px; overflow-wrap:anywhere; }
 
 /* Dedicated console: dense log controls in the panel's existing gold palette. */
 #panel-console { display:flex; flex-direction:column; gap:14px; }
@@ -167,7 +181,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-v
 #panel-dashboard { align-items:stretch; }
 #panel-persistence { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr)); gap:18px; align-items:stretch; }
 #panel-persistence > * { margin:0; min-width:0; }
-#persistence-summary,#panel-persistence > .feature-note,#panel-persistence > .config-maintenance { grid-column:1 / -1; }
+#persistence-summary,#persistence-startup-card,#panel-persistence > .feature-note,#panel-persistence > .config-maintenance { grid-column:1 / -1; }
 #panel-persistence > [data-permission="configure"] { display:flex; flex-direction:column; gap:12px; }
 #persistence-fields { flex:1; display:flex; flex-direction:column; gap:14px; }
 #persistence-settings { flex:1; }

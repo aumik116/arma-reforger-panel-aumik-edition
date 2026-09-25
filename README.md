@@ -39,11 +39,11 @@ Open `http://YOUR_SERVER_IP:8888`, or the port chosen during installation. Sign 
 
 **Configuration backups** are created before panel-managed server JSON changes. Administrators can review and restore the latest 20 versions in **Server config**. Backups live in `.panel-config-backups` beside the server JSON; they include passwords but not game saves. Restoring also backs up the current JSON.
 
-**Persistence** exposes the game's native save settings. The selected scenario must support persistence; panel settings cannot add that support to a scenario. Stop the game server before using **Flush saves**.
+**Persistence** shows the game's save settings and detected session save points. After an autosave, you can keep a named backup and select a save point to load on every server start; the panel preserves a copy outside the game's normal save retention. Startup selections are remembered per scenario. The selected scenario must support persistence; an autosave interval alone does not mean a save was written. Stop the game server and clear its pinned startup save before using **Flush saves**.
 
 **Files** lets Administrators review and edit UTF-8 text files in the game profile. Each save backs up the previous file under `.file-backups`. Server logs and the main server config are read-only here. File edits do not reload a mod or restart the game.
 
-**Console** filters recent logs and exports the visible lines. Connect, Disconnect, Kill and Chat are log filters. RCON shortcuts fill the command box for review; press Enter or Execute to send. Broadcast requires the Server Admin Tools mod.
+**Console** filters recent logs and exports the visible lines. Connect, Disconnect, Kill and Chat are event filters; Hide RCON removes RCON lines from the log view. RCON shortcuts fill the command box for review; press Enter or Execute to send. Broadcast requires the Server Admin Tools mod.
 
 ## RCON and accounts
 
@@ -66,7 +66,7 @@ To update the **game server**, stop it first, then use **Server config → Serve
 
 ## Files and service commands
 
-`config.env` holds panel settings and paths, including `PANEL_PORT`, `SERVER_DIR`, `SERVER_CONFIG`, `LOG_DIR` and `STEAMCMD_PATH`. Restart `arma-panel` after editing it. Back up `config.env`, the game config, `.panel-data.sqlite3`, `.panel-secret` and the game profile. Keep these backups private; stop the panel while copying its database.
+`config.env` holds panel settings and paths, including `PANEL_PORT`, `SERVER_DIR`, `SERVER_CONFIG`, `LOG_DIR` and `STEAMCMD_PATH`. Restart `arma-panel` after editing it. Back up `config.env`, the game config, `.panel-data.sqlite3`, `.panel-secret`, `.panel-save-selection.json`, `.panel-save-archives` and the game profile. Keep these backups private; stop the panel while copying its database.
 
 ```bash
 sudo systemctl status arma-panel

@@ -22,16 +22,24 @@ def unpack(data):
 
 def parse_players(text):
     """Native #players rows: player number ; identity ID ; player name."""
+    # Some server versions include a count or column labels after the header,
+    # and RCON replies may contain NUL terminators. Neither is a player row.
+    text = text.replace('\x00', '').replace('\ufeff', '')
     players = []
     for line in text.splitlines():
         line = re.sub(r'^\s*Players on server:\s*', '', line, flags=re.I)
-        match = re.fullmatch(r'\s*(?:Player\s*#?|#)?(\d+)\s*;\s*([^;]+)\s*;\s*(.+?)\s*', line, re.I)
+        match = re.fullmatch(r'\s*(?:Player\s*#?\s*|#\s*)?(\d+)\s*;\s*([^;]+)\s*;\s*(.+?)\s*', line, re.I)
         if match:
             players.append({'id': match[1], 'identity': match[2].strip(), 'name': match[3].strip()})
     if not players:
         cleaned = text.strip().lower()
-        if not re.fullmatch(r'players on server:\s*(?:0|\(0\))?\s*', cleaned) and cleaned not in {'no players connected', 'no players on server', '0 players'}:
-            raise ValueError('Player response was not recognized; check RCON permissions and server version')
+        empty = (re.fullmatch(r'players on server:\s*(?:0|\(0\))?\s*', cleaned)
+                 or cleaned in {'no players connected', 'no players on server', '0 players'})
+        if not empty:
+            # An actual reply is much more useful than a generic parser error.
+            # Keep it short and on one line so the dashboard remains readable.
+            excerpt = re.sub(r'\s+', ' ', text).strip()[:160]
+            raise ValueError(f'Unrecognized #players reply: {excerpt or "(empty response)"}')
     return players
 
 
@@ -43,14 +51,20 @@ def query_command(host, port, password, command):
         sock.settimeout(2)
         sock.connect((host, port))
 
-        def receive(kind, sequence=None):
+        def receive(kind, sequence=None, players_reply=False):
             deadline = time.monotonic() + 3
             chunks, total = {}, None
+            interim_response = None
             while time.monotonic() < deadline:
                 sock.settimeout(max(.01, deadline - time.monotonic()))
-                payload = unpack(sock.recv(65535))
+                try:
+                    payload = unpack(sock.recv(65535))
+                except socket.timeout:
+                    break
                 if payload[0] == 2 and len(payload) >= 2:
                     sock.send(packet(payload[:2]))
+                    if players_reply and b'players on server' in payload[2:].lower():
+                        return payload[2:]
                     continue
                 if payload[0] != kind:
                     continue
@@ -60,6 +74,9 @@ def query_command(host, port, password, command):
                     continue
                 content = payload[2:]
                 if content[:1] != b'\x00':
+                    if players_reply and (not content or b'processing command:' in content.lower()):
+                        interim_response = content
+                        continue
                     return content
                 if len(content) < 3 or content[1] == 0 or content[2] >= content[1]:
                     raise ValueError('Invalid multipart RCON response')
@@ -69,6 +86,8 @@ def query_command(host, port, password, command):
                 chunks[content[2]] = content[3:]
                 if len(chunks) == total:
                     return b''.join(chunks[i] for i in range(total))
+            if interim_response is not None:
+                return interim_response
             raise TimeoutError('RCON response timed out')
 
         sock.send(packet(b'\x00' + password.encode('utf-8')))
@@ -76,7 +95,7 @@ def query_command(host, port, password, command):
             raise ValueError('RCON authentication failed')
         try:
             sock.send(packet(b'\x01\x00' + command.encode('utf-8')))
-            return receive(1, 0).decode('utf-8', errors='replace')
+            return receive(1, 0, players_reply=command.lower() == '#players').decode('utf-8', errors='replace')
         finally:
             # Reforger 1.2.1+: release the connection slot after each query.
             sock.send(packet(b'\x01\x01@logout'))

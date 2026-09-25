@@ -506,7 +506,12 @@ class RconTests(unittest.TestCase):
         rows = parse_players('Players on server:\n1 ; identity-1 ; Aumik\n2 ; identity-2 ; Name with spaces')
         self.assertEqual([p['name'] for p in rows], ['Aumik', 'Name with spaces'])
         self.assertEqual(parse_players('Players on server:'), [])
+        rows = parse_players('Players on server: 2\r\nPlayer #1 ; identity-1 ; Aumik\r\n#2 ; identity-2 ; Name with spaces\x00')
+        self.assertEqual([p['identity'] for p in rows], ['identity-1', 'identity-2'])
+        self.assertEqual(parse_players('Players on server: 0\x00'), [])
         with self.assertRaises(ValueError):
+            parse_players('Insufficient permissions')
+        with self.assertRaisesRegex(ValueError, 'Insufficient permissions'):
             parse_players('Insufficient permissions')
         with self.assertRaises(ValueError):
             unpack(packet(b'hello')[:-1] + b'x')
@@ -523,6 +528,31 @@ class RconTests(unittest.TestCase):
         sent = [unpack(call.args[0]) for call in sock.send.call_args_list]
         self.assertIn(b'\x02\x09', sent)
         self.assertIn(b'\x01\x01@logout', sent)
+
+    def test_players_can_arrive_as_server_message_after_processing_reply(self):
+        from unittest.mock import MagicMock
+        sock = MagicMock()
+        sock.__enter__.return_value = sock
+        sock.recv.side_effect = [
+            packet(b'\x00\x01'),
+            packet(b'\x01\x00Processing Command: #players'),
+            packet(b'\x02\x07Players on server:\n1 ; identity-1 ; Aumik'),
+        ]
+        with patch('player_query.socket.socket', return_value=sock):
+            result = query_players('127.0.0.1', 19999, 'secret')
+        self.assertEqual(result[0]['name'], 'Aumik')
+        sent = [unpack(call.args[0]) for call in sock.send.call_args_list]
+        self.assertIn(b'\x02\x07', sent)
+
+    def test_processing_reply_without_roster_is_not_zero_players(self):
+        import socket
+        from unittest.mock import MagicMock
+        sock = MagicMock()
+        sock.__enter__.return_value = sock
+        sock.recv.side_effect = [packet(b'\x00\x01'), packet(b'\x01\x00Processing Command: #players'), socket.timeout()]
+        with patch('player_query.socket.socket', return_value=sock):
+            with self.assertRaisesRegex(ValueError, 'Processing Command: #players'):
+                query_players('127.0.0.1', 19999, 'secret')
 
     def test_missing_configuration_is_not_zero_players(self):
         result = PlayerQuery().read({}, {})

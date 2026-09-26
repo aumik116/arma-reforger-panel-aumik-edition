@@ -11,3 +11,5 @@ config.env
 .local-preview/
 .software-job*
 .save-library/
+.panel-save-selection.json
+.panel-save-archives/

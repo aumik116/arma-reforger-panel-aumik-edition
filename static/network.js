@@ -36,7 +36,8 @@ function syncNetworkForm() {
       : path.endsWith('serverMaxViewDistance') ? networkInfo?.server_view_distance : networkInfo?.max_players;
     const value = source ? configGet(source, path) ?? fallback : fallback;
     const input = byId(id);
-    if (value !== undefined && value !== null) input.value = String(value);
+    // A poll must not replace an unfinished number (including an empty field).
+    if (document.activeElement !== input && value !== undefined && value !== null) input.value = String(value);
   }
   byId('network-tuning-fields').disabled = !can('configure') || !configSnapshot || configPending;
   byId('network-save').disabled = configPending || !Object.values(networkLeverPaths).some(path => Object.hasOwn(configChanges, path));
@@ -47,7 +48,7 @@ function updateNetworkLever(event) {
   const input = event.target;
   const path = networkLeverPaths[input.id];
   if (!path || !configSnapshot || !can('configure')) return;
-  if (!input.checkValidity()) { input.reportValidity(); return; }
+  if (!input.checkValidity()) return;
   const value = Number(input.value);
   const original = configGet(configSnapshot, path);
   if (value === original) delete configChanges[path];
@@ -58,7 +59,7 @@ function updateNetworkLever(event) {
   byId('network-feedback').classList.remove('error');
 }
 
-Object.keys(networkLeverPaths).forEach(id => byId(id).addEventListener('change', updateNetworkLever));
+Object.keys(networkLeverPaths).forEach(id => byId(id).addEventListener('input', updateNetworkLever));
 
 async function saveNetworkLevers(event) {
   event.preventDefault();

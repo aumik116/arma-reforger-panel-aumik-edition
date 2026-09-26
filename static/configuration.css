@@ -1,5 +1,5 @@
 .config-toolbar,.config-actions,.config-savebar,.config-json-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-.config-toolbar { margin-bottom:20px; }
+
 .config-modes { display:flex; gap:4px; padding:4px; background:#101216; border:1px solid var(--border); border-radius:8px; }
 .config-modes button,.config-button { padding:10px 15px; border:1px solid var(--border); border-radius:6px; background:var(--surface2); color:var(--text); font:500 13px 'Barlow',sans-serif; cursor:pointer; }
 .config-modes button { border-color:transparent; background:transparent; }
@@ -7,31 +7,28 @@
 .config-button.primary { background:var(--accent); border-color:var(--accent); color:#0a0c0f; font-weight:600; }
 .config-button:disabled { opacity:.45; }
 .config-summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; }
-.config-stat { padding:18px; border:1px solid var(--border); border-radius:8px; background:var(--surface); min-width:0; }
-.config-stat span { display:block; text-transform:uppercase; font-size:10px; letter-spacing:.1em; color:var(--muted); margin-bottom:10px; }
-.config-stat strong { font-size:16px; font-weight:500; overflow-wrap:anywhere; }
+.config-stat { border:1px solid var(--border); background:var(--surface); min-width:0; }
+.config-stat span { display:block; text-transform:uppercase; font-size:10px; letter-spacing:.1em; color:var(--muted); }
+.config-stat strong { font-weight:500; overflow-wrap:anywhere; }
 .config-note { color:var(--muted); font-size:12px; line-height:1.6; margin:15px 0; }
 #config-fields { border:0; min-width:0; padding:0; }
-.config-jumps { display:flex; flex-wrap:wrap; gap:8px; margin:20px 0; }
-.config-jumps a { color:var(--muted); text-decoration:none; padding:7px 12px; border:1px solid var(--border); border-radius:20px; font-size:12px; }
-.config-jumps a:hover { color:var(--accent); border-color:var(--accent); }
-.config-section { background:var(--surface); border:1px solid var(--border); border-radius:10px; margin-bottom:18px; padding:24px; scroll-margin-top:85px; }
+.config-section { background:var(--surface); border:1px solid var(--border); margin-bottom:18px; scroll-margin-top:85px; }
 .config-section-heading { display:flex; gap:14px; padding-bottom:22px; margin-bottom:22px; border-bottom:1px solid var(--border); }
 .config-section-number { font:12px 'Roboto Mono',monospace; color:var(--accent); padding-top:4px; }
 .config-section h3,.config-json-heading h3 { font-size:17px; font-weight:600; }
 .config-section-heading p,.config-json-heading p { font-size:13px; color:var(--muted); line-height:1.6; margin-top:5px; }
-.config-fields-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px 28px; }
-.config-field { min-width:0; border-left:2px solid transparent; padding-left:10px; }
+.config-fields-grid { display:grid; }
+.config-field { min-width:0; border-left:2px solid transparent; }
 .config-field.is-dirty { border-left-color:var(--accent); }
-.config-field label { display:block; margin-bottom:9px; font-size:12px; font-weight:500; color:#d4cfc6; }
-.config-field input,.config-field select,.config-field textarea { width:100%; padding:11px 12px; border:1px solid #3b3830; border-radius:6px; background:#0d1014; color:var(--text); font:14px 'Barlow',sans-serif; }
+.config-field label { display:block; font-weight:500; color:#d4cfc6; }
+.config-field input,.config-field select,.config-field textarea { width:100%; border:1px solid #3b3830; border-radius:6px; background:#0d1014; color:var(--text); font:14px 'Barlow',sans-serif; }
 .config-field textarea { resize:vertical; min-height:85px; }
 .config-field input::placeholder { color:#8e887a; }
-.config-field-actions { display:flex; gap:12px; align-items:center; min-height:28px; flex-wrap:wrap; }
+.config-field-actions { display:flex; align-items:center; flex-wrap:wrap; }
 .config-field-state { margin-right:auto; color:#9a907b; font-size:10px; }
 .config-field-actions button { padding:3px 0; border:0; background:none; font:11px 'Barlow',sans-serif; color:var(--accent); cursor:pointer; }
-.config-field-help { display:block; color:var(--muted); font-size:11px; line-height:1.5; }
-.config-savebar { position:sticky; bottom:12px; padding:18px; background:#201e18; border:1px solid #675a39; border-radius:10px; z-index:12; box-shadow:0 10px 30px #0005; margin:20px 0; }
+.config-field-help { display:block; color:var(--muted); line-height:1.5; }
+.config-savebar { position:sticky; bottom:12px; background:#201e18; border:1px solid #675a39; z-index:12; box-shadow:0 10px 30px #0005; margin:20px 0; }
 .config-savebar strong { font-size:13px; font-weight:600; }
 .config-savebar p { font-size:12px; line-height:1.5; color:var(--muted); margin-top:5px; max-width:650px; }
 .config-savebar .config-error { color:#ffaaaa; }
@@ -41,24 +38,20 @@
 .config-maintenance summary { cursor:pointer; font-size:14px; }
 .config-maintenance .config-button { margin-top:12px; color:#f4b0aa; }
 .config-admin-names { margin-top:12px; }
-.config-admin-name { padding:12px 0; border-bottom:1px solid var(--border); }
-.config-admin-name label { overflow-wrap:anywhere; font-family:monospace; text-transform:none; }
-.config-admin-name .config-button { margin-top:8px; padding:7px 10px; }
 @media(max-width:1000px) { .config-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media(max-width:700px) { .config-fields-grid { grid-template-columns:minmax(0,1fr); } .config-section { padding:18px; } .config-savebar { position:static; } .config-actions { width:100%; justify-content:flex-start; } .config-stat { padding:14px; } .config-field { padding-left:8px; } }
 
-/* Compact card matrix with an independent form in each category. */
+/* Compact field controls shared by Config and Persistence. */
 .config-toolbar { margin-bottom:14px; }
 .config-stat { padding:15px 16px; border-radius:6px; }
 .config-stat span { margin-bottom:6px; }
 .config-stat strong { display:block; font-size:15px; }
 .config-stat small { display:block; margin-top:6px; color:var(--muted); font-size:11px; }
-#config-visual { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; align-items:start; }
-.config-section { padding:0; margin:0; border-radius:7px; overflow:hidden; }
-.config-section-heading { padding:16px 18px; margin:0; min-height:94px; }
+.config-section { padding:0; border-radius:7px; overflow:hidden; }
+.config-section-heading { margin:0; }
 .config-section h3 { font-size:12px; letter-spacing:.1em; text-transform:uppercase; color:#d0be87; }
 .config-section-heading p { font-size:11px; line-height:1.5; }
-.config-fields-grid { grid-template-columns:minmax(0,1fr); gap:18px; padding:18px 16px; }
+.config-fields-grid { grid-template-columns:minmax(0,1fr); padding:18px 16px; }
 .config-field { padding-left:7px; }
 .config-field label { font-size:10px; text-transform:uppercase; letter-spacing:.06em; margin-bottom:8px; }
 .config-field input,.config-field select,.config-field textarea { padding:10px; font-size:13px; }
@@ -74,12 +67,9 @@
 .config-field input[role="switch"]:checked { background:#8d732f; border-color:var(--accent); }
 .config-field input[role="switch"]:checked::before { transform:translateX(16px); background:#fff4cf; }
 .config-savebar { padding:13px 16px; border-radius:7px; }
-@media(max-width:1150px) { #config-visual { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-@media(max-width:700px) { #config-visual { grid-template-columns:minmax(0,1fr); } .config-section-heading { min-height:0; } }
 
 /* Full-width sections size to their content; fields form columns inside. */
-#config-visual { display:grid; columns:auto; grid-template-columns:minmax(0,1fr); gap:18px; align-items:start; }
-#config-visual > .config-section { container-type:inline-size; }
+#config-category-fields .config-section { container-type:inline-size; }
 #config-visual .config-fields-grid { grid-template-columns:repeat(3,minmax(0,1fr)); align-items:start; gap:20px 24px; }
 #config-visual .config-field { min-width:0; }
 @container (max-width:880px) { #config-visual .config-fields-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }

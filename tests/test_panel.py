@@ -11,6 +11,27 @@ from player_query import packet, unpack, parse_players, query_players, PlayerQue
 
 
 class PanelTests(unittest.TestCase):
+    def test_shared_mod_validation_rejects_invalid_edits_and_imports(self):
+        original = [{'modId':'AAAA', 'name':'Keep', 'version':'1'}]
+        config = json.loads(self.config.read_text())
+        config['game']['mods'] = original
+        self.config.write_text(json.dumps(config))
+        before = self.config.read_text()
+        invalid = {'modId':'AAAA', 'name':'Keep', 'version':'bad"version'}
+        for route, body in [('/api/mods/add', invalid),
+                            ('/api/mods/edit', {**invalid, 'expected':original}),
+                            ('/api/mods/import', {'mode':'replace', 'payload':[invalid]}),
+                            ('/api/mods/compare-json', {'payload':[invalid]})]:
+            with self.subTest(route=route):
+                self.assertEqual(self.post(self.admin, route, body).status_code, 400)
+                self.assertEqual(self.config.read_text(), before)
+
+    def test_legacy_endpoints_use_current_field_validation(self):
+        before = self.config.read_text()
+        self.assertEqual(self.post(self.admin, '/api/config', {'server_name':['invalid']}).status_code, 400)
+        self.assertEqual(self.post(self.admin, '/api/persistence', {'enabled':True, 'autoSaveInterval':True}).status_code, 400)
+        self.assertEqual(self.config.read_text(), before)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -43,6 +64,28 @@ class PanelTests(unittest.TestCase):
         result = self.post(self.admin, '/api/users', {'username': name, 'password':'test-password', 'role': role})
         self.assertTrue(result.json['ok'], result.json)
         return next(u for u in self.admin.get('/api/users').json['users'] if u['username'] == name)
+
+    def test_mod_comparison_selected_changes_backups_permissions_and_stale_guard(self):
+        original = [{'modId':'AAAA','name':'Keep','version':'1'}, {'modId':'BBBB','name':'Extra'}]
+        cfg = json.loads(self.config.read_text());cfg['game']['mods']=original
+        self.config.write_text(json.dumps(cfg))
+        remote = [{'modId':'AAAA','name':'Keep','version':'2'}, {'modId':'CCCC','name':'Add','version':'3'}]
+        result=self.post(self.admin,'/api/mods/compare-json',{'payload':json.dumps(remote)})
+        self.assertEqual(result.status_code,200,result.json)
+        token=result.json['token']
+        self.create('compare-viewer','viewer');viewer=self.login('compare-viewer')
+        self.assertEqual(self.post(viewer,'/api/mods/compare-json',{'payload':remote}).status_code,200)
+        self.assertEqual(self.post(viewer,'/api/mods/servers/apply',{'token':token,'selected':{'missing':['CCCC']}}).status_code,403)
+        self.assertEqual(self.admin.post('/api/mods/servers/apply',json={'token':token,'selected':{'missing':['CCCC']}}).status_code,403)
+        applied=self.post(self.admin,'/api/mods/servers/apply',{'token':token,'selected':{'missing':['CCCC']}})
+        self.assertTrue(applied.json['ok'],applied.json)
+        updated=json.loads(self.config.read_text())['game']['mods']
+        self.assertEqual(updated[:2],original)
+        self.assertEqual(updated[2],remote[1])
+        self.assertTrue(self.admin.get('/api/config/backups').json['backups'])
+        self.assertEqual(self.post(self.admin,'/api/mods/servers/apply',{'token':token,'selected':{'extra':['BBBB']}}).status_code,409)
+        self.assertEqual(self.post(self.admin,'/api/mods/compare-json',{'payload':'{broken'}).status_code,400)
+        self.assertEqual(self.admin.get('/api/mods/servers/compare?server=https://localhost/').status_code,400)
 
     def test_network_view_exposes_only_safe_config_and_listener_state(self):
         self.config.write_text(json.dumps({

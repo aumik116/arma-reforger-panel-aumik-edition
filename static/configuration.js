@@ -90,8 +90,9 @@ function displayConfigValue(input, spec, value) {
 
 function renderConfigFields(missions) {
   configControls.clear();
-  const container = byId('config-visual');
-  container.replaceChildren();
+  const container = byId('config-category-fields');
+  ['general', 'gameplay', 'connection'].forEach(key => byId('section-config-' + key).replaceChildren());
+  byId('config-scenarios')?.remove();
   byId('persistence-settings').replaceChildren();
   const suggestions = document.createElement('datalist');
   suggestions.id = 'config-scenarios';
@@ -109,6 +110,7 @@ function renderConfigFields(missions) {
   displayGroups.map((group, index) => ({group, index})).sort((a,b) => order.indexOf(a.group.title) - order.indexOf(b.group.title)).forEach(({group, index:groupIndex}) => {
     const card = configElement('section', 'config-section');
     card.id = `config-group-${groupIndex}`;
+    card.dataset.configCategory = ['Network', 'Remote console'].includes(group.title) ? 'connection' : ['Gameplay', 'Operating'].includes(group.title) ? 'gameplay' : 'general';
     const heading = configElement('div', 'config-section-heading');
     const titles = configElement('div');
     titles.append(configElement('h3', '', group.title), configElement('p', '', group.description));
@@ -267,8 +269,9 @@ function renderConfigFields(missions) {
       configControls.set(spec.path, {spec, input});
     });
     card.append(grid);
-    (group.title === 'Persistence' ? byId('persistence-settings') : container).append(card);
+    (group.title === 'Persistence' ? byId('persistence-settings') : byId('section-config-' + card.dataset.configCategory)).append(card);
   });
+  if (typeof applyConfigCategory === 'function') applyConfigCategory();
 }
 
 let configMissions = [];
@@ -341,7 +344,10 @@ async function submitConfiguration(save) {
   if (configPending || !configSnapshot) return;
   for (const {spec, input} of configControls.values()) {
     if (Object.hasOwn(configChanges, spec.path) && !input.checkValidity()) {
-      selectPanelTab(byId(spec.path.includes('.persistence.') || spec.path === 'operating.playerSaveTime' ? 'tab-persistence' : 'tab-configuration')); setConfigurationView('visual'); input.reportValidity(); return;
+      selectPanelTab(byId(spec.path.includes('.persistence.') || spec.path === 'operating.playerSaveTime' ? 'tab-persistence' : 'tab-configuration')); setConfigurationView('visual');
+      const card = input.closest('[data-config-category]');
+      selectPageSection(card?.parentElement.id === 'persistence-settings' ? 'persistence' : 'config', card?.parentElement.id === 'persistence-settings' ? 'settings' : card.dataset.configCategory);
+      input.reportValidity(); return;
     }
   }
   configPending = true; byId('config-fields').disabled = true; byId('persistence-fields').disabled = true;

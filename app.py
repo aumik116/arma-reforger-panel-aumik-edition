@@ -14,6 +14,7 @@ Developed with AI assistance using OpenAI Codex. Fork modifications:
 
 from flask import Flask, request, jsonify, session, redirect, Response, send_from_directory, g
 import bcrypt
+from mod_validation import normalize_mod_entry
 import hmac
 import re
 import secrets
@@ -74,20 +75,6 @@ PROFILE_DIR    = _cfg.get(
     os.path.join(os.path.dirname(LOG_DIR.rstrip("/")) or "/home/arma/.config/ArmaReforger", "profile"),
 )
 SERVER_BINARY  = "./ArmaReforgerServer"
-MAX_FPS        = _cfg.get("MAX_FPS", "").strip()
-
-def build_server_args():
-    """Build the panel launch command from env and the native game settings."""
-    args = ["-config", SERVER_CONFIG, "-logStats", "1000"]
-    try:
-        args.extend(_native_persistence_startup_args(read_config()))
-    except Exception:
-        # A broken config is reported by the normal configuration/startup path;
-        # do not prevent diagnostics from constructing a safe base command.
-        pass
-    if MAX_FPS:
-        args.append(f"-maxFPS={MAX_FPS}")
-    return args
 
 # Persistent secret key so sessions survive panel restarts.
 _SECRET_FILE = os.path.join(_BASE_DIR, ".panel-secret")
@@ -148,13 +135,6 @@ def _login_rate_ok(ip: str) -> bool:
         return True
 
 
-def _verify_password(plain: str) -> bool:
-    if not plain:
-        return False
-    try:
-        return bcrypt.checkpw(plain.encode("utf-8"), PANEL_PASSWORD_HASH.encode("utf-8"))
-    except (ValueError, TypeError):
-        return False
 
 
 def _ensure_csrf() -> str:
@@ -738,42 +718,11 @@ def _get_persistence_block(cfg):
     block = gp.get("persistence")
     return block if isinstance(block, dict) else None
 
-def _set_persistence_block(cfg, block):
-    """Write `block` (a dict) at game.gameProperties.persistence, or remove it
-    if `block` is None. Also pops any legacy top-level `persistence` key — the
-    1.6 server schema rejects it, so its presence is always a bug."""
-    cfg.pop("persistence", None)
-    gp = cfg.setdefault("game", {}).setdefault("gameProperties", {})
-    if block is None:
-        gp.pop("persistence", None)
-    else:
-        gp["persistence"] = block
-
 def _persistence_enabled(cfg=None):
     if cfg is None:
         cfg = read_config()
     return cfg.get('game', {}).get('gameProperties', {}).get('missionHeader', {}).get('m_eSaveTypes') != 0
 
-def _native_persistence_startup_args(cfg):
-    """Return compatibility flags for the game's built-in save system.
-
-    The JSON block is authoritative. The flags make panel-launched servers
-    behave like older dedicated-server installs while respecting an explicit
-    load/keep setting and a mission save-types disable override.
-    """
-    properties = (cfg.get('game') or {}).get('gameProperties') or {}
-    if (properties.get('missionHeader') or {}).get('m_eSaveTypes') == 0:
-        return []
-    persistence = properties.get('persistence') or {}
-    args = []
-    if persistence.get('loadSessionSave', True):
-        args.append('-loadSessionSave')
-        selected = selection_for(_BASE_DIR, (cfg.get('game') or {}).get('scenarioId', ''))
-        if selected:
-            args.append(selected['uuid'])
-    if persistence.get('keepSessionSave', False):
-        args.append('-keepSessionSave')
-    return args
 
 # Subdirs the flush button targets. `settings/` is intentionally preserved
 # because it holds non-session config the server expects to regenerate from.
@@ -1050,60 +999,6 @@ def api_logs():
     except Exception as e:
         return jsonify({"lines": [], "error": str(e)})
 
-def _normalize_mod_entry(entry):
-    """Validate one mod row. Returns canonical dict or None."""
-    if not isinstance(entry, dict):
-        return None
-    mod_id = str(entry.get("modId", "")).strip()
-    if not mod_id or len(mod_id) > 32:
-        return None
-    if not all(c in "0123456789ABCDEFabcdef" for c in mod_id):
-        return None
-    out = {"modId": mod_id.upper()}
-    name = str(entry.get("name", "")).strip()
-    if name:
-        if len(name) > 200 or any(c in name for c in "\n\r"):
-            return None
-        out["name"] = name
-    version = str(entry.get("version", "")).strip()
-    if version:
-        if len(version) > 32 or any(c in version for c in '\n\r"\\'):
-            return None
-        out["version"] = version
-    return out
-
-
-@app.route("/api/config", methods=["POST"])
-def api_config():
-    if not session.get("logged_in"):
-        return jsonify({"error": "unauthorized"}), 401
-    err = _csrf_required()
-    if err: return err
-    data = request.get_json(silent=True) or {}
-    if 'password_admin' in data and 'admin_config' not in g.permissions:
-        return jsonify(ok=False, error='Admin only: administrator password'), 403
-    cfg  = read_config()
-    changed = False
-    if "server_name" in data and data["server_name"].strip():
-        cfg.setdefault("game", {})["name"] = data["server_name"].strip(); changed = True
-    if "scenario_id" in data:
-        sid = data["scenario_id"].strip()
-        valid_ids = {m["id"] for m in all_scenarios_cached()}
-        if sid not in valid_ids:
-            return jsonify({"ok": False, "error": "Unknown scenario"})
-        cfg.setdefault("game", {})["scenarioId"] = sid; changed = True
-    if "password" in data:
-        cfg.setdefault("game", {})["password"] = data["password"]; changed = True
-    if "password_admin" in data and data["password_admin"].strip():
-        cfg.setdefault("game", {})["passwordAdmin"] = data["password_admin"].strip(); changed = True
-    if not changed:
-        return jsonify({"ok": False, "error": "No changes"})
-    try:
-        write_config(cfg)
-        return jsonify({"ok": True, "restart_required": get_server_pid() is not None})
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
-
 @app.route("/api/persistence", methods=["GET"])
 def api_persistence_get():
     if not session.get("logged_in"):
@@ -1170,58 +1065,6 @@ def api_persistence_named_save():
         return jsonify(ok=False, error="Could not back up the save point"), 503
     return jsonify(ok=True, saved=saved)
 
-@app.route("/api/persistence", methods=["POST"])
-def api_persistence_set():
-    if not session.get("logged_in"):
-        return jsonify({"error": "unauthorized"}), 401
-    err = _csrf_required()
-    if err: return err
-    data = request.get_json(silent=True) or {}
-    cfg  = read_config()
-    enabled = bool(data.get("enabled"))
-    if enabled:
-        header = cfg.setdefault('game', {}).setdefault('gameProperties', {}).setdefault('missionHeader', {})
-        if header.get('m_eSaveTypes') == 0:
-            header.pop('m_eSaveTypes')  # Inherit the scenario's supported save types.
-        block = _get_persistence_block(cfg) or {}
-        integer_fields = {
-            "autoSaveInterval": (0, 60),
-            "saveRetention": (1, 128),
-            "hiveId": (0, 16383),
-        }
-        defaults = {"autoSaveInterval": 10, "saveRetention": 10, "loadSessionSave": True,
-                    "keepSessionSave": False, "hiveId": 0}
-        for key, (minimum, maximum) in integer_fields.items():
-            if key in data:
-                try:
-                    value = int(data[key])
-                except (TypeError, ValueError):
-                    return jsonify({"ok": False, "error": f"{key} must be an integer"})
-                if not minimum <= value <= maximum:
-                    return jsonify({"ok": False, "error": f"{key} must be between {minimum} and {maximum}"})
-                block[key] = value
-            else:
-                block.setdefault(key, defaults[key])
-        for key in ("loadSessionSave", "keepSessionSave"):
-            if key in data:
-                if type(data[key]) is not bool:
-                    return jsonify({"ok": False, "error": f"{key} must be a boolean"})
-                block[key] = data[key]
-            else:
-                block.setdefault(key, defaults[key])
-        _set_persistence_block(cfg, block)
-    else:
-        cfg.setdefault('game', {}).setdefault('gameProperties', {}).setdefault('missionHeader', {})['m_eSaveTypes'] = 0
-    try:
-        write_config(cfg)
-        return jsonify({
-            "ok": True,
-            "restart_required": get_server_pid() is not None,
-            "enabled":           _persistence_enabled(cfg),
-        })
-    except Exception as e:
-        return jsonify({"ok": False, "error": str(e)})
-
 @app.route("/api/persistence/flush", methods=["POST"])
 def api_persistence_flush():
     if not session.get("logged_in"):
@@ -1248,9 +1091,9 @@ def api_mods_add():
     err = _csrf_required()
     if err: return err
     data = request.get_json(silent=True) or {}
-    norm = _normalize_mod_entry({"modId": data.get("modId",""), "name": data.get("name",""), "version": data.get("version","")})
+    norm = normalize_mod_entry({"modId": data.get("modId",""), "name": data.get("name",""), "version": data.get("version","")})
     if not norm:
-        return jsonify({"ok": False, "error": "Invalid mod entry (modId must be 1-32 hex chars)"})
+        return jsonify(ok=False, error="Invalid mod ID, name or version"), 400
     if "name" not in norm:
         return jsonify({"ok": False, "error": "name is required for manual entry"})
     cfg  = read_config()
@@ -1309,17 +1152,21 @@ def api_mods_import():
 
     valid = []
     skipped = []
+    invalid = []
     seen = set()
     for i, entry in enumerate(data):
-        norm = _normalize_mod_entry(entry)
+        norm = normalize_mod_entry(entry)
         if not norm:
-            skipped.append(f"#{i + 1}: invalid")
+            invalid.append(f"#{i + 1}: invalid")
             continue
         if norm["modId"] in seen:
             skipped.append(f"#{i + 1}: duplicate modId {norm['modId']}")
             continue
         seen.add(norm["modId"])
         valid.append(norm)
+
+    if invalid:
+        return jsonify(ok=False, error='Invalid mod entries; the existing list was not changed.', errors=invalid[:100]), 400
 
     cfg = read_config()
     g   = cfg.setdefault("game", {})
@@ -1375,6 +1222,50 @@ def api_mods_remove():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)})
 
+from armahq_compare import ArmaHQCompare, StaleComparison
+_armahq_compare = ArmaHQCompare()
+
+@app.get('/api/mods/servers/search')
+def api_mods_server_search():
+    try:
+        return jsonify(_armahq_compare.search(request.args.get('q', '')))
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+
+@app.get('/api/mods/servers/compare')
+def api_mods_server_compare():
+    try:
+        return jsonify(_armahq_compare.compare(request.args.get('server', ''),
+            (read_config().get('game') or {}).get('mods', []), g.user['id']))
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+
+@app.post('/api/mods/servers/apply')
+def api_mods_server_apply():
+    data = request.get_json(silent=True) or {}
+    cfg = read_config()
+    try:
+        mods, counts = _armahq_compare.apply(data.get('token'), data.get('selected'),
+            (cfg.get('game') or {}).get('mods', []), g.user['id'])
+        cfg.setdefault('game', {})['mods'] = mods
+        write_config(cfg)
+        return jsonify(ok=True, mods=mods, counts=counts, restart_required=get_server_pid() is not None)
+    except StaleComparison as exc:
+        return jsonify(ok=False, error=str(exc)), 409
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+    except OSError:
+        return jsonify(ok=False, error='Could not save the mod list'), 503
+
+@app.post('/api/mods/compare-json')
+def api_mods_compare_json():
+    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(_armahq_compare.compare_json(data.get('payload'),
+            (read_config().get('game') or {}).get('mods', []), g.user['id']))
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+
 from mod_metadata import ModMetadata
 _mod_metadata = ModMetadata()
 
@@ -1407,12 +1298,12 @@ def api_mods_edit():
             return jsonify(ok=False, error="Invalid move"), 400
         mods[index], mods[index + direction] = mods[index + direction], mods[index]
     else:
-        name, version = data.get("name", ""), data.get("version", "")
-        if not isinstance(name, str) or not isinstance(version, str) or len(name) > 200 or len(version) > 32 or any(ord(c) < 32 for c in name + version):
+        normalized = normalize_mod_entry({'modId': mod_id, 'name': data.get('name', ''), 'version': data.get('version', '')})
+        if normalized is None:
             return jsonify(ok=False, error="Invalid name or version"), 400
-        for key, value in (("name", name.strip()), ("version", version.strip())):
-            if value:
-                mods[index][key] = value
+        for key in ('name', 'version'):
+            if key in normalized:
+                mods[index][key] = normalized[key]
             else:
                 mods[index].pop(key, None)
     write_config(cfg)
@@ -1443,7 +1334,7 @@ def api_mods_update_pins():
         mod = by_id.get(mod_id)
         if mod_id in seen or mod is None or not old or mod.get('version') != old or old == new:
             return jsonify(ok=False, error='A selected mod changed. Review updates again.'), 409
-        if not 1 <= len(new) <= 32 or any(ord(c) < 33 or c in '\\"' for c in new):
+        if normalize_mod_entry({'modId': mod_id, 'version': new}) is None or not new or new != new.strip():
             return jsonify(ok=False, error='Invalid Workshop version.'), 400
         metadata = _mod_metadata.get(mod_id)
         if metadata.get('status') != 'available' or metadata.get('current_version') != new:
@@ -1529,6 +1420,9 @@ def api_restart():
     except Exception as exc:
         return jsonify(ok=False, error=str(exc))
 
+
+from legacy_api import install as install_legacy_api
+install_legacy_api(sys.modules[__name__])
 
 from config_editor import install as install_config_editor
 install_config_editor(sys.modules[__name__])

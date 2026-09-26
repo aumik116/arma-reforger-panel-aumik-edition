@@ -29,6 +29,7 @@ MUTATIONS = {
     "api_persistence_flush": "admin_config", "api_persistence_startup_save": "admin_config",
     "api_persistence_named_save": "admin_config", "api_scenarios_rescan": "mods",
     "api_mods_add": "mods", "api_mods_remove": "mods", "api_mods_import": "mods", "api_mods_edit": "mods", "api_mods_update_pins": "mods",
+    "api_mods_server_apply": "mods",
     "presets_save": "mods", "presets_apply": "mods", "presets_delete": "mods",
     "config_backup_restore": "admin_config",
     "users_save": "users", "users_delete": "users", "account_password": "view",
@@ -139,7 +140,7 @@ def install(api):
             return redirect("/login")
         g.user = dict(user)
         g.permissions = ROLES[user["role"]]
-        needed = MUTATIONS.get(request.endpoint) if request.method == "POST" else {
+        needed = ("view" if request.endpoint == 'api_mods_compare_json' else MUTATIONS.get(request.endpoint)) if request.method == "POST" else {
             "software_status": "admin_config",
             "api_logs": "logs", "users_list": "users", "activity_list": "activity",
             "api_persistence_get": "configure",

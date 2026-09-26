@@ -1,7 +1,7 @@
 // Software jobs are admin-only and continue independently of this page.
 let softwarePending = false;
 async function loadSoftware() {
-  if (softwarePending || !can('admin_config') || document.hidden || document.getElementById('panel-configuration').hidden) return;
+  if (softwarePending || !can('admin_config') || document.hidden || (document.getElementById('panel-administration').hidden || document.getElementById('section-admin-maintenance').hidden)) return;
   softwarePending = true;
   try {
     const response = await fetch('/api/software');

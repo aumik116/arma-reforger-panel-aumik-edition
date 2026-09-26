@@ -25,8 +25,8 @@ function updateModLibrary(mods) {
   const signature = JSON.stringify(mods);
   if (signature === modLibrary.signature) return;
   modLibrary.signature = signature; modLibrary.mods = mods;
+  if (typeof invalidateServerComparison === 'function') invalidateServerComparison(signature);
   modEl('mods-count').textContent = `${mods.length} configured`;
-  modEl('mods-tab-configured').textContent = `Configured (${mods.length})`;
   drawModLibrary();
   refreshModMetadata();
   renderModUpdates();
@@ -131,12 +131,6 @@ function toggleModReorder() {
   modEl('mods-reorder').setAttribute('aria-pressed',String(modLibrary.reorder)); modEl('mods-reorder-help').hidden=!modLibrary.reorder;
   if(modLibrary.reorder) { modEl('mods-search').value=''; sortModLibrary('order'); } else drawModLibrary();
 }
-function selectModView(view) {
-  ['configured','updates','presets','history'].forEach(name=>{ const active=name===view; modEl('mods-'+name).hidden=!active; const tab=modEl('mods-tab-'+name);tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1; });
-  if(view==='updates') renderModUpdates();
-  if(view==='presets') loadPresets().catch(e=>setLog(e.message,'error'));
-  if(view==='history') loadModHistory(true);
-}
 function modUpdateCandidate(mod) {
   if(!mod.version)return null;
   const latest=modLibrary.metadata.get(String(mod.modId).toUpperCase());
@@ -153,14 +147,22 @@ function renderModUpdates() {
   const pinned=modLibrary.mods.filter(mod=>mod.version);
   const checking=pinned.filter(mod=>{const data=modLibrary.metadata.get(String(mod.modId).toUpperCase());return !data || data.status==='pending';}).length;
   const unavailable=pinned.filter(mod=>modLibrary.metadata.get(String(mod.modId).toUpperCase())?.status==='unavailable').length;
-  modEl('mods-tab-updates').textContent=`Updates (${candidates.length})`;
+  modEl('section-tab-mod-review-updates').textContent=`Workshop updates (${candidates.length})`;
   modEl('mods-update-status').textContent=`${candidates.length} pinned ${candidates.length===1?'mod differs':'mods differ'} from the current Workshop release · ${checking} checking · ${unavailable} unavailable. Workshop results are cached for up to one hour.`;
   const list=modEl('mods-update-list');
-  if(modEl('mods-updates').hidden){modEl('mods-update-review').disabled=!modUpdates.selected.size;return;}
-  list.replaceChildren();
+  if(modEl('panel-mods').hidden || modEl('section-mods-review').hidden || modEl('section-mod-review-updates').hidden){modEl('mods-update-review').disabled=!modUpdates.selected.size;return;}
+  const previous = new Map([...list.querySelectorAll('[data-update-id]')].map(row => [row.dataset.updateId, row]));
+  const rows = [];
   for(const {mod,from,to} of candidates){
     const id=String(mod.modId).toUpperCase();
+    const existing = previous.get(id);
+    const signature = JSON.stringify([mod.name, from, to, can('mods')]);
+    if (existing?.dataset.signature === signature) {
+      existing.querySelector('input').checked = modUpdates.selected.has(id);
+      rows.push(existing); continue;
+    }
     const row=document.createElement('label');row.className='mods-update-row';
+    row.dataset.updateId=id; row.dataset.signature=signature;
     const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=modUpdates.selected.has(id);checkbox.disabled=!can('mods');checkbox.setAttribute('aria-label',`Update ${mod.name||id} from ${from} to ${to}`);
     checkbox.onchange=()=>{if(checkbox.checked)modUpdates.selected.add(id);else modUpdates.selected.delete(id);modEl('mods-update-review').disabled=!modUpdates.selected.size;};
     const info=document.createElement('span');info.className='mods-update-info';
@@ -168,8 +170,10 @@ function renderModUpdates() {
     const code=document.createElement('code');code.textContent=id;
     info.append(name,code);
     const versions=document.createElement('span');versions.className='mods-update-versions';versions.textContent=`${from} → ${to}`;
-    row.append(checkbox,info,versions);list.append(row);
+    row.append(checkbox,info,versions);rows.push(row);
   }
+  for (const child of [...list.children]) if (!rows.includes(child)) child.remove();
+  rows.forEach((row, index) => { if (list.children[index] !== row) list.insertBefore(row, list.children[index] || null); });
   if(!candidates.length){const empty=document.createElement('p');empty.className='feature-note';empty.textContent=checking?'Still checking pinned mods…':'No pinned mods differ from their current Workshop release.';list.append(empty);}
   modEl('mods-update-review').disabled=!can('mods')||!modUpdates.selected.size;
 }
@@ -191,11 +195,6 @@ async function saveModUpdates() {
   }catch(error){modEl('mods-update-error').textContent=error.message;}
   finally{button.disabled=false;}
 }
-document.querySelectorAll('.mods-tabs [role="tab"]').forEach(tab=>tab.addEventListener('keydown',event=>{
-  const tabs=[...document.querySelectorAll('.mods-tabs [role="tab"]')].filter(t=>!t.hidden); let index=tabs.indexOf(tab);
-  if(event.key==='ArrowRight')index=(index+1)%tabs.length; else if(event.key==='ArrowLeft')index=(index+tabs.length-1)%tabs.length; else if(event.key==='Home')index=0; else if(event.key==='End')index=tabs.length-1; else return;
-  event.preventDefault();tabs[index].click();tabs[index].focus();
-}));
 function openModDialog(type) {
   const dialog=modEl('mods-'+type+'-dialog');
   let status=dialog.querySelector('.mods-dialog-status');
@@ -234,7 +233,7 @@ async function loadModHistory(reset) {
   try {
     const data=await getFeature('/api/activity'+(modLibrary.historyCursor?'?before='+modLibrary.historyCursor:''));
     container.querySelector('.mods-history-empty')?.remove();
-    const labels={api_mods_add:'Add mod',api_mods_remove:'Remove mod',api_mods_import:'Import mods',api_mods_edit:'Edit mods',api_mods_update_pins:'Update version pins',presets_save:'Save preset',presets_apply:'Apply preset',presets_delete:'Delete preset'};
+    const labels={api_mods_add:'Add mod',api_mods_remove:'Remove mod',api_mods_import:'Import mods',api_mods_edit:'Edit mods',api_mods_update_pins:'Update version pins',api_mods_server_apply:'Apply selected server comparison',presets_save:'Save preset',presets_apply:'Apply preset',presets_delete:'Delete preset'};
     data.events.filter(e=>/mod|preset/.test(e.action)).forEach(e=>{const row=document.createElement('article');const title=document.createElement('div');title.textContent=`${e.actor} · ${labels[e.action]||'Mod change'} · ${e.outcome}`;const time=document.createElement('small');time.textContent=new Date(e.ts*1000).toLocaleString();row.append(title,time);container.append(row);});
     modLibrary.historyCursor=data.next_before;more.hidden=!data.next_before;
     if(!container.children.length){const empty=document.createElement('p');empty.className='mods-history-empty';empty.textContent=data.next_before?'No mod events in this batch. Load more to check older activity.':'No mod activity found.';container.append(empty);}

@@ -19,7 +19,7 @@ function selectPanelTab(tab) {
   byId('page-description').textContent = {
     'tab-dashboard': 'Monitor your server and manage the action.',
     'tab-console': 'Inspect live output, player events and RCON responses.',
-    'tab-configuration': 'Manage server settings, scenarios and software updates.',
+    'tab-configuration': 'Manage server identity, gameplay, connections and security.',
     'tab-network': 'Watch node traffic, tune view distances and check UDP listeners.',
     'tab-files': 'Browse server logs and edit mod-created profile configuration files.',
     'tab-persistence': 'Manage the game’s built-in save settings and save-file maintenance.',
@@ -31,11 +31,12 @@ function selectPanelTab(tab) {
     byId(tab.id === 'tab-persistence' ? 'persistence-savebar-slot' : 'configuration-savebar-slot').append(byId('shared-config-savebar'));
     loadConfiguration();
   }
-  if (tab.id === 'tab-configuration' && can('admin_config') && typeof loadConfigBackups === 'function') loadConfigBackups();
+  if (tab.id === 'tab-administration' && can('admin_config') && !byId('section-admin-maintenance').hidden) { loadConfigBackups(); loadSoftware(); }
   if (tab.id === 'tab-persistence') fetchPersistence();
   if (tab.id === 'tab-network' && typeof openNetworkPanel === 'function') openNetworkPanel();
   if (tab.id === 'tab-files' && typeof openFilesPanel === 'function') openFilesPanel();
   if (tab.id === 'tab-console' && typeof fetchLogs === 'function') fetchLogs(30);
+  if (tab.id === 'tab-mods') { renderModUpdates(); refreshModMetadata(); }
   if (tab.id === 'tab-dashboard') {
     requestAnimationFrame(() => { cpuChart.resize(); ramChart.resize(); networkChart.resize(); diskChart.resize(); Object.values(extraCharts).forEach(chart => chart.resize()); });
     fetchMetrics();
@@ -57,9 +58,11 @@ function updateNavigationOrientation() {
 mobileNavigation.addEventListener('change', updateNavigationOrientation);
 updateNavigationOrientation();
 
-document.querySelectorAll('.panel-tab').forEach((tab, index, tabs) => {
+document.querySelectorAll('.panel-tab').forEach(tab => {
   tab.addEventListener('click', () => selectPanelTab(tab));
   tab.addEventListener('keydown', event => {
+    const tabs = [...document.querySelectorAll('.panel-tab')].filter(button => !button.hidden);
+    const index = tabs.indexOf(tab);
     let next;
     if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (index + 1) % tabs.length;
     else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (index + tabs.length - 1) % tabs.length;

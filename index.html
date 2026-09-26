@@ -16,444 +16,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg:        #0a0c0f;
-    --surface:   #111418;
-    --surface2:  #161b22;
-    --border:    #1e2530;
-    --accent:    #c8a84b;
-    --accent2:   #e8c96a;
-    --text:      #d4cfc6;
-    --muted:     #5a6070;
-    --online:    #4caf7d;
-    --offline:   #d64c4c;
-    --warn:      #e0913a;
-    --cpu-color: #4c9fd6;
-    --ram-color: #c8a84b;
-  }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Barlow', sans-serif;
-    min-height: 100vh;
-  }
-
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(200,168,75,0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(200,168,75,0.02) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .layout {
-    position: relative;
-    z-index: 1;
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 40px 24px 60px;
-  }
-
-  header {
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    margin-bottom: 32px;
-    padding-bottom: 20px;
-    border-bottom: 1px solid var(--border);
-    animation: fadeDown 0.4s ease both;
-  }
-
-  .header-left .tag {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 6px;
-  }
-
-  .header-left h1 {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 900;
-    font-size: 38px;
-    letter-spacing: 0.06em;
-    color: #fff;
-    line-height: 1;
-  }
-
-  .header-left h1 span { color: var(--accent); }
-
-  .btn-logout {
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 12px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    padding: 8px 16px;
-    cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
-  }
-  .btn-logout:hover { border-color: var(--accent); color: var(--accent); }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    padding: 22px 26px;
-    position: relative;
-    margin-bottom: 14px;
-    animation: fadeUp 0.4s ease both;
-  }
-
-  .card.clip {
-    clip-path: polygon(0 0, calc(100% - 24px) 0, 100% 24px, 100% 100%, 0 100%);
-  }
-
-  .card-corner {
-    position: absolute;
-    top: 0; right: 0;
-    width: 24px; height: 24px;
-    background: var(--accent);
-    clip-path: polygon(100% 0, 0 0, 100% 100%);
-  }
-
-  .card-label {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 16px;
-  }
-
-  /* Status row */
-  .status-row {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    flex-wrap: wrap;
-  }
-
-  .status-indicator { display: flex; align-items: center; gap: 10px; }
-
-  .dot {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    background: var(--muted);
-    flex-shrink: 0;
-    position: relative;
-  }
-  .dot.online  { background: var(--online); box-shadow: 0 0 10px var(--online); }
-  .dot.offline { background: var(--offline); }
-  .dot.loading { background: var(--warn); animation: pulse 1s infinite; }
-  .dot.online::after {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 50%;
-    background: var(--online);
-    opacity: 0.25;
-    animation: ping 1.5s ease-out infinite;
-  }
-
-  @keyframes ping   { 0% { transform: scale(1); opacity: 0.25; } 100% { transform: scale(2.5); opacity: 0; } }
-  @keyframes pulse  { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-
-  .status-text {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 20px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  .status-text.online  { color: var(--online); }
-  .status-text.offline { color: var(--offline); }
-  .status-text.loading { color: var(--warn); }
-
-  .divider-v { width: 1px; height: 32px; background: var(--border); flex-shrink: 0; }
-
-  .stat-item { display: flex; flex-direction: column; gap: 3px; }
-  .stat-item .label {
-    font-size: 10px; font-weight: 600; letter-spacing: 0.25em;
-    text-transform: uppercase; color: var(--muted);
-  }
-  .stat-item .value {
-    font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
-    font-size: 17px; letter-spacing: 0.04em; color: #fff;
-  }
-
-  /* Controls */
-  .controls-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-    margin-bottom: 14px;
-    animation: fadeUp 0.4s ease 0.05s both;
-  }
-
-  .ctrl-btn {
-    border: 1px solid var(--border);
-    background: var(--surface2);
-    color: var(--text);
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700;
-    font-size: 15px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    padding: 18px 16px;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    transition: all 0.2s;
-    position: relative;
-    overflow: hidden;
-  }
-  .ctrl-btn::before {
-    content: ''; position: absolute;
-    bottom: 0; left: 0; right: 0; height: 2px;
-    transform: scaleX(0); transition: transform 0.2s;
-  }
-  .ctrl-btn:hover::before { transform: scaleX(1); }
-  .ctrl-btn:active { transform: scale(0.97); }
-  .ctrl-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
-  .ctrl-btn.start::before { background: var(--online); }
-  .ctrl-btn.start:hover:not(:disabled) { border-color: var(--online); color: var(--online); }
-  .ctrl-btn.stop::before  { background: var(--offline); }
-  .ctrl-btn.stop:hover:not(:disabled)  { border-color: var(--offline); color: var(--offline); }
-  .ctrl-btn.reset::before { background: var(--warn); }
-  .ctrl-btn.reset:hover:not(:disabled) { border-color: var(--warn); color: var(--warn); }
-  .ctrl-icon { font-size: 22px; line-height: 1; }
-
-  /* Charts row */
-  .charts-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    margin-bottom: 14px;
-    animation: fadeUp 0.4s ease 0.1s both;
-  }
-
-  .chart-card { background: var(--surface); border: 1px solid var(--border); padding: 18px 20px; }
-
-  .chart-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-  }
-
-  .chart-title {
-    font-size: 10px; font-weight: 600; letter-spacing: 0.3em;
-    text-transform: uppercase; color: var(--muted);
-  }
-
-  .chart-value {
-    font-family: 'Barlow Condensed', sans-serif;
-    font-weight: 700; font-size: 22px; letter-spacing: 0.05em;
-  }
-
-  .chart-value.cpu  { color: var(--cpu-color); }
-  .chart-value.ram  { color: var(--ram-color); }
-
-  .chart-sub {
-    font-size: 11px; color: var(--muted); margin-top: 2px; text-align: right;
-  }
-
-  .chart-wrap { position: relative; height: 80px; }
-
-  /* Config */
-  .config-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-  }
-
-  .field-group { display: flex; flex-direction: column; gap: 7px; }
-  .field-group label {
-    font-size: 10px; font-weight: 600; letter-spacing: 0.25em;
-    text-transform: uppercase; color: var(--muted);
-  }
-  .field-group input,
-  .field-group select {
-    background: var(--bg); border: 1px solid var(--border);
-    color: var(--text); font-family: 'Barlow', sans-serif;
-    font-size: 14px; padding: 10px 14px; outline: none;
-    transition: border-color 0.2s; width: 100%;
-  }
-  .field-group input:focus,
-  .field-group select:focus { border-color: var(--accent); }
-  .field-group select option { background: var(--surface); color: var(--text); }
-
-  /* Standalone input styling — same look as .field-group inputs but
-     used outside of one (e.g. inline in flex rows). */
-  .field-input {
-    background: var(--bg); border: 1px solid var(--border);
-    color: var(--text); font-family: 'Barlow', sans-serif;
-    font-size: 14px; padding: 10px 14px; outline: none;
-    transition: border-color 0.2s;
-  }
-  .field-input:focus { border-color: var(--accent); }
-  .field-input option { background: var(--surface); color: var(--text); }
-
-  /* Mission field: the rescan button + count badge sit absolutely in the
-     field-group's top-right corner so they don't push the grid row taller
-     than the matching label on the left. */
-  .field-group--mission { position: relative; }
-  .field-group--mission .field-aux {
-    position: absolute; top: 0; right: 0;
-    display: flex; align-items: center; gap: 12px;
-    line-height: 1;
-  }
-  .field-group--mission .field-aux #scenario-source-badge {
-    font-size: 10px; letter-spacing: 0.05em; color: var(--muted);
-    font-family: 'Barlow', sans-serif; text-transform: none;
-  }
-  .link-btn {
-    background: transparent; border: none; padding: 0; cursor: pointer;
-    font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
-    font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
-    color: var(--muted); transition: color 0.15s;
-  }
-  .link-btn:hover     { color: var(--accent); }
-  .link-btn:disabled  { color: var(--border); cursor: not-allowed; }
-
-  .btn-save {
-    margin-top: 14px;
-    background: var(--accent); border: none; color: #0a0c0f;
-    font-family: 'Barlow Condensed', sans-serif; font-weight: 700;
-    font-size: 13px; letter-spacing: 0.2em; text-transform: uppercase;
-    padding: 12px 28px; cursor: pointer;
-    clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
-    transition: background 0.2s;
-  }
-  .btn-save:hover { background: var(--accent2); }
-  .btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  .restart-notice {
-    display: none; margin-top: 10px;
-    font-size: 12px; color: var(--warn); letter-spacing: 0.05em;
-  }
-  .restart-notice.visible { display: block; }
-
-  /* Logs */
-  .log-viewer-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    animation: fadeUp 0.4s ease 0.2s both;
-  }
-
-  .log-viewer-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 14px 20px;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .log-viewer-title {
-    font-size: 10px; font-weight: 600; letter-spacing: 0.3em;
-    text-transform: uppercase; color: var(--muted);
-    display: flex; align-items: center; gap: 8px;
-  }
-
-  .log-live-dot {
-    width: 7px; height: 7px; border-radius: 50%;
-    background: var(--online);
-    box-shadow: 0 0 6px var(--online);
-    animation: pulse 1.5s infinite;
-  }
-
-  .log-live-dot.off { background: var(--muted); box-shadow: none; animation: none; }
-
-  .btn-clear-log {
-    background: transparent; border: 1px solid var(--border);
-    color: var(--muted); font-family: 'Barlow Condensed', sans-serif;
-    font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase;
-    padding: 5px 12px; cursor: pointer; transition: all 0.2s;
-  }
-  .btn-clear-log:hover { border-color: var(--accent); color: var(--accent); }
-
-  #log-output {
-    font-family: 'Roboto Mono', monospace;
-    font-size: 11px;
-    line-height: 1.6;
-    color: #7a8899;
-    background: #0d1117;
-    padding: 14px 20px;
-    height: 320px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    word-break: break-all;
-  }
-
-  #log-output::-webkit-scrollbar { width: 6px; }
-  #log-output::-webkit-scrollbar-track { background: #0d1117; }
-  #log-output::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-  .log-line { display: block; padding: 1px 0; }
-  .log-line.err  { color: #d64c4c; }
-  .log-line.warn { color: #c8a84b; }
-  .log-line.ok   { color: #4caf7d; }
-  .log-line.sep  { color: #3a4455; }
-
-  /* Bottom log */
-  .op-log {
-    background: var(--surface); border: 1px solid var(--border);
-    padding: 12px 18px; margin-top: 14px;
-    animation: fadeUp 0.4s ease 0.25s both;
-  }
-  .op-log .log-label {
-    font-size: 10px; font-weight: 600; letter-spacing: 0.25em;
-    text-transform: uppercase; color: var(--muted); margin-bottom: 5px;
-  }
-  .log-entry { font-size: 13px; color: var(--text); opacity: 0.8; }
-  .log-entry.ok    { color: var(--online); }
-  .log-entry.error { color: var(--offline); }
-  .log-entry.info  { color: var(--accent); }
-
-  footer {
-    margin-top: 20px; font-size: 11px; letter-spacing: 0.15em;
-    color: var(--muted); text-align: right;
-    animation: fadeUp 0.4s ease 0.3s both;
-  }
-  #refresh-timer { color: var(--accent); font-weight: 600; }
-
-  @keyframes fadeUp   { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-  @keyframes fadeDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
-
-[hidden] { display:none !important; }
-.feature-row { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:12px 0; }
-.feature-row span { flex:1; }
-.feature-note { color:var(--muted); font-size:13px; line-height:1.6; margin:12px 0; overflow-wrap:anywhere; }
-.field { margin:12px 0; }
-.field label { display:block; font-size:12px; margin-bottom:8px; }
-.field input, .field select { width:100%; padding:10px; background:var(--bg); color:var(--text); border:1px solid var(--border); }
-.activity-entry { border-bottom:1px solid var(--border); padding:12px 0; font-size:13px; line-height:1.7; overflow-wrap:anywhere; }
-.activity-entry div { color:var(--muted); }
-button:disabled { opacity:.45; cursor:not-allowed; }
-#activity-list { max-height:440px; overflow:auto; }
-.panel-tabs { display:flex; gap:6px; position:sticky; top:0; z-index:20; padding:12px 0; background:var(--bg); margin-bottom:12px; }
-.panel-tab { flex:1; padding:13px 10px; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; font:600 15px 'Barlow',sans-serif; }
-.panel-tab[aria-selected="true"] { border-color:var(--accent); color:var(--accent); background:rgba(200,168,75,.08); }
-.panel-tab:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
-.tab-panel { min-width:0; }
-.account-controls { border:0; padding:0; margin:0; min-width:0; }
-.account-controls:disabled { opacity:.45; }
-.op-log { position:sticky; bottom:0; z-index:10; }
-@media(max-width:480px) { .panel-tab { font-size:13px; padding:12px 5px; } }
-</style>
+<link rel="stylesheet" href="/static/base.css">
 <link rel="stylesheet" href="/static/workspace.css">
 <link rel="stylesheet" href="/static/configuration.css">
 <link rel="stylesheet" href="/static/mods.css">
@@ -474,22 +37,20 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 
   <aside class="sidebar" aria-label="Workspace navigation">
   <div class="brand"><span class="brand-icon">AR</span><div>REFORGER<small>SERVER PANEL</small></div></div>
-  <div class="nav-label">WORKSPACE</div>
-  <nav class="panel-tabs" role="tablist" aria-label="Panel sections" aria-orientation="vertical">
-    <button class="panel-tab" id="tab-dashboard" role="tab" aria-selected="true" aria-controls="panel-dashboard" tabindex="0">Dashboard</button>
+<nav class="panel-tabs" role="tablist" aria-label="Panel sections" aria-orientation="vertical"><span class="nav-label">OVERVIEW</span>
+    <button class="panel-tab" id="tab-dashboard" role="tab" aria-selected="true" aria-controls="panel-dashboard" tabindex="0">Dashboard</button><span class="nav-label">OPERATIONS</span>
     <button class="panel-tab" id="tab-console" role="tab" aria-selected="false" aria-controls="panel-console" tabindex="-1" data-permission="logs" hidden>Console</button>
+    <button class="panel-tab" id="tab-persistence" role="tab" aria-selected="false" aria-controls="panel-persistence" tabindex="-1" data-permission="configure" hidden>Persistence</button><span class="nav-label">CONFIGURATION</span>
     <button class="panel-tab" id="tab-configuration" role="tab" aria-selected="false" aria-controls="panel-configuration" tabindex="-1">Server config</button>
-    <button class="panel-tab" id="tab-network" role="tab" aria-selected="false" aria-controls="panel-network" tabindex="-1">Network</button>
-    <button class="panel-tab" id="tab-files" role="tab" aria-selected="false" aria-controls="panel-files" tabindex="-1" data-permission="admin_config" hidden>Files</button>
-    <button class="panel-tab" id="tab-persistence" role="tab" aria-selected="false" aria-controls="panel-persistence" tabindex="-1" data-permission="configure" hidden>Persistence</button>
     <button class="panel-tab" id="tab-mods" role="tab" aria-selected="false" aria-controls="panel-mods" tabindex="-1">Mods</button>
-    <button class="panel-tab" id="tab-administration" role="tab" aria-selected="false" aria-controls="panel-administration" tabindex="-1">Administration</button>
-  </nav>
+    <button class="panel-tab" id="tab-files" role="tab" aria-selected="false" aria-controls="panel-files" tabindex="-1" data-permission="admin_config" hidden>Files</button>
+    <button class="panel-tab" id="tab-network" role="tab" aria-selected="false" aria-controls="panel-network" tabindex="-1">Network</button><span class="nav-label">ADMINISTRATION</span>
+    <button class="panel-tab" id="tab-administration" role="tab" aria-selected="false" aria-controls="panel-administration" tabindex="-1">Administration</button></nav>
   <div class="nav-label">QUICK ACCESS</div>
   <div class="quick-links">
     <button data-permission="logs" hidden onclick="openPanelSection('console','console-workspace')">Console <span>↗</span></button>
     <button onclick="openPanelSection('dashboard','players-card')">Players <span>↗</span></button>
-    <button onclick="openPanelSection('mods','mods-card')">Mods & presets <span>↗</span></button>
+    <button onclick="openModPresets()">Mod presets <span>↗</span></button>
   </div>
   <div class="sidebar-bottom"><span class="brand-icon">AR</span><div>Arma Reforger<small>Dedicated server</small></div></div>
   </aside>
@@ -645,7 +206,9 @@ button:disabled { opacity:.45; cursor:not-allowed; }
           <button type="button" id="console-tab-players" role="tab" aria-selected="false" aria-controls="console-view-players" onclick="setConsoleView('players')">Players <span id="console-player-count">0</span></button>
           <button type="button" id="console-tab-errors" role="tab" aria-selected="false" aria-controls="console-view-errors" onclick="setConsoleView('errors')">Errors <span id="console-error-count">0</span></button>
         </div>
-        <div class="console-workspace-actions"><span class="console-live"><span class="log-live-dot off" id="console-live-dot"></span><span id="console-live-label">Connecting</span></span><button type="button" id="console-export" onclick="exportConsoleLog()">Export</button><button type="button" id="console-autoscroll" aria-pressed="true" onclick="toggleConsoleAutoscroll()">Auto-scroll on</button></div>
+        <div class="console-workspace-actions"><span class="console-live"><span class="log-live-dot off" id="console-live-dot"></span><span id="console-live-label">Connecting</span></span>
+    <button type="button" id="console-export" onclick="exportConsoleLog()">Export</button>
+    <button type="button" id="console-autoscroll" aria-pressed="true" onclick="toggleConsoleAutoscroll()">Auto-scroll on</button></div>
       </div>
       <div class="console-workspace-filters" id="console-filters">
         <div class="console-levels" role="group" aria-label="Log severity">
@@ -655,7 +218,8 @@ button:disabled { opacity:.45; cursor:not-allowed; }
           <button type="button" data-console-level="debug" aria-pressed="false" onclick="setConsoleLevel('debug')">DEBUG <span id="console-count-debug">0</span></button>
         </div>
         <div class="console-filter-tools">
-          <button type="button" id="console-connect" aria-pressed="false" title="Filter connection events" onclick="setConsoleEvent('connect')">Connect</button><button type="button" id="console-disconnect" aria-pressed="false" title="Filter disconnection events" onclick="setConsoleEvent('disconnect')">Disconnect</button>
+          <button type="button" id="console-connect" aria-pressed="false" title="Filter connection events" onclick="setConsoleEvent('connect')">Connect</button>
+    <button type="button" id="console-disconnect" aria-pressed="false" title="Filter disconnection events" onclick="setConsoleEvent('disconnect')">Disconnect</button>
           <button type="button" id="console-kill" aria-pressed="false" title="Filter kill events" onclick="setConsoleEvent('kill')">Kill</button>
           <button type="button" id="console-chat" aria-pressed="false" title="Filter chat events" onclick="setConsoleEvent('chat')">Chat</button>
           <button type="button" id="console-hide-rcon" aria-pressed="false" title="Hide RCON log entries" onclick="toggleConsoleRcon()">Hide RCON</button>
@@ -698,37 +262,28 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <div class="config-summary" id="config-summary"></div>
     <p class="config-note" id="config-loading">Open this section to load configuration.</p>
     <fieldset id="config-fields" disabled>
-      <div id="config-visual" role="tabpanel" aria-labelledby="config-visual-tab"></div>
+      <div id="config-visual" role="tabpanel" aria-labelledby="config-visual-tab"><div id="config-category-tabs"><div class="section-tabs" role="tablist" aria-label="config sections"><button type="button" role="tab" id="section-tab-config-general" aria-controls="section-config-general" aria-selected="true" tabindex="0" data-section-group="config" data-section-key="general">General</button>
+    <button type="button" role="tab" id="section-tab-config-gameplay" aria-controls="section-config-gameplay" aria-selected="false" tabindex="-1" data-section-group="config" data-section-key="gameplay">Gameplay</button>
+    <button type="button" role="tab" id="section-tab-config-connection" aria-controls="section-config-connection" aria-selected="false" tabindex="-1" data-section-group="config" data-section-key="connection">Connection & RCON</button></div></div>
+    <div id="config-category-fields"><div id="section-config-general" role="tabpanel" aria-labelledby="section-tab-config-general" data-section-content="config"></div><div id="section-config-gameplay" role="tabpanel" aria-labelledby="section-tab-config-gameplay" data-section-content="config" hidden></div><div id="section-config-connection" role="tabpanel" aria-labelledby="section-tab-config-connection" data-section-content="config" hidden></div></div></div>
       <div id="config-json" role="tabpanel" aria-labelledby="config-json-tab" hidden>
-        <div class="config-json-heading"><div><h3>Configuration JSON</h3><p id="config-json-description">Read-only preview of your configuration draft.</p></div><button class="config-button" type="button" onclick="copyConfigurationJson()">Copy JSON</button></div>
+        <div class="config-json-heading"><div><h3>Configuration JSON</h3><p id="config-json-description">Read-only preview of your configuration draft.</p></div>
+    <button class="config-button" type="button" onclick="copyConfigurationJson()">Copy JSON</button></div>
         <textarea id="config-json-text" readonly spellcheck="false" aria-label="Complete configuration JSON"></textarea>
       </div>
-      <div id="configuration-savebar-slot"></div><div class="config-savebar" id="shared-config-savebar">
+      <div id="configuration-savebar-slot"></div>
+    <div class="config-savebar" id="shared-config-savebar">
         <div><strong id="config-dirty">No unsaved changes</strong><p id="config-feedback" role="status" aria-live="polite">Changes apply on the next server start. Saving does not restart it.</p></div>
-        <div class="config-actions"><button class="config-button" id="config-reset" onclick="resetConfiguration()" disabled>Discard edits</button><button class="config-button" onclick="submitConfiguration(false)">Validate</button><button class="config-button primary" id="config-save" onclick="submitConfiguration(true)" disabled>Save configuration</button></div>
+        <div class="config-actions"><button class="config-button" id="config-reset" onclick="resetConfiguration()" disabled>Discard edits</button>
+    <button class="config-button" onclick="submitConfiguration(false)">Validate</button>
+    <button class="config-button primary" id="config-save" onclick="submitConfiguration(true)" disabled>Save configuration</button></div>
       </div>
     </fieldset>
   </div>
 
-  <div class="card" id="config-backups-card" data-permission="admin_config" hidden>
-    <div class="card-label">Configuration backups</div>
-    <p class="feature-note">The panel saves the previous server JSON before every configuration change. Backups include passwords and are available only to panel administrators.</p>
-    <div class="field"><label for="config-backup-select">Saved versions</label><select id="config-backup-select" onchange="clearConfigBackupReview()"><option value="">Loading backups…</option></select></div>
-    <div class="feature-row"><button class="config-button" type="button" onclick="loadConfigBackups()">Refresh backups</button><button class="config-button" type="button" id="config-backup-review" onclick="reviewConfigBackup()" disabled>Review changes</button></div>
-    <p class="feature-note" id="config-backup-status" role="status"></p>
-    <pre id="config-backup-diff" class="config-backup-diff" hidden></pre>
-    <button class="config-button" type="button" id="config-backup-restore" onclick="restoreConfigBackup()" disabled>Restore reviewed backup</button>
-  </div>
 
-  <div class="card" id="software-card" data-permission="admin_config" hidden>
-    <div class="card-label">Server software</div>
-    <p id="software-build">Installed Steam build: loading…</p>
-    <p class="feature-note" id="software-latest">Available public build: not checked</p>
-    <div class="console-actions"><button class="config-button" id="software-check" disabled onclick="runSoftwareJob('check')">Check for updates</button><button class="config-button" id="software-update" disabled onclick="runSoftwareJob('update')">Update server</button></div>
-    <p class="feature-note">Updates the game server through SteamCMD. Stop the server first; it stays stopped after updating. Steam build IDs are not game version numbers.</p>
-    <p id="software-status" class="feature-note" role="status"></p>
-    <details><summary>Update output</summary><pre id="software-output" style="max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere"></pre></details>
-  </div>
+
+
 
 
   </section>
@@ -767,8 +322,8 @@ button:disabled { opacity:.45; cursor:not-allowed; }
   <section class="tab-panel" id="panel-files" role="tabpanel" aria-labelledby="tab-files" hidden>
     <div class="files-toolbar">
       <div class="files-roots" role="group" aria-label="File locations">
-        <button type="button" data-files-root="profile" aria-pressed="true">Game profile</button>
-        <button type="button" data-files-root="logs" aria-pressed="false">Server logs</button>
+        <button type="button" data-files-root="profile" aria-pressed="true">Profile configs</button>
+        <button type="button" data-files-root="logs" aria-pressed="false">Logs</button>
         <button type="button" data-files-root="server-config" aria-pressed="false">Server config</button>
       </div>
       <button class="files-plain-button" type="button" onclick="refreshFiles()">Refresh</button>
@@ -782,24 +337,51 @@ button:disabled { opacity:.45; cursor:not-allowed; }
         <p class="files-list-note" id="files-list-note" role="status"></p>
       </div>
       <div class="files-editor">
-        <div class="files-editor-head"><div><h3 id="files-current-name">Select a file</h3><p id="files-current-meta">Choose a text file to inspect it.</p></div><button type="button" class="files-plain-button" id="files-download" onclick="downloadSelectedFile()" disabled>Download</button></div>
+        <div class="files-editor-head"><div><h3 id="files-current-name">Select a file</h3><p id="files-current-meta">Choose a text file to inspect it.</p></div>
+    <button type="button" class="files-plain-button" id="files-download" onclick="downloadSelectedFile()" disabled>Download</button></div>
         <textarea id="files-content" spellcheck="false" aria-label="File contents" readonly placeholder="Select a text file from the browser."></textarea>
-        <div class="files-editor-actions"><span id="files-edit-state">No file selected</span><button type="button" class="files-plain-button" id="files-reload" onclick="reloadSelectedFile()" disabled>Reload file</button><button type="button" class="files-plain-button" id="files-review" onclick="reviewSelectedFile()" disabled>Review changes</button><button type="button" class="files-save-button" id="files-save" onclick="saveSelectedFile()" disabled>Save file</button></div>
+        <div class="files-editor-actions"><span id="files-edit-state">No file selected</span>
+    <button type="button" class="files-plain-button" id="files-reload" onclick="reloadSelectedFile()" disabled>Reload file</button>
+    <button type="button" class="files-plain-button" id="files-review" onclick="reviewSelectedFile()" disabled>Review changes</button>
+    <button type="button" class="files-save-button" id="files-save" onclick="saveSelectedFile()" disabled>Save file</button></div>
         <p class="files-feedback" id="files-feedback" role="status" aria-live="polite"></p>
         <div class="files-diff" id="files-diff-panel" hidden><div class="files-diff-head"><h3>CHANGE REVIEW</h3><span>− on disk · + your edit</span></div><pre id="files-diff"></pre></div>
       </div>
     </div>
   </section>
 
-  <section class="tab-panel" id="panel-persistence" role="tabpanel" aria-labelledby="tab-persistence" hidden>
-    <div class="card" id="persistence-summary" role="status">Loading persistence status…</div>
+
+
+
+
+
+
+
+
+
+
+
+
+<section class="tab-panel" id="panel-persistence" role="tabpanel" aria-labelledby="tab-persistence" hidden>
+<div class="section-tabs" role="tablist" aria-label="Persistence sections">
+<button type="button" role="tab" id="section-tab-persistence-settings" aria-controls="section-persistence-settings" aria-selected="true" tabindex="0" data-section-group="persistence" data-section-key="settings">Settings</button>
+<button type="button" role="tab" id="section-tab-persistence-saves" aria-controls="section-persistence-saves" aria-selected="false" tabindex="-1" data-section-group="persistence" data-section-key="saves">Save points</button>
+<button type="button" role="tab" id="section-tab-persistence-backups" aria-controls="section-persistence-backups" aria-selected="false" tabindex="-1" data-section-group="persistence" data-section-key="backups">Named backups</button>
+</div>
+<div class="card" id="persistence-summary" role="status">Loading persistence status…</div><p id="persistence-startup-status" class="feature-note" role="status"></p><div id="section-persistence-settings" role="tabpanel" aria-labelledby="section-tab-persistence-settings" data-section-content="persistence">
+
+
     <p class="feature-note">These are the game’s built-in persistence settings. An autosave interval does not confirm that a save was written: the selected scenario must support persistence. Save configuration, then restart the server.</p>
     <div data-permission="configure" hidden>
       <button class="config-button" onclick="reloadConfiguration()">Reload from disk</button>
-      <fieldset id="persistence-fields" disabled><div id="persistence-settings"></div><div id="persistence-savebar-slot"></div></fieldset>
+      <fieldset id="persistence-fields" disabled><div id="persistence-settings"></div>
+    <div id="persistence-savebar-slot"></div></fieldset>
     </div>
+
+</div>
+<div id="section-persistence-saves" role="tabpanel" aria-labelledby="section-tab-persistence-saves" data-section-content="persistence" hidden>
     <div class="card persistence-startup-card" id="persistence-startup-card">
-      <h3>Startup save</h3>
+      <div class="wip-banner"><strong>WIP</strong><span>Save selection and named backups still need verification on the production server.</span></div><h3>Startup save</h3>
       <p class="feature-note">Choose a completed save point for this scenario. The panel keeps a separate copy on this host and asks the game to load that UUID on every start, including a host reboot. New autosaves continue, but they do not change this starting point. The game save metadata does not reliably identify a map here, so verify the save belongs to the selected scenario. Include named backups in your host backups.</p>
       <div class="persistence-startup-controls">
         <label for="persistence-startup-select">Load on each start</label>
@@ -807,12 +389,8 @@ button:disabled { opacity:.45; cursor:not-allowed; }
         <button class="config-button" type="button" onclick="fetchPersistence()">Refresh save points</button>
         <button class="config-button" id="persistence-startup-save" type="button" data-permission="admin_config" hidden onclick="saveStartupSave()" disabled>Save startup choice</button>
       </div>
-      <p id="persistence-startup-status" class="feature-note" role="status"></p>
-      <div class="persistence-backup" data-permission="admin_config" hidden>
-        <label for="persistence-backup-name">Keep a named backup of the selected save point</label>
-        <div class="persistence-startup-controls"><input id="persistence-backup-name" maxlength="80" placeholder="e.g. Everon FOB before event" oninput="updateStartupSaveButton()"><button class="config-button" id="persistence-backup-button" type="button" onclick="backupSelectedSave()" disabled>Keep named backup</button></div>
-      </div>
-      <div id="persistence-backup-list" class="feature-note"></div>
+
+
     </div>
   <details class="card config-maintenance" data-permission="configure" hidden>
     <summary>Save-file maintenance</summary>
@@ -820,50 +398,43 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     <div id="persist-stats" class="feature-note"></div>
     <button class="config-button" id="btn-persist-flush" data-permission="admin_config" hidden onclick="flushPersistence()">Flush saves</button>
   </details>
-  </section>
 
-  <section class="tab-panel" id="panel-mods" role="tabpanel" aria-labelledby="tab-mods" hidden>
-    <div class="mods-heading" id="mods-card" tabindex="-1"><div><h2>Mods</h2><span id="mods-count" class="mod-badge">0 configured</span></div>
-      <div class="mods-tabs" role="tablist" aria-label="Mod sections">
-        <button role="tab" id="mods-tab-configured" aria-selected="true" aria-controls="mods-configured" onclick="selectModView('configured')">Configured (0)</button>
-        <button role="tab" id="mods-tab-updates" aria-selected="false" aria-controls="mods-updates" tabindex="-1" onclick="selectModView('updates')">Updates</button>
-        <button role="tab" id="mods-tab-presets" aria-selected="false" aria-controls="mods-presets" tabindex="-1" onclick="selectModView('presets')">Presets</button>
-        <button role="tab" id="mods-tab-history" aria-selected="false" aria-controls="mods-history" tabindex="-1" data-permission="activity" onclick="selectModView('history')">History</button>
+</div>
+<div id="section-persistence-backups" role="tabpanel" aria-labelledby="section-tab-persistence-backups" data-section-content="persistence" hidden>
+<div class="card"><div class="wip-banner"><strong>WIP</strong><span>Save selection and named backups still need verification on the production server.</span></div><h3>Named backups</h3><label for="persistence-backup-source">Save point to back up</label><select id="persistence-backup-source" onchange="chooseBackupSource()"></select><button class="config-button" onclick="fetchPersistence()">Refresh save points</button>      <div class="persistence-backup" data-permission="admin_config" hidden>
+        <label for="persistence-backup-name">Keep a named backup of the selected save point</label>
+        <div class="persistence-startup-controls"><input id="persistence-backup-name" maxlength="80" placeholder="e.g. Everon FOB before event" oninput="updateStartupSaveButton()"><button class="config-button" id="persistence-backup-button" type="button" onclick="backupSelectedSave()" disabled>Keep named backup</button></div>
       </div>
+<div id="persistence-backup-list" class="feature-note"></div></div>
+</div>
+</section>
+<section class="tab-panel" id="panel-mods" role="tabpanel" aria-labelledby="tab-mods" hidden><div class="section-tabs" role="tablist" aria-label="mods sections"><button type="button" role="tab" id="section-tab-mods-installed" aria-controls="section-mods-installed" aria-selected="true" tabindex="0" data-section-group="mods" data-section-key="installed">Installed</button>
+    <button type="button" role="tab" id="section-tab-mods-review" aria-controls="section-mods-review" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="review">Compare & updates</button>
+    <button type="button" role="tab" id="section-tab-mods-presets" aria-controls="section-mods-presets" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="presets">Presets</button></div>
+    <div id="section-mods-installed" role="tabpanel" aria-labelledby="section-tab-mods-installed" data-section-content="mods">
+    <div class="mods-heading" id="mods-card" tabindex="-1"><div><span id="mods-count" class="mod-badge">0 configured</span></div>
+
     </div>
     <p class="mods-notice">ⓘ &nbsp; Mod changes take effect after a server restart.<span id="mods-total">Estimated mod download: loading…</span></p>
     <p class="feature-note" id="mods-readonly" hidden>Your account can view mods and presets. A Manager or Administrator can change them.</p>
-    <div id="mods-configured" role="tabpanel" aria-labelledby="mods-tab-configured">
+    <div id="mods-configured" aria-labelledby="tab-mods">
       <div class="mods-toolbar">
         <input id="mods-search" type="search" aria-label="Search mods" placeholder="Search mods…">
-        <div class="mods-sort" role="group" aria-label="Mod view"><button id="mods-view-cards" aria-pressed="true" onclick="setModView('cards')">Cards</button><button id="mods-view-list" aria-pressed="false" onclick="setModView('list')">List</button><button id="mods-view-details" aria-pressed="false" onclick="setModView('details')">Details</button></div>
-        <div class="mods-sort" aria-label="Sort mods"><button id="mods-sort-order" aria-pressed="true" onclick="sortModLibrary('order')">Load order</button><button id="mods-sort-name" aria-pressed="false" onclick="sortModLibrary('name')">Name</button><button id="mods-reorder" aria-pressed="false" data-permission="mods" onclick="toggleModReorder()">Reorder</button></div>
-        <div class="mods-actions"><button onclick="exportModLibrary()">Export JSON</button><button onclick="copyModLibrary()">Copy list</button><button data-permission="mods" onclick="openModDialog('import')">Import mods</button><button class="mod-primary" data-permission="mods" onclick="openModDialog('add')">＋ Add mod</button></div>
+        <div class="mods-sort" role="group" aria-label="Mod view"><button id="mods-view-cards" aria-pressed="true" onclick="setModView('cards')">Cards</button>
+    <button id="mods-view-list" aria-pressed="false" onclick="setModView('list')">List</button>
+    <button id="mods-view-details" aria-pressed="false" onclick="setModView('details')">Details</button></div>
+        <div class="mods-sort" aria-label="Sort mods"><button id="mods-sort-order" aria-pressed="true" onclick="sortModLibrary('order')">Load order</button>
+    <button id="mods-sort-name" aria-pressed="false" onclick="sortModLibrary('name')">Name</button>
+    <button id="mods-reorder" aria-pressed="false" data-permission="mods" onclick="toggleModReorder()">Reorder</button></div>
+        <div class="mods-actions"><details class="action-menu"><summary>Actions</summary><div><button onclick="exportModLibrary()">Export JSON</button>
+    <button onclick="copyModLibrary()">Copy list</button>
+    <button data-permission="mods" onclick="openModDialog('import')">Import mods</button></div></details><button class="mod-primary" data-permission="mods" onclick="openModDialog('add')">＋ Add mod</button></div>
       </div>
       <p id="mods-reorder-help" class="feature-note" hidden>Use the arrows to move a mod in the configured load order. Each move is saved immediately.</p>
       <div id="mods-list" class="mods-grid" aria-live="polite"></div>
       <div class="mods-footer"><div class="mods-page-size"><label for="mods-per-page">Show</label><select id="mods-per-page"><option value="8">8</option><option value="16">16</option><option value="24">24</option><option value="48">48</option></select><span>items</span><span id="mods-range"></span></div><nav id="mods-pagination" aria-label="Mod pages"></nav></div>
       <p class="mods-size-note">Sizes cover all configured mods at their selected versions. Extra dependencies are excluded; players with cached files may download less.</p>
     </div>
-    <div id="mods-updates" role="tabpanel" aria-labelledby="mods-tab-updates" class="card" hidden>
-      <div class="mods-update-heading"><div><h3>Mod update review</h3><p>Compare pinned versions with the current Workshop release. Only selected pins will change; restart the game server to load them.</p></div><button id="mods-update-review" class="mod-primary" data-permission="mods" onclick="reviewModUpdates()" disabled>Review selected</button></div>
-      <p id="mods-update-status" class="feature-note" role="status">Checking Workshop versions…</p>
-      <div id="mods-update-list" class="mods-update-list"></div>
-    </div>
-    <div id="mods-presets" role="tabpanel" aria-labelledby="mods-tab-presets" class="card" hidden>    <!-- Mod presets -->
-    <div class="field"><label for="preset-select">Saved server presets</label>
-      <select id="preset-select" onchange="showPreset()"><option>Loading...</option></select></div>
-    <p class="feature-note" id="preset-details"></p>
-    <div data-permission="mods" hidden>
-      <div class="feature-row"><button class="btn-save" onclick="presetAction('apply')">Apply selected preset</button>
-        <button class="btn-save" onclick="savePreset(true)">Overwrite selected preset</button>
-        <button class="btn-save" onclick="presetAction('delete')">Delete preset</button></div>
-      <div class="field"><label for="preset-name">New preset name</label><input id="preset-name" maxlength="80" placeholder="e.g. Weekend conflict"></div>
-      <button class="btn-save" onclick="savePreset()">Save current scenario and mods</button>
-      <p class="feature-note">New presets save the selected scenario and configured mod list. Older mod-only presets still change mods only. Applying a preset requires a game-server restart.</p>
-    </div>
-</div>
-    <div id="mods-history" role="tabpanel" aria-labelledby="mods-tab-history" class="card" hidden><h3>Mod activity</h3><div id="mods-history-events"></div><button id="mods-history-more" onclick="loadModHistory(false)" hidden>Load more</button></div>
     <dialog id="mods-add-dialog" class="mods-dialog" aria-labelledby="mods-add-title"><div class="mods-dialog-heading"><h3 id="mods-add-title">Add mod</h3><button aria-label="Close add mod" onclick="this.closest('dialog').close()">✕</button></div>    <!-- Single-add form -->
     <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:16px;">
       <div style="font-size:10px;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;">Add a single mod</div>
@@ -909,11 +480,62 @@ button:disabled { opacity:.45; cursor:not-allowed; }
     </div>
 
 </dialog>
-    <dialog id="mods-details-dialog" class="mods-dialog" aria-labelledby="mods-details-title"><div class="mods-dialog-heading"><h3 id="mods-details-title">Mod details</h3><button aria-label="Close mod details" onclick="this.closest('dialog').close()">✕</button></div><p id="mods-detail-id" class="feature-note"></p><div class="field"><label for="mods-detail-name">Name</label><input id="mods-detail-name" maxlength="200"></div><div class="field"><label for="mods-detail-version">Version</label><input id="mods-detail-version" maxlength="32" placeholder="Leave blank for latest available"></div><p class="feature-note">Leave the version blank to use the latest available version at server startup. Enter a version to pin it.</p><button class="mod-primary" id="mods-detail-save" data-permission="mods" onclick="saveModDetails()">Save changes</button><p id="mods-detail-result" role="status"></p></dialog>
-    <dialog id="mods-update-dialog" class="mods-dialog" aria-labelledby="mods-update-dialog-title"><div class="mods-dialog-heading"><h3 id="mods-update-dialog-title">Review version changes</h3><button aria-label="Close update review" onclick="this.closest('dialog').close()">✕</button></div><p class="feature-note">These version pins will be changed in the server configuration. The running server will need a restart.</p><div id="mods-update-preview" class="mods-update-preview"></div><div class="mods-update-dialog-actions"><button type="button" onclick="modEl('mods-update-dialog').close()">Cancel</button><button type="button" class="mod-primary" id="mods-update-save" onclick="saveModUpdates()">Save selected pins</button></div><p id="mods-update-error" role="alert"></p></dialog>
-  </section>
+    <dialog id="mods-details-dialog" class="mods-dialog" aria-labelledby="mods-details-title"><div class="mods-dialog-heading"><h3 id="mods-details-title">Mod details</h3><button aria-label="Close mod details" onclick="this.closest('dialog').close()">✕</button></div><p id="mods-detail-id" class="feature-note"></p><div class="field"><label for="mods-detail-name">Name</label><input id="mods-detail-name" maxlength="200"></div>
+    <div class="field"><label for="mods-detail-version">Version</label><input id="mods-detail-version" maxlength="32" placeholder="Leave blank for latest available"></div><p class="feature-note">Leave the version blank to use the latest available version at server startup. Enter a version to pin it.</p><button class="mod-primary" id="mods-detail-save" data-permission="mods" onclick="saveModDetails()">Save changes</button><p id="mods-detail-result" role="status"></p></dialog>
+    <dialog id="mods-update-dialog" class="mods-dialog" aria-labelledby="mods-update-dialog-title"><div class="mods-dialog-heading"><h3 id="mods-update-dialog-title">Review version changes</h3><button aria-label="Close update review" onclick="this.closest('dialog').close()">✕</button></div><p class="feature-note">These version pins will be changed in the server configuration. The running server will need a restart.</p><div id="mods-update-preview" class="mods-update-preview"></div>
+    <div class="mods-update-dialog-actions"><button type="button" onclick="modEl('mods-update-dialog').close()">Cancel</button>
+    <button type="button" class="mod-primary" id="mods-update-save" onclick="saveModUpdates()">Save selected pins</button></div><p id="mods-update-error" role="alert"></p></dialog>
+  </div>
+    <div id="section-mods-review" role="tabpanel" aria-labelledby="section-tab-mods-review" data-section-content="mods" hidden><div class="section-tabs" role="tablist" aria-label="mod-review sections"><button type="button" role="tab" id="section-tab-mod-review-updates" aria-controls="section-mod-review-updates" aria-selected="true" tabindex="0" data-section-group="mod-review" data-section-key="updates">Workshop updates</button>
+    <button type="button" role="tab" id="section-tab-mod-review-compare" aria-controls="section-mod-review-compare" aria-selected="false" tabindex="-1" data-section-group="mod-review" data-section-key="compare">Compare lists</button></div>
+    <div id="section-mod-review-updates" role="tabpanel" aria-labelledby="section-tab-mod-review-updates" data-section-content="mod-review">
+    <div id="mods-updates" aria-labelledby="section-tab-mod-review-updates" class="card">
+      <div class="mods-update-heading"><div><h3>Mod update review</h3><p>Compare pinned versions with the current Workshop release. Only selected pins will change; restart the game server to load them.</p></div>
+    <button id="mods-update-review" class="mod-primary" data-permission="mods" onclick="reviewModUpdates()" disabled>Review selected</button></div>
+      <p id="mods-update-status" class="feature-note" role="status">Checking Workshop versions…</p>
+      <div id="mods-update-list" class="mods-update-list"></div>
+    </div>
+  </div>
+    <div id="section-mod-review-compare" role="tabpanel" aria-labelledby="section-tab-mod-review-compare" data-section-content="mod-review" hidden>
+    <div id="mods-compare" aria-labelledby="section-tab-mod-review-compare" class="card">
+      <div class="mods-update-heading"><div><h3>Compare mod lists</h3><p>Find your group's server, paste an event server URL, or compare a JSON list. Choose individual changes; nothing is selected automatically.</p></div><a href="https://www.armahq.com/servers" target="_blank" rel="noopener noreferrer">Browse ArmaHQ ↗</a></div>
+      <div class="mods-sort" role="group" aria-label="Comparison source"><button id="mods-compare-source-server" aria-pressed="true" onclick="setComparisonSource('server')">ArmaHQ server</button>
+    <button id="mods-compare-source-json" aria-pressed="false" onclick="setComparisonSource('json')">Paste JSON</button></div>
+      <form id="mods-compare-search" class="mods-compare-search"><label for="mods-compare-query">Server name, address or ArmaHQ server URL</label><input id="mods-compare-query" type="search" maxlength="300" placeholder="https://www.armahq.com/servers/…"><button id="mods-compare-find" type="submit">Find / compare</button></form>
+      <form id="mods-compare-json" class="mods-compare-search" hidden><label for="mods-compare-json-input">Mods array, {"mods": […]} or full server config</label><textarea id="mods-compare-json-input" rows="7" maxlength="200000" spellcheck="false" placeholder='[{"modId":"687CD82F6E41D627","name":"Attachment Framework-Core","version":"1.0.16"}]'></textarea><button id="mods-compare-json-button" type="submit">Compare JSON</button></form>
+      <p id="mods-compare-status" class="feature-note" role="status">Compare your configured JSON mod list with the mods reported by ArmaHQ.</p>
+      <div id="mods-compare-results" class="mods-compare-results"></div>
+      <div id="mods-compare-summary" class="mods-compare-summary" hidden></div>
+      <p id="mods-compare-note" class="feature-note" hidden>ArmaHQ data may lag behind the server. “Latest” means your config has no version pin; it does not report the installed version. Adding a mod uses their reported version. This does not download mods or change the scenario.</p>
+      <div id="mods-compare-tools" class="mods-compare-tools" hidden><div class="mods-sort" role="group" aria-label="Difference category"><button id="mods-compare-filter-missing" aria-pressed="true" onclick="filterComparison('missing')">Missing</button>
+    <button id="mods-compare-filter-extra" aria-pressed="false" onclick="filterComparison('extra')">Extras</button>
+    <button id="mods-compare-filter-versions" aria-pressed="false" onclick="filterComparison('versions')">Versions</button></div><input id="mods-compare-filter" type="search" aria-label="Search comparison mods" placeholder="Filter differences by name or ID…" oninput="searchComparison()"></div>
+      <button id="mods-compare-review" class="mod-primary" type="button" data-permission="mods" hidden disabled onclick="reviewServerModChanges()">Review selected changes</button>
+      <div id="mods-compare-differences"></div>
+    </div>
+    <dialog id="mods-compare-dialog" class="mods-dialog" aria-labelledby="mods-compare-title"><div class="mods-dialog-heading"><h3 id="mods-compare-title">Review server mod changes</h3><button aria-label="Close review" onclick="this.closest('dialog').close()">✕</button></div><p class="feature-note">Only the changes below will be applied. A config backup is created before saving. Restart the game server afterward to load the changed list.</p><div id="mods-compare-preview"></div><p id="mods-compare-error" role="alert"></p><button id="mods-compare-save" class="mod-primary" onclick="applyServerModChanges()">Apply these changes</button></dialog>
+  </div></div>
+    <div id="section-mods-presets" role="tabpanel" aria-labelledby="section-tab-mods-presets" data-section-content="mods" hidden>
+    <div id="mods-presets" aria-labelledby="section-tab-mods-presets" class="card">    <!-- Mod presets -->
+    <div class="field"><label for="preset-select">Saved server presets</label>
+      <select id="preset-select" onchange="showPreset()"><option>Loading...</option></select></div>
+    <p class="feature-note" id="preset-details"></p>
+    <div data-permission="mods" hidden>
+      <div class="feature-row"><button class="btn-save" onclick="presetAction('apply')">Apply selected preset</button>
+        <button class="btn-save" onclick="savePreset(true)">Overwrite selected preset</button>
+        <button class="btn-save" onclick="presetAction('delete')">Delete preset</button></div>
+      <div class="field"><label for="preset-name">New preset name</label><input id="preset-name" maxlength="80" placeholder="e.g. Weekend conflict"></div>
+      <button class="btn-save" onclick="savePreset()">Save current scenario and mods</button>
+      <p class="feature-note">New presets save the selected scenario and configured mod list. Older mod-only presets still change mods only. Applying a preset requires a game-server restart.</p>
+    </div>
+</div>
+  </div>
+    <button class="section-history-link" data-permission="activity" hidden onclick="openModHistory()">View mod history →</button></section>
 
-  <section class="tab-panel" id="panel-administration" role="tabpanel" aria-labelledby="tab-administration" hidden>
+<section class="tab-panel" id="panel-administration" role="tabpanel" aria-labelledby="tab-administration" hidden><div class="section-tabs" role="tablist" aria-label="admin sections"><button type="button" role="tab" id="section-tab-admin-accounts" aria-controls="section-admin-accounts" aria-selected="true" tabindex="0" data-section-group="admin" data-section-key="accounts">Accounts</button>
+    <button type="button" role="tab" id="section-tab-admin-activity" aria-controls="section-admin-activity" aria-selected="false" tabindex="-1" data-section-group="admin" data-section-key="activity" data-permission="activity" hidden>Activity</button>
+    <button type="button" role="tab" id="section-tab-admin-maintenance" aria-controls="section-admin-maintenance" aria-selected="false" tabindex="-1" data-section-group="admin" data-section-key="maintenance" data-permission="admin_config" hidden>Maintenance</button></div>
+    <div id="section-admin-accounts" role="tabpanel" aria-labelledby="section-tab-admin-accounts" data-section-content="admin">
   <!-- Accounts and activity -->
   <div class="card clip">
     <div class="card-label">My account · <span id="account-label"></span></div>
@@ -936,17 +558,45 @@ button:disabled { opacity:.45; cursor:not-allowed; }
       <div class="field"><label for="user-role">Permission level</label><select id="user-role"><option value="viewer">Viewer</option><option value="operator">Operator</option><option value="manager">Manager</option><option value="admin">Administrator</option></select></div>
     </div>
     <label><input id="user-enabled" type="checkbox" checked> Account enabled</label>
-    <div class="feature-row"><button id="user-save" class="btn-save" onclick="saveUser()">Create account</button><button class="btn-save" onclick="resetUserForm()">Clear form</button></div>
+    <div class="feature-row"><button id="user-save" class="btn-save" onclick="saveUser()">Create account</button>
+    <button class="btn-save" onclick="resetUserForm()">Clear form</button></div>
     </fieldset>
   </div>
-  <details class="card" data-permission="activity" hidden>
-    <summary class="card-label" style="cursor:pointer;margin-bottom:12px">Admin activity history — who changed what</summary>
+</div>
+    <div id="section-admin-activity" role="tabpanel" aria-labelledby="section-tab-admin-activity" data-section-content="admin" hidden><div class="section-filter" role="group" aria-label="Activity filter"><button onclick="setActivityScope('all')" id="activity-scope-all" aria-pressed="true">All activity</button>
+    <button onclick="setActivityScope('mods')" id="activity-scope-mods" aria-pressed="false">Mod history</button></div>
+    <div id="activity-all">  <div class="card" data-permission="activity" hidden>
+    <h3 class="card-label">Admin activity history — who changed what</h3>
     <p class="feature-note">Separate from the live server console: account actions such as server start/stop/restart, mod changes, presets and settings, with who performed them and when.</p>
     <button class="btn-save" onclick="loadActivity()">Refresh activity</button>
     <div id="activity-list"></div>
     <button id="activity-more" class="btn-save" onclick="loadActivity(true)" hidden>Load older events</button>
-  </details>
-  </section>
+  </div>
+  </div>
+    <div id="activity-mods" hidden>
+    <div id="mods-history" aria-labelledby="section-tab-admin-activity" class="card"><h3>Mod activity</h3><div id="mods-history-events"></div>
+    <button id="mods-history-more" onclick="loadModHistory(false)" hidden>Load more</button></div>
+  </div></div>
+    <div id="section-admin-maintenance" role="tabpanel" aria-labelledby="section-tab-admin-maintenance" data-section-content="admin" hidden><div class="card" id="software-card" data-permission="admin_config" hidden>
+    <div class="card-label">Server software</div>
+    <p id="software-build">Installed Steam build: loading…</p>
+    <p class="feature-note" id="software-latest">Available public build: not checked</p>
+    <div class="console-actions"><button class="config-button" id="software-check" disabled onclick="runSoftwareJob('check')">Check for updates</button>
+    <button class="config-button" id="software-update" disabled onclick="runSoftwareJob('update')">Update server</button></div>
+    <p class="feature-note">Updates the game server through SteamCMD. Stop the server first; it stays stopped after updating. Steam build IDs are not game version numbers.</p>
+    <p id="software-status" class="feature-note" role="status"></p>
+    <details><summary>Update output</summary><pre id="software-output" style="max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere"></pre></details>
+  </div>
+    <div class="card" id="config-backups-card" data-permission="admin_config" hidden>
+    <div class="card-label">Configuration backups</div>
+    <p class="feature-note">The panel saves the previous server JSON before every configuration change. Backups include passwords and are available only to panel administrators.</p>
+    <div class="field"><label for="config-backup-select">Saved versions</label><select id="config-backup-select" onchange="clearConfigBackupReview()"><option value="">Loading backups…</option></select></div>
+    <div class="feature-row"><button class="config-button" type="button" onclick="loadConfigBackups()">Refresh backups</button>
+    <button class="config-button" type="button" id="config-backup-review" onclick="reviewConfigBackup()" disabled>Review changes</button></div>
+    <p class="feature-note" id="config-backup-status" role="status"></p>
+    <pre id="config-backup-diff" class="config-backup-diff" hidden></pre>
+    <button class="config-button" type="button" id="config-backup-restore" onclick="restoreConfigBackup()" disabled>Restore reviewed backup</button>
+  </div></div></section>
   <!-- Op log -->
   <div class="op-log" role="status" aria-live="polite">
     <div class="log-label">Last operation</div>
@@ -959,719 +609,23 @@ button:disabled { opacity:.45; cursor:not-allowed; }
 
 </div>
 
-<script>
-// ─── CSRF + fetch helpers ────────────────────────────────────────────────────
-let CSRF = '';
-
-async function postJson(url, body) {
-  if (!CSRF) {
-    try { const r = await fetch('/api/csrf'); if (r.ok) CSRF = (await r.json()).csrf || ''; }
-    catch(e) {}
-  }
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
-    body: JSON.stringify({ ...(body || {}), _csrf: CSRF }),
-  });
-  if (r.status === 401) { window.location.href = '/login'; throw new Error('unauthorized'); }
-  if (r.status === 403) {
-    // CSRF expired — refresh token and surface error
-    try { const cr = await fetch('/api/csrf'); if (cr.ok) CSRF = (await cr.json()).csrf || ''; } catch(e) {}
-  }
-  document.dispatchEvent(new CustomEvent('panel-change', {detail: url}));
-  return r;
-}
-
-async function postForm(url, formData) {
-  if (!CSRF) {
-    try { const r = await fetch('/api/csrf'); if (r.ok) CSRF = (await r.json()).csrf || ''; }
-    catch(e) {}
-  }
-  formData.append('_csrf', CSRF);
-  const r = await fetch(url, {
-    method: 'POST',
-    headers: { 'X-CSRF-Token': CSRF },
-    body: formData,
-  });
-  if (r.status === 401) { window.location.href = '/login'; throw new Error('unauthorized'); }
-  document.dispatchEvent(new CustomEvent('panel-change', {detail: url}));
-  return r;
-}
-
-// ─── Charts setup ────────────────────────────────────────────────────────────
-const MAX_POINTS = 60;
-
-function makeChartData(color) {
-  return {
-    labels: Array(MAX_POINTS).fill(''),
-    datasets: [{
-      data: Array(MAX_POINTS).fill(null),
-      borderColor: color,
-      backgroundColor: color + '18',
-      borderWidth: 1.5,
-      pointRadius: 0,
-      fill: true,
-      tension: 0.4,
-    }]
-  };
-}
-
-const chartOpts = (max) => ({
-  responsive: true,
-  maintainAspectRatio: false,
-  animation: false,
-  plugins: { legend: { display: false }, tooltip: { enabled: false } },
-  scales: {
-    x: { display: false },
-    y: {
-      display: true,
-      min: 0, max: max,
-      grid: { color: '#1e253022', drawBorder: false },
-      ticks: {
-        color: '#5a6070', font: { size: 9 }, maxTicksLimit: 3,
-        callback: v => v + '%'
-      }
-    }
-  }
-});
-
-const cpuChart = new Chart(document.getElementById('chart-cpu'), {
-  type: 'line',
-  data: makeChartData('#4c9fd6'),
-  options: chartOpts(100)
-});
-
-const ramChart = new Chart(document.getElementById('chart-ram'), {
-  type: 'line',
-  data: makeChartData('#c8a84b'),
-  options: chartOpts(100)
-});
-
-function trafficChart(id, unit) {
-  const data = makeChartData('#c8a84b');
-  data.datasets.push(makeChartData('#4caf7d').datasets[0]);
-  const options = chartOpts(undefined);
-  options.scales.y.ticks.callback = value => value + ' ' + unit;
-  return new Chart(document.getElementById(id), {type:'line', data, options});
-}
-const networkChart = trafficChart('chart-network', 'Mbps');
-const diskChart = trafficChart('chart-disk', 'MiB/s');
-
-function renderTraffic(sample, chart, ids, statusId, factor, unit, scope) {
-  const available = sample?.status === 'available';
-  [sample?.first, sample?.second].forEach((value, index) => {
-    const rate = available && Number.isFinite(value) ? value * factor : null;
-    document.getElementById(ids[index]).textContent = rate === null ? '—' : rate.toFixed(2) + ' ' + unit;
-    const values = chart.data.datasets[index].data;
-    values.push(rate); if (values.length > MAX_POINTS) values.shift();
-  });
-  document.getElementById(statusId).textContent = available ? scope : sample?.status === 'warming' ? 'Collecting first interval…' : sample?.status === 'stopped' ? 'Server stopped' : 'Metrics unavailable';
-  chart.update('none');
-}
-
-function pushChart(chart, value) {
-  chart.data.datasets[0].data.push(value);
-  if (chart.data.datasets[0].data.length > MAX_POINTS)
-    chart.data.datasets[0].data.shift();
-  chart.update('none');
-}
-
-const metricDefinitions = [
-  ['fps', 'Server simulation FPS', ['FPS'], 'FPS', 'Waiting for native server performance statistics'],
-  ['ping', 'Player latency', ['Median', '95th percentile'], 'ms', 'Requires game telemetry; unavailable with no ping samples'],
-];
-const extraCharts = {};
-const eventMarkers = {
-  id: 'panelEvents',
-  afterDraw(chart) {
-    const events = chart.panelEvents || [];
-    const times = chart.sampleTimes || [];
-    const {ctx, chartArea} = chart;
-    if (!chartArea) return;
-    ctx.save(); ctx.strokeStyle = '#c8a84b'; ctx.setLineDash([3, 4]);
-    for (const event of events) {
-      const index = times.findIndex(t => t != null && t >= event.ts);
-      const first = times.find(t => t != null);
-      if (index < 0 || event.ts < first) continue;
-      const x = chart.scales.x.getPixelForValue(index);
-      ctx.beginPath(); ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom); ctx.stroke();
-    }
-    ctx.restore();
-  }
-};
-Chart.register(eventMarkers);
-for (const [id, title, series, unit, description] of metricDefinitions) {
-  const card = document.createElement('div'); card.className = 'chart-card';
-  card.innerHTML = `<div class="chart-header"><div><div class="chart-title">${title}</div><div class="chart-sub" id="metric-${id}-value">Unavailable</div></div></div><div class="chart-wrap" style="height:120px"><canvas id="chart-${id}" role="img" aria-label="${title}"></canvas></div><p class="feature-note" id="metric-${id}-note">${description}</p>`;
-  if (id === 'fps') { const value = document.createElement('div'); value.className='chart-value ram'; value.id='server-fps-value'; value.textContent='— FPS'; card.querySelector('.chart-header').append(value); }
-  document.getElementById('extra-metrics').append(card);
-  const options = chartOpts(undefined);
-  options.scales.y.ticks.callback = v => v + ' ' + unit;
-  options.plugins.legend = {display: series.length > 1, labels: {color:'#8a909d', boxWidth:10}};
-  options.plugins.tooltip = {enabled:true};
-  const data = makeChartData('#4c9fd6');
-  data.datasets = series.map((label, i) => ({...makeChartData(i ? '#78b88b' : '#c8a84b').datasets[0], label, tension:0, fill:false}));
-  extraCharts[id] = new Chart(card.querySelector('canvas'), {type:'line', data, options});
-}
-function updateExtraMetrics(d) {
-  document.getElementById('server-fps-value').textContent = Number.isFinite(d?.server_fps) ? d.server_fps.toFixed(1) + ' FPS' : '— FPS';
-  document.getElementById('cpu-frequency').textContent = Number.isFinite(d?.cpu_frequency_mhz) ? (d.cpu_frequency_mhz / 1000).toFixed(2) + ' GHz' : '— GHz';
-  document.getElementById('cpu-frequency').title = Number.isFinite(d?.cpu_frequency_mhz) ? 'Average frequency reported by the OS across logical CPUs' : 'CPU frequency unavailable from this host';
-  document.getElementById('ram-capacity').textContent = d?.ram_total > 0 && Number.isFinite(d?.ram_used) ? (d.ram_used / 1024).toFixed(1) + ' / ' + (d.ram_total / 1024).toFixed(1) + ' GiB' : '— / — GiB';
-  for (const [id, value] of [['ai-count', d?.ai_count], ['vehicle-count', d?.vehicle_count]]) {
-    const counter = document.getElementById(id);
-    counter.textContent = Number.isFinite(value) ? Math.round(value).toLocaleString() : '—';
-    counter.title = Number.isFinite(value) ? 'Latest server count' : 'Count unavailable';
-  }
-  const now = d?.ts ?? Date.now() / 1000;
-  const values = {
-    fps:[d?.server_fps], network:[d?.network_rx, d?.network_tx],
-    disk:[d?.disk_read, d?.disk_write], ping:[d?.ping_median, d?.ping_p95]
-  };
-  const events = d?.events || [];
-  for (const [id, , series, unit] of metricDefinitions) {
-    const chart = extraCharts[id];
-    chart.data.labels.push(new Date(now * 1000).toLocaleTimeString()); chart.data.labels.shift();
-    chart.sampleTimes = [...(chart.sampleTimes || Array(MAX_POINTS).fill(null)), now].slice(-MAX_POINTS);
-    chart.panelEvents = events;
-    chart.data.datasets.forEach((set, i) => {
-      set.data.push(Number.isFinite(values[id][i]) ? values[id][i] : null); set.data.shift();
-    });
-    document.getElementById(`metric-${id}-value`).textContent = series.map((label,i) => `${label}: ${Number.isFinite(values[id][i]) ? values[id][i].toFixed(1) + (unit ? ' ' + unit : '') : 'Unavailable'}`).join(' · ');
-    chart.update('none');
-  }
-  for (const chart of [cpuChart, ramChart]) {
-    chart.sampleTimes = [...(chart.sampleTimes || Array(MAX_POINTS).fill(null)), now].slice(-MAX_POINTS);
-    chart.panelEvents = events;
-  }
-  document.getElementById('metric-fps-note').textContent = d?.fps_message || 'FPS statistics unavailable';
-  document.getElementById('metric-ping-note').textContent = d?.telemetry_message || 'Player latency unavailable';
-  const available = Number.isFinite(d?.disk_free) && d.disk_total > 0;
-  const low = available && (d.disk_used_percent >= 90 || d.disk_free < 5 * 1024 ** 3);
-  document.getElementById('disk-space-gauge').hidden = !available;
-  document.getElementById('disk-space-gauge').value = available ? d.disk_used_percent : 0;
-  document.getElementById('disk-space-text').textContent = available ? `${(d.disk_free / 1024 ** 3).toFixed(1)} GiB free of ${(d.disk_total / 1024 ** 3).toFixed(1)} GiB (${d.disk_used_percent.toFixed(1)}% used)` : 'Disk space unavailable';
-  document.getElementById('disk-space-alert').textContent = low ? 'Low disk space: less than 10% or 5 GiB remaining. Free space before updating mods or creating saves.' : '';
-  document.getElementById('disk-space-alert').style.color = low ? '#ef7777' : '';
-  const names = {api_start:'Server start', api_stop:'Server stop', api_restart:'Server restart', presets_apply:'Mod preset applied', api_mods_add:'Mod added', api_mods_remove:'Mod removed', api_mods_import:'Mods imported'};
-  document.getElementById('metric-events').textContent = events.length ? events.slice(0,5).map(e => `${new Date(e.ts * 1000).toLocaleTimeString()} — ${names[e.action] || e.action}`).join(' · ') : 'No recent panel events.';
-}
-
-// ─── Metrics polling ─────────────────────────────────────────────────────────
-let metricsPending = false;
-async function fetchMetrics() {
-  if (metricsPending || document.hidden || document.getElementById('panel-dashboard').hidden) return;
-  metricsPending = true;
-  try {
-    const r = await fetch('/api/metrics');
-    if (r.status === 401) { window.location.href = '/login'; return; }
-    if (!r.ok) throw new Error('Metrics request failed');
-    const d = await r.json();
-    updateExtraMetrics(d);
-
-    const ramPct = d.ram_total > 0 ? Math.round(d.ram_used / d.ram_total * 100) : 0;
-
-    document.getElementById('cpu-val').textContent = (d.cpu ?? 0).toFixed(1) + '%';
-    document.getElementById('ram-val').textContent = ramPct + '%';
-    document.getElementById('proc-cpu-sub').textContent = 'Arma: ' + (d.running ? (d.cpu ?? 0).toFixed(1) + '%' : '—%');
-    document.getElementById('proc-ram-sub').textContent = 'Arma: ' + (d.running ? (d.ram_process ?? 0) + ' MB / ' + d.ram_total + ' MB' : '— MB');
-
-    pushChart(cpuChart, d.cpu ?? 0);
-    pushChart(ramChart, ramPct);
-    renderTraffic(d.network, networkChart, ['net-rx','net-tx'], 'net-state', 8 / 1000000, 'Mbps', 'All non-loopback interfaces; includes other host traffic');
-    renderTraffic(d.disk, diskChart, ['disk-read','disk-write'], 'disk-state', 1 / 1048576, 'MiB/s', 'Storage reads/writes attributed to the game process');
-  } catch(e) {
-    updateExtraMetrics(null);
-    renderTraffic(null, networkChart, ['net-rx','net-tx'], 'net-state', 1, 'Mbps', '');
-    renderTraffic(null, diskChart, ['disk-read','disk-write'], 'disk-state', 1, 'MiB/s', '');
-  }
-  finally { metricsPending = false; }
-}
-
-setInterval(fetchMetrics, 1000);
-fetchMetrics();
-
-// ─── SSE Log stream ───────────────────────────────────────────────────────────
-let evtSource = null;
-
-function colorLine(line) {
-  const l = line.toLowerCase();
-  if (l.includes('(e):') || l.includes('error'))  return 'err';
-  if (l.includes('(w):') || l.includes('warning')) return 'warn';
-  if (l.includes('online game') || l.includes('server registered')) return 'ok';
-  if (line.startsWith('[---'))  return 'sep';
-  return '';
-}
-
-function isPerformanceLog(text) {
-  return /^\s*\d{2}:\d{2}:\d{2}\.\d+\s+(?:DEFAULT\s*:\s*FPS:\s*\d+(?:\.\d+)?,\s*frame time\s*\(|WORLD\s*:\s*(?:UpdateEntities|Frame)\s*$)/.test(text);
-}
-
-function togglePerformanceLogs() {
-  const show = document.getElementById('show-performance-logs').checked;
-  document.getElementById('log-output').classList.toggle('hide-performance', !show);
-  const consoleToggle = document.getElementById('console-performance');
-  if (consoleToggle) consoleToggle.checked = show;
-  if (typeof refreshConsoleView === 'function') refreshConsoleView();
-  try { localStorage.setItem('panel-show-performance-logs', String(show)); } catch (_) {}
-}
-try {
-  document.getElementById('show-performance-logs').checked = localStorage.getItem('panel-show-performance-logs') === 'true';
-} catch (_) {}
-togglePerformanceLogs();
-
-function appendLog(text) {
-  const el = document.getElementById('log-output');
-  const span = document.createElement('span');
-  span.className = 'log-line ' + colorLine(text) + (isPerformanceLog(text) ? ' performance-log' : '');
-  span.textContent = text;
-  span.hidden = !text.toLowerCase().includes(document.getElementById('console-search').value.toLowerCase());
-  el.appendChild(span);
-  if (typeof renderConsoleLine === 'function') renderConsoleLine(text);
-  // Auto-scroll only when the user is near the bottom
-  if (!document.getElementById('pause-console-scroll').checked && el.scrollHeight - el.scrollTop < el.clientHeight + 120) {
-    el.scrollTop = el.scrollHeight;
-  }
-  // Limit lines in the DOM
-  const lines = el.querySelectorAll('.log-line');
-  if (lines.length > 800) lines[0].remove();
-}
-
-function filterConsole() {
-  const query = document.getElementById('console-search').value.toLowerCase();
-  document.querySelectorAll('#log-output .log-line').forEach(line => { line.hidden = !line.textContent.toLowerCase().includes(query); });
-}
-
-function clearLog() {
-  document.getElementById('log-output').innerHTML = '';
-  if (typeof resetConsoleLog === 'function') resetConsoleLog();
-}
-
-function startLogStream() {
-  if (evtSource) clearInterval(evtSource);
-
-  // Fetch the last 80 lines immediately
-  fetchLogs(80);
-
-  // Then poll every 2 seconds for new lines
-  evtSource = setInterval(() => fetchLogs(30), 2000);
-  document.getElementById('log-live-dot').classList.remove('off');
-}
-
-let logCursor = '';
-let logsPending = false;
-async function fetchLogs(count) {
-  if (logsPending || (typeof can === 'function' && !can('logs'))) return;
-  logsPending = true;
-  try {
-    // Bounded catch-up batches keep busy logs moving without overlapping polls.
-    for (let batch = 0; batch < 4; batch++) {
-      const r = await fetch(`/api/logs?lines=${count}&cursor=${encodeURIComponent(logCursor)}`);
-      if (!r.ok) return;
-      const d = await r.json();
-      if (d.error || !d.lines) return;
-      if (d.reset) clearLog();
-      d.lines.forEach(line => appendLog(line));
-      if (d.cursor) logCursor = d.cursor;
-      if (typeof refreshConsoleView === 'function') refreshConsoleView();
-      if (typeof syncConsoleControls === 'function') syncConsoleControls(Boolean(window.consoleServerRunning), busy);
-      if (!d.more) break;
-    }
-  } catch(e) {
-    document.getElementById('console-live-dot').classList.add('off');
-    document.getElementById('console-live-label').textContent = 'Disconnected';
-  }
-  finally { logsPending = false; }
-}
-
-startLogStream();
-
-// ─── Status polling ───────────────────────────────────────────────────────────
-let refreshInterval = null;
-let countdown = 10;
-let busy = false;
-
-async function fetchStatus() {
-  try {
-    const r = await fetch('/api/status');
-    if (r.status === 401) { window.location.href = '/login'; return; }
-    const d = await r.json();
-    updateUI(d);
-  } catch(e) {
-    setLog('Connection error', 'error');
-  }
-}
-
-function updateUI(d) {
-  const dot = document.getElementById('dot');
-  const txt = document.getElementById('status-text');
-  dot.className = 'dot ' + (d.running ? 'online' : 'offline');
-  txt.className = 'status-text ' + (d.running ? 'online' : 'offline');
-  txt.textContent = d.running ? 'ONLINE' : 'OFFLINE';
-
-  document.getElementById('server-name-display').textContent = d.server_name || '—';
-  document.getElementById('ip-port-display').textContent = (d.ip && d.port) ? d.ip + ':' + d.port : '—';
-  document.getElementById('map-name').textContent = d.map || '—';
-  document.getElementById('uptime-display').textContent = d.running ? (d.uptime || '—') : '—';
-
-  if (!busy) {
-    document.getElementById('btn-start').disabled = d.running;
-    document.getElementById('btn-stop').disabled  = !d.running;
-    document.getElementById('btn-reset').disabled = false;
-  }
-
-  if (d.csrf) CSRF = d.csrf;
-  window.consoleServerRunning = d.running;
-
-  // Render the mod list
-  renderMods(d.mods || []);
-  if (typeof applyPermissions === 'function') applyPermissions();
-  if (typeof syncConsoleControls === 'function') syncConsoleControls(d.running, busy);
-}
-
-function renderMods(mods) { updateModLibrary(mods); }
-
-function escHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-async function addMod() {
-  const modId   = document.getElementById('mod-id').value.trim();
-  const modName = document.getElementById('mod-name').value.trim();
-  const modVer  = document.getElementById('mod-version').value.trim();
-  if (!modId)   { setLog('Mod ID is required', 'error'); return; }
-  if (!modName) { setLog('Mod name is required', 'error'); return; }
-  document.getElementById('btn-add-mod').disabled = true;
-  setLog('Adding mod…', 'info');
-  try {
-    const r = await postJson('/api/mods/add', { modId, name: modName, version: modVer });
-    const d = await r.json();
-    if (d.ok) {
-      setLog(`Mod "${modName}" added`, 'ok');
-      document.getElementById("mods-add-dialog").close();
-      document.getElementById('mod-id').value = '';
-      document.getElementById('mod-name').value = '';
-      document.getElementById('mod-version').value = '';
-      document.getElementById('mods-restart-notice').classList.toggle('visible', d.restart_required);
-      await fetchStatus();
-    } else {
-      setLog('Error: ' + (d.error || 'unknown'), 'error');
-    }
-  } catch(e) { setLog('Connection error', 'error'); }
-  document.getElementById('btn-add-mod').disabled = false;
-}
-
-async function removeMod(modId) {
-  if (!confirm('Remove this mod from the configuration?')) return;
-  setLog('Removing mod…', 'info');
-  try {
-    const r = await postJson('/api/mods/remove', { modId });
-    const d = await r.json();
-    if (d.ok) {
-      setLog('Mod removed', 'ok');
-      document.getElementById('mods-restart-notice').classList.toggle('visible', d.restart_required);
-      await fetchStatus();
-    } else {
-      setLog('Error: ' + (d.error || 'unknown'), 'error');
-    }
-  } catch(e) { setLog('Connection error', 'error'); }
-}
-
-// ─── Bulk import (paste or file upload) ──────────────────────────────────────
-async function importModsFromTextarea() {
-  const txt = document.getElementById('mods-import-text').value;
-  if (!txt.trim()) { setLog('Paste a JSON array first', 'error'); return; }
-  const mode = document.getElementById('mods-import-mode').value;
-  await _importMods({ payload: txt, mode });
-}
-
-async function importModsFromFile(input) {
-  const f = input.files && input.files[0];
-  if (!f) return;
-  if (f.size > 2 * 1024 * 1024) { setLog('File too large (max 2 MB)', 'error'); return; }
-  const mode = document.getElementById('mods-import-mode').value;
-  setLog(`Uploading ${f.name}…`, 'info');
-  const fd = new FormData();
-  fd.append('file', f, f.name);
-  fd.append('mode', mode);
-  try {
-    const r = await postForm('/api/mods/import', fd);
-    const d = await r.json();
-    _afterImport(d);
-  } catch(e) { setLog('Upload error', 'error'); }
-  input.value = '';
-}
-
-async function _importMods(body) {
-  setLog('Importing mods…', 'info');
-  try {
-    const r = await postJson('/api/mods/import', body);
-    const d = await r.json();
-    _afterImport(d);
-  } catch(e) { setLog('Connection error', 'error'); }
-}
-
-function _afterImport(d) {
-  if (d.ok) {
-    let msg = d.message || `${d.imported} mods imported`;
-    if (d.skipped && d.skipped.length) {
-      msg += ` (${d.skipped.length} skipped: ${d.skipped.slice(0, 3).join('; ')}${d.skipped.length > 3 ? '…' : ''})`;
-    }
-    setLog(msg, 'ok');
-    document.getElementById("mods-import-dialog").close();
-    document.getElementById('mods-import-text').value = '';
-    document.getElementById('mods-restart-notice').classList.toggle('visible', d.restart_required);
-    fetchStatus();
-  } else {
-    setLog('Import failed: ' + (d.error || 'unknown'), 'error');
-  }
-}
-
-function setLog(msg, type = 'info') {
-  const dialogStatus = document.querySelector('dialog[open] .mods-dialog-status');
-  if (dialogStatus) dialogStatus.textContent = msg;
-  const el = document.getElementById('log-msg');
-  el.className = 'log-entry ' + type;
-  const ts = new Date().toLocaleTimeString('en-US');
-  el.textContent = '[' + ts + '] ' + msg;
-}
-
-function setBusy(state) {
-  busy = state;
-  ['btn-start','btn-stop','btn-reset','btn-persist-flush'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = state;
-  });
-  if (typeof applyPermissions === 'function') applyPermissions();
-  if (typeof syncConsoleControls === 'function') syncConsoleControls(Boolean(window.consoleServerRunning), state);
-}
-
-async function serverAction(action) {
-  const labels = { start: 'Starting server...', stop: 'Stopping server...', restart: 'Restarting server...' };
-  setBusy(true);
-  setLog(labels[action], 'info');
-  try {
-    const r = await postJson('/api/' + action, {});
-    if (r.status === 401) { window.location.href = '/login'; return; }
-    const d = await r.json();
-    if (d.ok) {
-      const success = { start: 'Server started', stop: 'Server stopped', restart: 'Server restarted' };
-      setLog(success[action], 'ok');
-      await new Promise(res => setTimeout(res, 1500));
-      await fetchStatus();
-    } else {
-      setLog('Error: ' + (d.error || 'unknown'), 'error');
-    }
-  } catch(e) { setLog('Connection error', 'error'); }
-  setBusy(false);
-}
-
-function _fmtBytes(n) {
-  if (!n) return '0 B';
-  const u = ['B','KB','MB','GB']; let i = 0;
-  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
-  return `${n.toFixed(i ? 1 : 0)} ${u[i]}`;
-}
-
-function _fmtAge(ts) {
-  if (!ts) return 'never';
-  const s = Math.max(0, Math.floor(Date.now() / 1000 - ts));
-  if (s < 60)   return `${s}s ago`;
-  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
-  return `${Math.floor(s / 86400)}d ago`;
-}
-
-function _renderPersistStats(s) {
-  const overdue = s.running && s.enabled && s.autoSaveInterval > 0 &&
-    (!s.saves?.newest_save || Date.now() / 1000 - s.saves.newest_save > Math.max(1800, s.autoSaveInterval * 180));
-  if ('autoSaveInterval' in s) {
-    const items = [['Autosave configured', s.enabled === false ? 'Disabled' : s.autoSaveInterval === 0 ? 'Periodic saves off' : `Every ${s.autoSaveInterval} minutes`], ['Startup loading', s.loadSessionSave === false ? 'Off' : 'Latest save'], ['Latest world save in profile', s.saves?.newest_save ? new Date(s.saves.newest_save * 1000).toLocaleString() : 'Not detected'], ['World save files', String(s.saves?.world_files || 0)]];
-    const summary = document.getElementById('persistence-summary'); summary.replaceChildren();
-    for (const [label, value] of items) { const tile=document.createElement('div'), heading=document.createElement('span'), text=document.createElement('strong'); heading.textContent=label;text.textContent=value;tile.append(heading,text);summary.append(tile); }
-    if (overdue) {
-      const note = document.createElement('p'); note.className = 'persistence-warning';
-      note.textContent = 'No recent world save detected. The interval is configured, but this does not confirm the current scenario is saving. Check the scenario and server logs.';
-      summary.append(note);
-    }
-  }
-  const el = document.getElementById('persist-stats');
-  if (!s.saves) { el.textContent = ''; return; }
-  const { path, exists, total, buckets } = s.saves;
-  if (!exists || !total || total.count === 0) {
-    el.innerHTML = `No files found under <code>${escHtml(path || '')}</code>. Autosave is only configured; this does not confirm that the scenario is saving.`;
-    return;
-  }
-  const bucketLabel = { game: 'World session (game)', session: 'World session (session)', sessions: 'World sessions', playersave: 'Player saves', settings: 'Settings' };
-  const rows = ['game', 'session', 'sessions', 'playersave', 'settings']
-    .filter(k => buckets && buckets[k] && buckets[k].count > 0)
-    .map(k => `${bucketLabel[k]}: ${buckets[k].count} file${buckets[k].count === 1 ? '' : 's'}, ${_fmtBytes(buckets[k].bytes)} (newest ${_fmtAge(buckets[k].newest)})`)
-    .join(' · ');
-  const classified = Object.values(buckets || {}).reduce((sum, bucket) => sum + bucket.count, 0);
-  const other = total.count - classified;
-  const details = [rows, other > 0 && `Other: ${other} file${other === 1 ? '' : 's'}`].filter(Boolean).join(' · ');
-  const warning = overdue ? '<br><strong>No recent world save detected.</strong> The configured interval does not prove the current scenario is saving. Check the scenario and server logs.' :
-    !s.saves.newest_save ? '<br>No world save point detected in this folder.' : '';
-  el.innerHTML = `<code>${escHtml(path)}</code><br>${details || 'No save files'}${warning}`;
-}
-
-let selectedStartupSave = '';
-function updateStartupSaveButton() {
-  const button = document.getElementById('persistence-startup-save');
-  const value = document.getElementById('persistence-startup-select').value;
-  button.disabled = value === selectedStartupSave;
-  document.getElementById('persistence-backup-button').disabled = !value || !document.getElementById('persistence-backup-name').value.trim();
-}
-
-function renderStartupSave(s) {
-  const select = document.getElementById('persistence-startup-select');
-  selectedStartupSave = s.selectedSave?.uuid || '';
-  select.replaceChildren(new Option('Latest save for this scenario', ''));
-  const named = new Set();
-  if ((s.namedSaves || []).length) {
-    const group = document.createElement('optgroup'); group.label = 'Named backups';
-    for (const backup of s.namedSaves) {
-      if (!backup.available) continue;
-      named.add(backup.uuid);
-      group.append(new Option(`${backup.name} · ${backup.uuid}`, backup.uuid));
-    }
-    select.append(group);
-  }
-  const recent = document.createElement('optgroup'); recent.label = 'Detected game saves';
-  for (const point of s.savePoints || []) {
-    if (named.has(point.uuid)) continue;
-    const date = new Date(point.modified * 1000).toLocaleString();
-    recent.append(new Option(`${date} · ${point.uuid} · ${point.relative_path}`, point.uuid));
-  }
-  select.append(recent);
-  if (selectedStartupSave && ![...select.options].some(option => option.value === selectedStartupSave)) {
-    select.add(new Option(`Pinned archive · ${selectedStartupSave}`, selectedStartupSave));
-  }
-  select.value = selectedStartupSave;
-  updateStartupSaveButton();
-  const status = document.getElementById('persistence-startup-status');
-  status.textContent = selectedStartupSave ?
-    `Pinned ${selectedStartupSave} for this scenario. The preserved copy survives normal save retention.${s.loadSessionSave === false ? ' Enable Load latest session in the settings above before restarting.' : ''}` :
-    `Using the latest save for this scenario.${(s.savePoints || []).length ? '' : ' No selectable save points were found in this profile yet.'}`;
-  const list = document.getElementById('persistence-backup-list');
-  list.replaceChildren();
-  const backups = s.namedSaves || [];
-  if (!backups.length) list.textContent = 'No named backups kept for this scenario.';
-  for (const backup of backups) {
-    const row = document.createElement('div'); row.className = 'persistence-backup-row';
-    const detail = document.createElement('div');
-    const name = document.createElement('strong'); name.textContent = backup.name;
-    const meta = document.createElement('small');
-    meta.textContent = `${new Date(backup.captured_at * 1000).toLocaleString()} · ${backup.uuid}${backup.available ? '' : ' · archive missing'}`;
-    detail.append(name, meta); row.append(detail);
-    if (backup.available && can('admin_config')) {
-      const use = document.createElement('button'); use.type = 'button'; use.className = 'config-button';
-      use.textContent = 'Select for startup';
-      use.onclick = () => { select.value = backup.uuid; updateStartupSaveButton(); select.focus(); };
-      row.append(use);
-    }
-    list.append(row);
-  }
-}
-
-async function backupSelectedSave() {
-  const uuid = document.getElementById('persistence-startup-select').value;
-  const name = document.getElementById('persistence-backup-name').value.trim();
-  const button = document.getElementById('persistence-backup-button');
-  if (!uuid || !name) { document.getElementById('persistence-startup-status').textContent = 'Select a save point and enter a backup name.'; return; }
-  button.disabled = true;
-  try {
-    const response = await postJson('/api/persistence/named-save', {uuid, name});
-    const result = await response.json();
-    if (!response.ok || !result.ok) throw new Error(result.error || 'Could not keep the backup');
-    document.getElementById('persistence-backup-name').value = '';
-    await fetchPersistence();
-    document.getElementById('persistence-startup-select').value = uuid;
-    updateStartupSaveButton();
-    setLog('Named save backup kept. Select it as the startup save when ready.', 'ok');
-  } catch (error) {
-    document.getElementById('persistence-startup-status').textContent = error.message;
-    button.disabled = false;
-  }
-}
-
-async function saveStartupSave() {
-  const button = document.getElementById('persistence-startup-save');
-  button.disabled = true;
-  try {
-    const response = await postJson('/api/persistence/startup-save', {uuid: document.getElementById('persistence-startup-select').value});
-    const result = await response.json();
-    if (!response.ok || !result.ok) throw new Error(result.error || 'Could not save startup choice');
-    await fetchPersistence();
-    setLog(result.restart_required ? 'Startup save selected. Restart the server to use it.' : 'Startup save selected for the next start.', 'ok');
-  } catch (error) {
-    document.getElementById('persistence-startup-status').textContent = error.message;
-    updateStartupSaveButton();
-  }
-}
-
-async function fetchPersistence() {
-  if (typeof can === 'function' && !can('configure')) return;
-  try {
-    const response = await fetch('/api/persistence');
-    if (response.ok) {
-      const data = await response.json();
-      _renderPersistStats(data);
-      renderStartupSave(data);
-    }
-  } catch(e) { /* Status refresh can retry later. */ }
-}
-
-async function flushPersistence() {
-  if (!confirm('Delete world-session saves (.save/game and .save/session[s]) and per-player saves (.save/playersave)? Server settings are kept. The next launch starts a fresh world. This cannot be undone.')) return;
-  setBusy(true);
-  setLog('Flushing saves...', 'info');
-  try {
-    const r = await postJson('/api/persistence/flush', {});
-    const d = await r.json();
-    if (d.ok) {
-      setLog(`Removed ${d.removed} save file${d.removed === 1 ? '' : 's'}`, 'ok');
-      await fetchPersistence();
-    } else {
-      setLog('Flush failed: ' + (d.error || 'unknown'), 'error');
-    }
-  } catch (e) { setLog('Connection error', 'error'); }
-  setBusy(false);
-}
-
-async function doLogout() {
-  await postJson('/logout', {});
-  window.location.href = '/login';
-}
-
-function startCountdown() {
-  countdown = 10;
-  document.getElementById('refresh-timer').textContent = countdown;
-  clearInterval(refreshInterval);
-  refreshInterval = setInterval(() => {
-    countdown--;
-    document.getElementById('refresh-timer').textContent = countdown;
-    if (countdown <= 0) { fetchStatus(); countdown = 10; }
-  }, 1000);
-}
-
-fetchStatus().then(() => { fetchPersistence(); startCountdown(); });
-
-// PWA — service worker registration
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .catch(err => console.log('SW error:', err));
-  });
-}
-</script>
+<script src="/static/api.js"></script>
+<script src="/static/dashboard.js"></script>
+<script src="/static/log_stream.js"></script>
+<script src="/static/status.js"></script>
+<script src="/static/mod_actions.js"></script>
+<script src="/static/server_controls.js"></script>
+<script src="/static/persistence.js"></script>
 <script src="/static/mods.js"></script>
 <script src="/static/features.js"></script>
 <script src="/static/console.js"></script>
 <script src="/static/configuration.js"></script>
 <script src="/static/config_backups.js"></script>
+<script src="/static/mod_compare.js"></script>
 <script src="/static/network.js"></script>
 <script src="/static/files.js"></script>
 <script src="/static/software.js"></script>
+<script src="/static/page_sections.js"></script>
+<script src="/static/bootstrap.js"></script>
 </body>
 </html>

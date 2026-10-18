@@ -97,3 +97,27 @@ console.log('Frontend refresh and configuration-layout regressions passed');
   assert.equal(context.busy.size,0);
   console.log('Overview controls preserve per-server targets and CSRF');
 })().catch(error=>{console.error(error);process.exitCode=1;});
+
+// The access summary must distinguish server control from panel administration.
+{
+  const choice = {dataset:{server:'training'},value:'operator',selectedOptions:[{textContent:'Start, stop and read logs'}]};
+  const fields = {
+    'user-all-servers':{checked:false},
+    'user-server-access':{querySelectorAll:()=>[choice]},
+    'user-role':{selectedOptions:[{textContent:'Full server administration'}]},
+    'user-panel-admin':{value:'staff'},'user-enabled':{checked:true},
+    'user-access-summary':{textContent:''}
+  };
+  const context=vm.createContext({byId:id=>fields[id],accountServers:[{id:'training',name:'Training'}]});
+  vm.runInContext(between(source('features.js'),'function updateUserAccessSummary()', 'function resetUserForm()'),context);
+  context.updateUserAccessSummary();
+  assert.equal(fields['user-access-summary'].textContent,'Training: Start, stop and read logs. Cannot manage panel users.');
+  fields['user-all-servers'].checked=true; context.updateUserAccessSummary();
+  assert.match(fields['user-access-summary'].textContent,/Every current and future server: Full server administration/);
+  assert.match(fields['user-access-summary'].textContent,/Cannot manage panel users/);
+  fields['user-panel-admin'].value='admin'; context.updateUserAccessSummary();
+  assert.match(fields['user-access-summary'].textContent,/Can manage panel users and grant access to any server/);
+  fields['user-enabled'].checked=false; context.updateUserAccessSummary();
+  assert.match(fields['user-access-summary'].textContent,/Account disabled: cannot sign in/);
+  console.log('Permission summaries explain server scope, panel privileges and disabled accounts');
+}

@@ -86,3 +86,18 @@ class ServerAccessTests(unittest.TestCase):
         with patch.object(provision.sys,'platform','linux'), patch.object(provision.Path,'is_file',return_value=True), patch.object(self.module.software_manager._get_current_object(),'executable',return_value='/steamcmd'):
             response=self.post(self.staff,'/api/servers',{'server_id':'copy','name':'Copy','copy_from':'second'})
         self.assertEqual(response.status_code,403,response.json)
+
+    def test_full_server_defaults_do_not_grant_panel_administration(self):
+        response=self.post(self.admin,'/api/users',{'id':self.staff_id,'username':'staff','role':'admin','access_all':True,'panel_admin':False})
+        self.assertEqual(response.status_code,200,response.json)
+        self.staff=self.login('staff')
+        self.assertEqual(self.staff.get('/api/users').status_code,403)
+        self.assertEqual(self.staff.get('/api/startup',headers={'X-Server-ID':'first'}).status_code,200)
+        self.assertEqual(self.post(self.staff,'/api/servers',{'server_id':'denied','name':'Denied'}).status_code,403)
+        response=self.post(self.admin,'/api/users',{'id':self.staff_id,'username':'staff','role':'viewer','access_all':False,'panel_admin':True})
+        self.assertEqual(response.status_code,200,response.json)
+        self.staff=self.login('staff')
+        self.assertEqual(self.staff.get('/api/users').status_code,200)
+        self.assertEqual(self.staff.get('/api/status',headers={'X-Server-ID':'first'}).status_code,403)
+        response=self.post(self.staff,'/api/users',{'id':self.staff_id,'username':'staff','role':'viewer','panel_admin':True})
+        self.assertEqual(response.status_code,200,response.json)

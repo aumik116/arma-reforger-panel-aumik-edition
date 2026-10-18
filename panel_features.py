@@ -23,7 +23,7 @@ MUTATIONS = {
     'startup_save':'admin_config', 'players_admin_save':'admin_config',
     'schedules_save':'admin_config', 'schedules_change':'admin_config',
     'account_preferences_save': 'view',
-    'servers_create': 'admin_config', 'server_provision_retry': 'admin_config',
+    'servers_create': 'users', 'server_provision_retry': 'admin_config',
     'server_delete': 'admin_config', 'server_startup_save': 'admin_config',
     "rcon_command": "admin_config",
     "software_check": "admin_config", "software_update": "admin_config",
@@ -78,6 +78,9 @@ def install(api):
         """)
         if 'access_all' not in {row['name'] for row in conn.execute('PRAGMA table_info(users)')}:
             conn.execute('ALTER TABLE users ADD COLUMN access_all INTEGER NOT NULL DEFAULT 1')
+        if 'panel_admin' not in {row['name'] for row in conn.execute('PRAGMA table_info(users)')}:
+            conn.execute('ALTER TABLE users ADD COLUMN panel_admin INTEGER NOT NULL DEFAULT 0')
+            conn.execute("UPDATE users SET panel_admin=1 WHERE role='admin'")
         conn.execute("CREATE TABLE IF NOT EXISTS user_server_roles (user_id INTEGER NOT NULL, server_id TEXT NOT NULL, role TEXT NOT NULL, PRIMARY KEY(user_id,server_id))")
         if 'scenario_id' not in {row['name'] for row in conn.execute('PRAGMA table_info(presets)')}:
             conn.execute('ALTER TABLE presets ADD COLUMN scenario_id TEXT')
@@ -166,7 +169,7 @@ def install(api):
                 return jsonify(error="Please sign in", ok=False), 401
             return redirect("/login")
         g.user = dict(user)
-        panel_permissions = set(ROLES[user['role']]) if user['id'] == owner_id or user['access_all'] else {'view'} | ({'users', 'admin_config'} if user['role'] == 'admin' else set())
+        panel_permissions = set(ROLES[user['role']]) if user['id'] == owner_id else (set(ROLES[user['role']]) - {'users'} if user['access_all'] else {'view'}) | ({'users', 'admin_config'} if user['panel_admin'] else set())
         g.panel_permissions = panel_permissions
         g.permissions = panel_permissions
         target = (request.view_args or {}).get('server_id')
@@ -311,13 +314,13 @@ def install(api):
     @app.get("/api/users")
     def users_list():
         with db() as conn:
-            rows = conn.execute("SELECT id,username,role,enabled,access_all FROM users ORDER BY username").fetchall()
+            rows = conn.execute("SELECT id,username,role,enabled,access_all,panel_admin FROM users ORDER BY username").fetchall()
         with db() as conn:
             assignments = [dict(row) for row in conn.execute('SELECT * FROM user_server_roles')]
         servers = [dict(id=server.id, name=server.name) for server in api.server_registry.list()]
         if not api.manager_mode:
             servers.insert(0, dict(id='__existing__', name='Existing server'))
-        return jsonify(users=[dict(row, is_owner=row['id'] == owner_id, access_all=bool(row['access_all']),
+        return jsonify(users=[dict(row, is_owner=row['id'] == owner_id, access_all=bool(row['access_all']), panel_admin=bool(row['panel_admin']) or row['id']==owner_id,
             server_roles={item['server_id']:item['role'] for item in assignments if item['user_id'] == row['id']}) for row in rows], roles=list(ROLES), servers=servers)
 
     @app.post("/api/users")
@@ -330,6 +333,9 @@ def install(api):
             return jsonify(ok=False, error="Enabled must be true or false"), 400
         enabled = int(data.get("enabled", True))
         access_all, server_roles = data.get('access_all'), data.get('server_roles')
+        panel_admin = data.get('panel_admin')
+        if panel_admin is not None and type(panel_admin) is not bool:
+            return jsonify(ok=False,error='Panel administrator must be true or false'),400
         known_servers = {server.id for server in api.server_registry.list()}
         if not api.manager_mode:
             known_servers.add('__existing__')
@@ -345,17 +351,17 @@ def install(api):
                 if data.get("id") is not None and not existing:
                     return jsonify(ok=False, error="Account not found"), 404
                 if existing:
-                    if existing['id'] == owner_id and (access_all is False or server_roles):
+                    if existing['id'] == owner_id and (access_all is False or server_roles or panel_admin is False):
                         return jsonify(ok=False,error='Owner access cannot be restricted'),400
                     if existing['id'] == owner_id:
                         if g.user['id'] != owner_id:
                             return jsonify(ok=False, error="Only the Owner can change the Owner account"), 403
                         if not enabled or role != 'admin':
                             return jsonify(ok=False, error="The Owner cannot be disabled or demoted"), 400
-                    if existing["id"] == g.user["id"] and (not enabled or role != "admin"):
+                    if existing["id"] == g.user["id"] and existing["id"] != owner_id and (not enabled or not (panel_admin if panel_admin is not None else existing["panel_admin"])):
                         return jsonify(ok=False, error="You cannot disable or demote your own administrator account"), 400
-                    if existing["role"] == "admin" and existing["enabled"] and (not enabled or role != "admin"):
-                        count = conn.execute("SELECT count(*) FROM users WHERE role='admin' AND enabled=1").fetchone()[0]
+                    if existing["panel_admin"] and existing["enabled"] and (not enabled or panel_admin is False):
+                        count = conn.execute("SELECT count(*) FROM users WHERE enabled=1 AND (panel_admin=1 OR id=?)",(owner_id,)).fetchone()[0]
                         if count <= 1:
                             return jsonify(ok=False, error="Keep at least one enabled administrator"), 400
                     hashed = password_hash(data["password"]) if data.get("password") else existing["password"]
@@ -367,6 +373,8 @@ def install(api):
                     conn.execute("INSERT INTO users(username,password,role,enabled,access_all) VALUES(?,?,?,?,?)",
                                  (username, password_hash(data.get("password")), role, enabled, int(access_all is True)))
                 saved_id = existing['id'] if existing else conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+                if panel_admin is not None or not existing or role != existing['role']:
+                    conn.execute('UPDATE users SET panel_admin=? WHERE id=?', (int(panel_admin if panel_admin is not None else role == 'admin'),saved_id))
                 if existing and access_all is not None:
                     conn.execute('UPDATE users SET access_all=? WHERE id=?', (int(access_all), saved_id))
                 if server_roles is not None:
@@ -374,7 +382,7 @@ def install(api):
                     conn.executemany('INSERT INTO user_server_roles VALUES(?,?,?)', [(saved_id,key,value) for key,value in server_roles.items()])
         except (ValueError, sqlite3.IntegrityError) as exc:
             return jsonify(ok=False, error="Username is already in use" if isinstance(exc, sqlite3.IntegrityError) else str(exc)), 400
-        g.audit_details = {"username": username, "role": role, "enabled": bool(enabled), "access_all":access_all, "server_roles":server_roles}
+        g.audit_details = {"username": username, "role": role, "enabled": bool(enabled), "access_all":access_all, "server_roles":server_roles, "panel_admin":panel_admin}
         return jsonify(ok=True)
 
     @app.post("/api/users/delete")
@@ -388,8 +396,8 @@ def install(api):
                 return jsonify(ok=False, error="The Owner account cannot be deleted"), 400 if g.user['id'] == owner_id else 403
             if user["id"] == g.user["id"]:
                 return jsonify(ok=False, error="You cannot delete your own account"), 400
-            if user["role"] == "admin" and user["enabled"]:
-                count = conn.execute("SELECT count(*) FROM users WHERE role='admin' AND enabled=1").fetchone()[0]
+            if user["panel_admin"] and user["enabled"]:
+                count = conn.execute("SELECT count(*) FROM users WHERE enabled=1 AND (panel_admin=1 OR id=?)",(owner_id,)).fetchone()[0]
                 if count <= 1:
                     return jsonify(ok=False, error="Keep at least one enabled administrator"), 400
             conn.execute("DELETE FROM user_server_roles WHERE user_id=?", (user["id"],))

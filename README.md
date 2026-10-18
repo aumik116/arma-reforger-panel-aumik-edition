@@ -34,7 +34,10 @@ Open `http://YOUR_SERVER_IP:8888`, or the port chosen during installation. Sign 
 New accounts start with no server access. In Administration, edit an account and
 assign Viewer, Operator, Manager or Server administrator separately for each
 server. Unassigned servers are hidden and their APIs reject access. Server
-administrator does not grant panel account-management rights. The Owner remains
+administrator does not grant panel account-management rights. Panel access is a
+separate Staff / Panel administrator choice. The normal form assigns roles to
+named servers; all-server defaults are under Advanced, and a summary describes
+the resulting access before saving. The Owner remains
 protected. Existing accounts keep their previous all-server access on upgrade;
 turn that option off to restrict them to explicit assignments. Access changes
 invalidate existing sessions, and scheduled jobs recheck their owner's access.

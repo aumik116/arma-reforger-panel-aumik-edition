@@ -25,6 +25,20 @@ class InstanceTests(unittest.TestCase):
             conn.execute("UPDATE server_instances SET state='ready' WHERE id=?", (server_id,))
         return registry.get(server_id)
 
+    def test_admin_label_does_not_require_missing_legacy_config(self):
+        server = self.instance('training')
+        self.config.unlink()
+        before = server.paths['config'].read_text()
+        csrf = self.admin.get('/api/csrf').json['csrf']
+        identity = '412e8f01-afaf-4745-898e-8399a1d9fcfb'
+        response = self.admin.post('/api/admin-labels',
+            json={'identity':identity, 'name':'aumik116'},
+            headers={'X-Server-ID':'training', 'X-CSRF-Token':csrf})
+        self.assertEqual(response.status_code, 200, response.json)
+        labels = self.admin.get('/api/config/editor', headers={'X-Server-ID':'training'}).json['admin_labels']
+        self.assertEqual(labels[identity], 'aumik116')
+        self.assertEqual(server.paths['config'].read_text(), before)
+
     def test_auth_selection_and_config_write_isolation(self):
         first, second = self.instance('first'), self.instance('second')
         self.assertEqual(self.module.app.test_client().get('/api/servers').status_code, 401)

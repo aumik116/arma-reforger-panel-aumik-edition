@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 """Root-owned service helper. Installed by install.sh; never imports panel code."""
 import re
 import subprocess

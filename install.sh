@@ -167,7 +167,7 @@ configure_instance_control() {
     mkdir -p "$config_root/arma-panel" "$config_root/systemd/system" "$config_root/sudoers.d"
     install -o root -g root -m 0755 "$source_dir/instance_control.py" "$config_root/arma-panel/instance-control.py"
     rule=$(mktemp)
-    printf '%s ALL=(root) NOPASSWD: /usr/bin/python3 /etc/arma-panel/instance-control.py\n' "$panel_user" > "$rule"
+    printf '%s ALL=(root) NOPASSWD: /etc/arma-panel/instance-control.py\n' "$panel_user" > "$rule"
     visudo -cf "$rule" || { rm -f "$rule"; return 1; }
     install -o root -g root -m 0440 "$rule" "$config_root/sudoers.d/arma-panel-instances"
     rm -f "$rule"

@@ -48,7 +48,7 @@ def instance_config(server, source=None, max_players=64):
 
 def service_command(action, server_id):
     # The root-owned helper validates both arguments; no shell or arbitrary units.
-    result = subprocess.run(['sudo', '-n', '/usr/bin/python3', CONTROL, action, server_id],
+    result = subprocess.run(['sudo', '-n', CONTROL, action, server_id],
                             capture_output=True, text=True, timeout=150)
     if result.returncode:
         raise RuntimeError(result.stderr.strip() or 'Instance service command failed. Run the updated installer and check the service journal.')

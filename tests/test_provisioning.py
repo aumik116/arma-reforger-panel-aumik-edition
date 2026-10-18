@@ -45,6 +45,12 @@ class ProvisionTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 service_args(action, server_id)
 
+    def test_service_invocation_matches_helper_only_sudo_rule(self):
+        with patch.object(provision.subprocess, 'run', return_value=Mock(returncode=0)) as run:
+            provision.service_command('stop', 'training')
+        self.assertEqual(run.call_args.args[0], ['sudo', '-n', provision.CONTROL, 'stop', 'training'])
+        self.assertTrue((Path(__file__).resolve().parents[1] / 'instance_control.py').read_text().startswith('#!/usr/bin/python3\n'))
+
     def test_occupied_ports_are_skipped_or_rejected(self):
         other = self.registry.register('other', 'Other', port_available=lambda port: port not in (2002, 2003))
         self.assertEqual(other.game_port, 2004)

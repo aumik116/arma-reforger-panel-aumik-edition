@@ -175,20 +175,21 @@ def install(api):
             if err:
                 return err
             tools = getattr(api, 'operator_tools', None)
-            if tools and request.endpoint not in {'schedules_save','schedules_change','account_preferences_save','account_password'}:
+            if tools and request.endpoint not in api.PANEL_WIDE_ENDPOINTS and request.endpoint not in {'schedules_save','schedules_change'}:
                 selected_id = api.selected_instance().id if api.selected_instance() else ''
                 with tools.active_lock:
                     scheduled_busy = selected_id in tools.active
                 if scheduled_busy:
                     return jsonify(ok=False,error='A scheduled server operation is running. Wait for it to finish.'),409
-            held_lock = preset_lock if request.endpoint in {'presets_save','schedules_save','schedules_change','account_preferences_save','account_password'} else lock
+            held_lock = preset_lock if request.endpoint in api.PANEL_WIDE_ENDPOINTS or request.endpoint in {'presets_save','schedules_save','schedules_change'} else lock
             if hasattr(held_lock, '_get_current_object'):
                 held_lock = held_lock._get_current_object()
             held_lock.acquire()
             g.mutation_lock = held_lock
             if request.endpoint in {"api_start", "api_restart"} and api.software_manager.busy():
                 return jsonify(ok=False, error="Wait for the server software job to finish before starting or restarting."), 409
-            g.before_config = {} if request.endpoint in getattr(api, 'PROVISIONING_ENDPOINTS', set()) or request.endpoint in {'account_preferences_save', 'admin_label_save', 'logout'} else api.read_config()
+            g.audit_server_config = request.endpoint not in api.PANEL_WIDE_ENDPOINTS and request.endpoint not in getattr(api, 'PROVISIONING_ENDPOINTS', set())
+            g.before_config = api.read_config() if g.audit_server_config else {}
             g.audit_actor = user["username"]
             g.audit_details = {}
             if request.endpoint == "api_persistence_set":
@@ -211,7 +212,7 @@ def install(api):
                 details['server_id'] = api.selected_instance().id
             if ok:
                 before = g.before_config.get("game", {})
-                after = {} if request.endpoint in getattr(api, 'PROVISIONING_ENDPOINTS', set()) or request.endpoint in {'account_preferences_save', 'admin_label_save', 'logout'} else api.read_config().get("game", {})
+                after = api.read_config().get('game', {}) if g.audit_server_config else {}
                 old = {m.get("modId"): m for m in before.get("mods", [])}
                 new = {m.get("modId"): m for m in after.get("mods", [])}
                 if old != new:

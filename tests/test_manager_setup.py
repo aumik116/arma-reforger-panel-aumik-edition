@@ -60,3 +60,23 @@ class ManagerSetupTests(unittest.TestCase):
         launch.assert_called_once()
         self.module.server_registry.set_state('first', 'ready')
         self.assertEqual(self.admin.get('/').location, '/servers')
+
+    def test_panel_accounts_are_independent_of_server_config(self):
+        self.config.unlink()
+        with patch.object(self.module, 'read_config', side_effect=AssertionError('Panel action read game config')):
+            created = self.post(self.admin, '/api/users', {'username':'Texas','password':'test-password','role':'viewer'})
+            self.assertEqual(created.status_code, 200, created.json)
+            user = next(row for row in self.admin.get('/api/users').json['users'] if row['username'] == 'Texas')
+            viewer = self.login('Texas')
+            self.assertEqual(self.post(viewer, '/api/users', {'username':'Denied','password':'test-password'}).status_code,403)
+            self.assertEqual(self.admin.post('/api/users',json={'username':'NoCsrf','password':'test-password'}).status_code,403)
+            changed = self.post(self.admin, '/api/users', {'id':user['id'],'username':'Texas','role':'operator'})
+            self.assertEqual(changed.status_code,200,changed.json)
+            self.assertEqual(self.post(self.admin, '/api/preferences', {'theme':'forest'}).status_code,200)
+            password = self.post(self.admin, '/api/account/password', {'current_password':'test-password','password':'new-test-password'})
+            self.assertEqual(password.status_code,200,password.json)
+            deleted = self.post(self.admin, '/api/users/delete', {'id':user['id']})
+            self.assertEqual(deleted.status_code,200,deleted.json)
+            events = self.admin.get('/api/activity').json['events']
+            for action in ('users_save','users_delete','account_password'):
+                self.assertTrue(any(event['action'] == action and event['outcome'] == 'success' for event in events))

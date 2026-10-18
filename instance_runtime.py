@@ -92,15 +92,19 @@ def install(api):
                          ('_armahq_compare', api.ArmaHQCompare), ('_mod_metadata', api.ModMetadata)]:
         setattr(api, key, scoped(key, factory, getattr(api, key)))
 
+    # Panel account/database operations never depend on a game-server config.
+    api.PANEL_WIDE_ENDPOINTS = {
+        'account_me', 'account_password', 'users_list', 'users_save',
+        'account_preferences', 'account_preferences_save', 'users_delete',
+        'admin_label_save', 'activity_list', 'presets_delete', 'api_csrf', 'logout',
+    }
+
     @api.app.before_request
     def select_instance():
         metadata_target = request.endpoint in {'server_delete', 'server_startup_save'}
         if not metadata_target and request.endpoint in getattr(api, 'PROVISIONING_ENDPOINTS', set()):
             return
-        if request.endpoint in {'account_me', 'account_password', 'users_list', 'users_save',
-                                'account_preferences', 'account_preferences_save',
-                                'users_delete', 'admin_label_save', 'activity_list',
-                                'presets_delete', 'api_csrf'}:
+        if request.endpoint in api.PANEL_WIDE_ENDPOINTS:
             return  # Panel-wide mutations retain their shared lock.
         if not request.path.startswith('/api/') or request.path == '/api/servers':
             return

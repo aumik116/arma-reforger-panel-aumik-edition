@@ -8,6 +8,7 @@ from contextlib import contextmanager
 from pathlib import Path
 import re
 import sqlite3
+import json
 
 
 @dataclass(frozen=True)
@@ -34,7 +35,7 @@ class ServerInstance:
 
 
 class ServerRegistry:
-    def __init__(self, database, instance_root):
+    def __init__(self, database, instance_root, legacy_config=None):
         self.database = str(database)
         self.root = Path(instance_root).resolve()
         with self.connect() as conn:
@@ -60,6 +61,65 @@ class ServerRegistry:
                                   ('instance_root',)).fetchone()[0]
             if stored != str(self.root):
                 raise ValueError('Instance root differs from the registered root')
+            if legacy_config is not None:
+                conn.execute('INSERT INTO server_registry_settings VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value',
+                             ('legacy_config', str(Path(legacy_config).resolve())))
+
+    @staticmethod
+    def config_ports(config, defaults=None):
+        if not isinstance(config, dict) or any(not isinstance(config.get(key, {}), dict) for key in ('a2s', 'rcon')):
+            raise ValueError('Invalid server endpoint configuration')
+        defaults = defaults or {'game': 2001}
+        ports = {'game': config.get('bindPort', defaults.get('game')),
+                 'query': config.get('a2s', {}).get('port', defaults.get('query')),
+                 'rcon': config.get('rcon', {}).get('port', defaults.get('rcon'))}
+        for port in ports.values():
+            if port is not None and (type(port) is not int or not 1 <= port <= 65535):
+                raise ValueError('Invalid configured UDP port')
+        return {kind: port for kind, port in ports.items() if port is not None}
+
+    def occupied_config_ports(self, conn, exclude=None):
+        """Reserve stopped servers too, including configs edited outside the panel."""
+        used = {row[0] for row in conn.execute(
+            'SELECT port FROM server_ports WHERE server_id != ?', (exclude or '',))}
+        paths = [(row[0], self.root / row[0] / 'config.json') for row in
+                 conn.execute('SELECT id FROM server_instances') if row[0] != exclude]
+        legacy = conn.execute("SELECT value FROM server_registry_settings WHERE key='legacy_config'").fetchone()
+        if legacy and exclude != '__existing__':
+            paths.append(('__existing__', Path(legacy[0])))
+        for server_id, path in paths:
+            if not path.exists():
+                continue  # A registered instance may not have its config yet.
+            try:
+                config = json.loads(path.read_text(encoding='utf-8-sig'))
+                defaults = None if server_id == '__existing__' else dict(conn.execute(
+                    'SELECT kind,port FROM server_ports WHERE server_id=?', (server_id,)))
+                used.update(self.config_ports(config, defaults).values())
+            except (OSError, ValueError, TypeError, AttributeError) as exc:
+                raise ValueError(f'Cannot reserve ports: repair configuration for {server_id}') from exc
+        return used
+
+    @contextmanager
+    def config_write(self, server_id, config, previous, port_available):
+        with self.connect() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            defaults = dict(conn.execute('SELECT kind,port FROM server_ports WHERE server_id=?', (server_id,))) or None
+            ports = self.config_ports(config, defaults)
+            old = self.config_ports(previous, defaults)
+            if ports != old or (defaults and ports != defaults):
+                if len(set(ports.values())) != len(ports):
+                    raise ValueError('Each endpoint requires a distinct port')
+                if set(ports.values()) & self.occupied_config_ports(conn, exclude=server_id):
+                    raise ValueError('Port is reserved by another server, including stopped servers')
+                if any(not port_available(p) for p in set(ports.values()) - set(old.values())):
+                    raise ValueError('Port is occupied by another process')
+            if defaults:
+                if set(ports) != {'game', 'query', 'rcon'} or any(p < 1024 for p in ports.values()):
+                    raise ValueError('Managed server ports must be between 1024 and 65535')
+                conn.execute('DELETE FROM server_ports WHERE server_id=?', (server_id,))
+                conn.executemany('INSERT INTO server_ports VALUES (?,?,?)',
+                                 [(server_id, kind, port) for kind, port in ports.items()])
+            yield
 
     @contextmanager
     def connect(self):
@@ -112,7 +172,7 @@ class ServerRegistry:
         with self.connect() as conn:
             # Serialize allocation across threads and panel processes.
             conn.execute('BEGIN IMMEDIATE')
-            used = {row[0] for row in conn.execute('SELECT port FROM server_ports')}
+            used = self.occupied_config_ports(conn)
             if used.intersection(explicit):
                 raise ValueError('Port is already reserved by another server')
             if port_available and any(not port_available(port) for port in explicit):

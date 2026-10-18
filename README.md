@@ -70,6 +70,12 @@ sudo bash install.sh --update
 
 This updates panel files and restarts the panel service. It keeps `config.env`, accounts, presets and activity history. It does not restart the game server.
 
+Before updating production, take a VM backup or snapshot and wait for installations and game updates to finish. The updater saves installed panel files and affected service settings in a private `/var/backups/arma-panel/update-*` directory. If copying, service configuration, or the panel restart fails, it restores those files and attempts to restart the previous panel. The update still exits with an error so the failure is visible. This checks service activity, not game connectivity.
+
+Each recovery directory also contains a consistent `panel-data.sqlite3` backup when the database exists. Automatic rollback keeps the live database and game saves; restoring a database is a separate manual recovery step. Keep your VM backup for a full rollback, especially across database schema changes. Recovery snapshots contain secrets: keep them private.
+
+Port allocation reserves the original server's configured ports even while it is stopped. Changes to managed servers' ports through the panel update their reservations and reject conflicts with other servers. Restart the affected game server after editing ports, and adjust your own firewall/forwarding rules.
+
 To update the **game server**, stop it first, then use **Server config → Server software**. The panel runs SteamCMD and leaves the game stopped afterward; start it once you have checked the result. The panel service account needs write access to the game and SteamCMD directories.
 
 ## Files and service commands

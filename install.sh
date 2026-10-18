@@ -14,7 +14,7 @@
 set -e
 
 # Keep both fresh installs and updates on the same file-copy path.
-PANEL_PY_FILES=(app.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py config_backups.py mod_metadata.py server_software.py persistence_saves.py armahq_compare.py mod_validation.py legacy_api.py server_registry.py instance_runtime.py server_provisioning.py instance_control.py)
+PANEL_PY_FILES=(app.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py config_backups.py mod_metadata.py server_software.py persistence_saves.py armahq_compare.py mod_validation.py legacy_api.py server_registry.py instance_runtime.py server_provisioning.py instance_control.py update_recovery.py)
 
 copy_panel_files() {
     local destination="$1" file
@@ -190,6 +190,45 @@ EOF
     systemctl daemon-reload
 }
 
+update_panel_with_recovery() (
+    set -Ee
+    local panel_dir="$1" panel_user="$2" snapshot
+    snapshot=$(python3 "$SCRIPT_DIR/update_recovery.py" backup "$panel_dir" "$SCRIPT_DIR")
+    echo "Recovery snapshot: $snapshot"
+    rollback_update() {
+        trap - ERR
+        set +e
+        echo "ERROR: Update failed. Restoring installed panel and service files." >&2
+        if python3 "$SCRIPT_DIR/update_recovery.py" restore "$snapshot"; then
+            systemctl daemon-reload
+            systemctl restart arma-panel
+            sleep 2
+            if systemctl is-active --quiet arma-panel; then
+                echo "Previous panel restored. Recovery snapshot: $snapshot" >&2
+            else
+                echo "ERROR: Files restored but panel is offline. Inspect journalctl -u arma-panel." >&2
+            fi
+        else
+            echo "ERROR: Automatic restoration failed. Keep snapshot: $snapshot" >&2
+        fi
+        exit 1
+    }
+    trap rollback_update ERR
+    copy_panel_files "$panel_dir"
+    rm -f "$panel_dir/save_library.py" "$panel_dir/static/saves.js"
+    local file
+    for file in "${PANEL_PY_FILES[@]}" index.html login.html; do
+        chown "$panel_user:$panel_user" "$panel_dir/$file"
+    done
+    chown "$panel_user:$panel_user" "$panel_dir/static" "$panel_dir/static/"*
+    configure_server_control "$panel_dir" "$panel_user"
+    configure_instance_control "$panel_dir" "$panel_user"
+    systemctl restart arma-panel
+    sleep 2
+    systemctl is-active --quiet arma-panel
+    trap - ERR
+)
+
 if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then return 0; fi
 
 # ── Colors ────────────────────────────────────────────────────────────────────
@@ -260,18 +299,7 @@ if [[ "$MODE" == "update" ]]; then
         echo "ERROR: Cannot locate installed panel service and config.env." >&2
         exit 1
     fi
-    copy_panel_files "$PANEL_DIR_EXISTING"
-    rm -f "$PANEL_DIR_EXISTING/save_library.py" "$PANEL_DIR_EXISTING/static/saves.js"
-    chown -R "$EXISTING_USER:$EXISTING_USER" "$PANEL_DIR_EXISTING"
-    configure_server_control "$PANEL_DIR_EXISTING" "$EXISTING_USER"
-    configure_instance_control "$PANEL_DIR_EXISTING" "$EXISTING_USER"
-    systemctl restart arma-panel
-    sleep 2
-    if ! systemctl is-active --quiet arma-panel; then
-        echo "ERROR: Panel service failed to start after updating. Recent service log:" >&2
-        journalctl -u arma-panel -n 30 --no-pager >&2 || true
-        exit 1
-    fi
+    update_panel_with_recovery "$PANEL_DIR_EXISTING" "$EXISTING_USER"
     echo -e "${GREEN}✓ Panel updated and restarted.${NC}"
     echo ""
     exit 0

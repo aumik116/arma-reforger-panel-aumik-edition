@@ -13,7 +13,8 @@ class InstallerManifestTests(unittest.TestCase):
         self.assertIsNotNone(manifest)
         listed = set(manifest.group(1).split())
         self.assertEqual(listed, {path.name for path in ROOT.glob('*.py')})
-        self.assertIn('copy_panel_files "$PANEL_DIR_EXISTING"', installer)
+        self.assertIn('update_panel_with_recovery "$PANEL_DIR_EXISTING" "$EXISTING_USER"', installer)
+        self.assertIn('copy_panel_files "$panel_dir"', installer)
         self.assertIn('copy_panel_files "$PANEL_DIR"', installer)
 
     def test_referenced_static_assets_exist_and_are_copied(self):

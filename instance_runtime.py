@@ -29,7 +29,8 @@ class ScopedPath:
 def install(api):
     panel_settings = dict(api._cfg)
     database = panel_settings.get('PANEL_DATA_FILE', str(Path(api._BASE_DIR) / '.panel-data.sqlite3'))
-    registry = ServerRegistry(database, panel_settings.get('INSTANCE_ROOT', str(Path(api._BASE_DIR) / 'instances')))
+    registry = ServerRegistry(database, panel_settings.get('INSTANCE_ROOT', str(Path(api._BASE_DIR) / 'instances')),
+                              legacy_config=api.SERVER_CONFIG)
     api.server_registry = registry
     states, state_lock = {}, threading.Lock()
 
@@ -51,6 +52,13 @@ def install(api):
 
     api.instance_scoped = scoped
     api.selected_instance = selected
+    original_write = api.write_config
+    def write_config(config):
+        from server_provisioning import available
+        instance = selected()
+        with registry.config_write(instance.id if instance else '__existing__', config, api.read_config(), available):
+            original_write(config)
+    api.write_config = write_config
     def clear_state(server_id):
         with state_lock:
             states.pop(server_id, None)

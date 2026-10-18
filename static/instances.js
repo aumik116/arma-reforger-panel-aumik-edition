@@ -1,0 +1,104 @@
+// Use full page navigation when switching to discard old instance form/log state.
+document.addEventListener('DOMContentLoaded', () => {
+  const dialog = document.getElementById('instances-dialog');
+  const switcher = document.getElementById('instance-switcher');
+  const form = document.getElementById('create-instance');
+  const result = document.getElementById('instance-result');
+  let admin = false, jobId = '', poll = null, startupId = '';
+  const go = id => { location.href = id ? '/?server=' + encodeURIComponent(id) : '/'; };
+  function option(value, label) { const node = document.createElement('option'); node.value = value; node.textContent = label; return node; }
+  async function load() {
+    const response = await fetch('/api/servers');
+    if (!response.ok) throw new Error('Could not load servers');
+    const data = await response.json();
+    switcher.replaceChildren(option('', 'Existing server'));
+    const copy = document.getElementById('instance-copy'), copyValue = copy.value;
+    copy.replaceChildren(option('', 'Defaults'), option('__existing__', 'Copy existing server settings and mods'));
+    const list = document.getElementById('instance-list'); list.replaceChildren();
+    for (const server of data.servers) {
+      if (server.state === 'ready') {
+        switcher.append(option(server.id, server.name)); copy.append(option(server.id, server.name));
+      }
+      const row = document.createElement('div'); row.className = 'instance-row';
+      const title = document.createElement('strong'); title.textContent = server.name;
+      const detail = document.createElement('span'); detail.className = 'feature-note';
+      detail.textContent = `${server.state} · Game ${server.game_port} · Query ${server.query_port} · RCON ${server.rcon_port}`;
+      row.append(title, detail);
+      if (server.state === 'ready') { const manage = document.createElement('button'); manage.textContent = 'Manage'; manage.onclick = () => go(server.id); row.append(manage); }
+      else if (admin) { const progress = document.createElement('button'); progress.textContent = 'Progress / retry'; progress.onclick = () => { jobId = server.id; showJob().catch(error => result.textContent = error.message); }; row.append(progress); }
+      if (admin && server.state === 'ready') {
+        const startup = document.createElement('button'); startup.textContent = 'Startup';
+        startup.onclick = () => { startupId = server.id; document.getElementById('startup-instance').hidden = false; document.getElementById('startup-instance-name').textContent = server.name; document.getElementById('startup-fps').value = server.max_fps; document.getElementById('startup-fps').focus(); };
+        row.append(startup);
+      }
+      if (admin) {
+        const remove = document.createElement('button'); remove.textContent = 'Remove';
+        remove.onclick = async () => {
+          const confirmation = prompt(`Stop and remove ${server.name}? Files will be archived on the VM. Type its ID: ${server.id}`);
+          if (confirmation === null) return;
+          remove.disabled = true;
+          try {
+            const response = await postJson(`/api/servers/${encodeURIComponent(server.id)}/delete`, {confirm_id:confirmation});
+            const body = await response.json(); if (!response.ok) throw new Error(body.error);
+            if (selectedServerId === server.id) { go(''); return; }
+            if (jobId === server.id) jobId = '';
+            if (startupId === server.id) document.getElementById('startup-instance').hidden = true;
+            result.textContent = body.archived ? `Server removed. Files retained at ${body.archived}` : 'Server removed.';
+            await load();
+          } catch (error) { result.textContent = error.message; remove.disabled = false; }
+        }; row.append(remove);
+      }
+      list.append(row);
+    }
+    if (!data.servers.length) list.textContent = 'No managed instances yet. The existing server remains available from the selector.';
+    if (selectedServerId && !data.servers.some(s => s.id === selectedServerId && s.state === 'ready')) {
+      switcher.append(option(selectedServerId, 'Selected instance unavailable'));
+    }
+    switcher.value = selectedServerId; copy.value = copyValue;
+  }
+  async function showJob() {
+    const response = await fetch(`/api/servers/${encodeURIComponent(jobId)}/provision`);
+    const job = await response.json();
+    if (!response.ok) throw new Error(job.error || 'Could not load provisioning progress');
+    result.replaceChildren(document.createTextNode(job.message));
+    const output = document.getElementById('instance-job-output'); output.hidden = false; output.textContent = job.output;
+    if (job.state === 'failed' || job.state === 'interrupted') {
+      const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn-logout'; retry.textContent = 'Retry installation';
+      retry.onclick = async () => {
+        retry.disabled = true;
+        try { const res = await postJson(`/api/servers/${encodeURIComponent(jobId)}/provision/retry`, {}); const body = await res.json(); if (!res.ok) throw new Error(body.error); await showJob(); }
+        catch (error) { result.textContent = error.message; }
+      }; result.append(document.createTextNode(' '), retry);
+    }
+    if (job.state === 'ready') { jobId = ''; await load(); }
+  }
+  document.getElementById('manage-instances').onclick = () => { dialog.showModal(); load().catch(error => result.textContent = error.message); };
+  document.getElementById('close-instances').onclick = () => dialog.close();
+  switcher.onchange = () => go(switcher.value);
+  form.onsubmit = async event => {
+    event.preventDefault(); const submit = form.querySelector('[type=submit]'); submit.disabled = true;
+    try {
+      const data = Object.fromEntries(new FormData(form));
+      for (const key of ['max_players', 'max_fps', 'game_port', 'query_port', 'rcon_port']) { if (data[key] === '') delete data[key]; else data[key] = Number(data[key]); }
+      const response = await postJson('/api/servers', data), body = await response.json();
+      if (!response.ok) throw new Error(body.error || 'Creation failed');
+      jobId = body.server_id; form.reset(); await load(); await showJob();
+    } catch (error) { result.textContent = error.message; await load().catch(() => {}); }
+    finally { submit.disabled = false; }
+  };
+  document.getElementById('startup-instance').onsubmit = async event => {
+    event.preventDefault(); const button = event.target.querySelector('button'); button.disabled = true;
+    try {
+      const response = await postJson(`/api/servers/${encodeURIComponent(startupId)}/startup`, {max_fps:Number(document.getElementById('startup-fps').value)});
+      const body = await response.json(); if (!response.ok) throw new Error(body.error);
+      result.textContent = body.restart_required ? 'Startup settings saved. Restart this server to apply them.' : 'Startup settings saved for the next start.';
+      await load();
+    } catch (error) { result.textContent = error.message; }
+    finally { button.disabled = false; }
+  };
+  fetch('/api/me').then(response => response.json()).then(async account => {
+    admin = (account.permissions || []).includes('admin_config'); form.hidden = !admin; await load();
+  }).catch(error => result.textContent = error.message);
+  poll = setInterval(() => { if (dialog.open && jobId) showJob().catch(error => result.textContent = error.message); }, 2500);
+  window.addEventListener('pagehide', () => clearInterval(poll));
+});

@@ -10,7 +10,7 @@ let filesLoaded = false;
 let filesBusy = false;
 
 const filesEditor = byId('files-content');
-const fileUrl = (endpoint, root, path) => `${endpoint}?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`;
+const fileUrl = (endpoint, root, path) => `${endpoint}?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}${selectedServerId ? '&_server=' + encodeURIComponent(selectedServerId) : ''}`;
 const fileSize = bytes => bytes == null ? '' : bytes < 1024 ? `${bytes} B` : bytes < 1048576 ? `${(bytes / 1024).toFixed(1)} KiB` : `${(bytes / 1048576).toFixed(1)} MiB`;
 const filesDirty = () => filesSelected?.editable && filesEditor.value !== filesOriginal;
 

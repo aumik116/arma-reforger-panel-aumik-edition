@@ -66,8 +66,8 @@ def write_state(path, state):
 class SoftwareManager:
     def __init__(self, api):
         self.api = api
-        self.path = Path(api._BASE_DIR) / '.software-job.json'
-        self.lock_path = Path(api._BASE_DIR) / '.software-job.lock'
+        self.path = Path(getattr(api, '_STATE_DIR', api._BASE_DIR)) / '.software-job.json'
+        self.lock_path = Path(getattr(api, '_STATE_DIR', api._BASE_DIR)) / '.software-job.lock'
 
     def executable(self):
         configured = self.api._cfg.get('STEAMCMD_PATH')
@@ -194,7 +194,7 @@ def worker(path, executable, directory, action, lock_fd):
 
 def install(api):
     from flask import jsonify, g
-    manager = SoftwareManager(api)
+    manager = api.instance_scoped('software_manager', lambda: SoftwareManager(api), SoftwareManager(api))
     api.software_manager = manager
 
     @api.app.get('/api/software')

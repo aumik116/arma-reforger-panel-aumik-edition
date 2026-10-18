@@ -32,7 +32,7 @@
       <div class="tag">DEDICATED SERVER MANAGEMENT</div>
       <h1>ARMA <span>REFORGER</span></h1>
     </div>
-    <button class="btn-logout" onclick="doLogout()">Logout ↗</button>
+    <div class="instance-header"><label for="instance-switcher" class="instance-label">Server</label><select id="instance-switcher" aria-label="Select server"><option value="">Existing server</option></select><button class="btn-logout" id="manage-instances">Servers</button><button class="btn-logout" onclick="doLogout()">Logout ↗</button></div>
   </header>
 
   <aside class="sidebar" aria-label="Workspace navigation">
@@ -626,6 +626,25 @@
 <script src="/static/files.js"></script>
 <script src="/static/software.js"></script>
 <script src="/static/page_sections.js"></script>
+<script src="/static/instances.js"></script>
 <script src="/static/bootstrap.js"></script>
+<dialog id="instances-dialog" class="instances-dialog">
+  <div class="card-label">Servers on this VM</div><button type="button" class="btn-logout" id="close-instances">Close</button>
+  <div id="instance-list" class="instance-list" role="status"></div>
+  <form id="create-instance" hidden>
+    <h3>Create Server</h3><p class="feature-note">Installs a separate game server, then starts it automatically. Copies settings and mod selections only; passwords and saves are not copied.</p>
+    <div class="field"><label for="instance-name">Name</label><input id="instance-name" name="name" required maxlength="80"></div>
+    <div class="field"><label for="instance-id">Server ID</label><input id="instance-id" name="server_id" required pattern="[a-z][a-z0-9-]{0,31}" maxlength="32" placeholder="training"><p class="feature-note">Lowercase letters, digits and hyphens. Cannot be changed later.</p></div>
+    <div class="field"><label for="instance-copy">Starting configuration</label><select id="instance-copy" name="copy_from"><option value="">Defaults</option></select></div>
+    <div class="field"><label for="instance-players">Player limit</label><input id="instance-players" name="max_players" type="number" min="1" max="128" value="64" required></div>
+    <div class="field"><label for="instance-fps">FPS cap (0 disables)</label><input id="instance-fps" name="max_fps" type="number" min="0" max="1000" value="60" required></div>
+    <details><summary>Custom ports (leave blank for automatic allocation)</summary>
+      <div class="field"><label for="instance-game-port">Game UDP port</label><input id="instance-game-port" name="game_port" type="number" min="1024" max="65535"></div>
+      <div class="field"><label for="instance-query-port">Query UDP port</label><input id="instance-query-port" name="query_port" type="number" min="1024" max="65535"></div>
+      <div class="field"><label for="instance-rcon-port">RCON UDP port</label><input id="instance-rcon-port" name="rcon_port" type="number" min="1024" max="65535"></div>
+    </details><button class="btn-save" type="submit">Create and start server</button>
+  </form><form id="startup-instance" hidden><h3>Startup settings · <span id="startup-instance-name"></span></h3><label class="field" for="startup-fps">FPS cap (0 disables)<input id="startup-fps" type="number" min="0" max="1000" required></label><p class="feature-note">Restart the server to apply changes.</p><button class="btn-save" type="submit">Save startup settings</button></form><p id="instance-result" class="feature-note" role="status"></p><pre id="instance-job-output" class="instance-job-output" hidden></pre>
+</dialog>
+<link rel="stylesheet" href="/static/instances.css">
 </body>
 </html>

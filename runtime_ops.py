@@ -305,7 +305,7 @@ def read_console(path, cursor=None, initial_lines=80, limit=262144):
                     more=next_offset < stat.st_size and end > 0, path=path)
 
 
-def launch_server(config_path):
+def launch_server(config_path, server_id=None):
     settings = {}
     with open(config_path, encoding='utf-8') as stream:
         for line in stream:
@@ -313,10 +313,26 @@ def launch_server(config_path):
             if line and not line.startswith('#') and '=' in line:
                 key, value = line.split('=', 1)
                 settings[key.strip()] = value.strip().strip('"').strip("'")
+    instance = None
+    state_directory = os.path.dirname(os.path.abspath(config_path))
+    if server_id is not None:
+        from server_registry import ServerRegistry
+        registry = ServerRegistry(settings.get('PANEL_DATA_FILE', os.path.join(state_directory, '.panel-data.sqlite3')),
+                                  settings.get('INSTANCE_ROOT', os.path.join(state_directory, 'instances')))
+        instance = registry.get(server_id)
+        if instance.state not in ('provisioning', 'ready'):
+            raise ValueError('Instance is not ready to launch')
+        state_directory = str(instance.directory)
+        settings.update(SERVER_DIR=str(instance.paths['server']), SERVER_CONFIG=str(instance.paths['config']),
+                        PROFILE_DIR=str(instance.paths['profile']), LOG_DIR=str(instance.paths['logs']),
+                        MAX_FPS=str(instance.max_fps) if instance.max_fps else '')
     directory = settings.get('SERVER_DIR', '/home/arma/server')
     binary = os.path.join(directory, 'ArmaReforgerServer')
     server_config = settings.get('SERVER_CONFIG', directory + '/config.json')
     args = [binary, '-config', server_config, '-logStats', '1000']
+    if instance:
+        args += ['-profile', str(instance.directory), '-logsDir', str(instance.paths['logs']),
+                 '-addonDownloadDir', str(instance.paths['workshop']), '-addonsDir', str(instance.paths['workshop'])]
     try:
         with open(server_config, encoding='utf-8-sig') as stream:
             config = json.load(stream)
@@ -331,7 +347,7 @@ def launch_server(config_path):
                 os.path.dirname(settings.get('LOG_DIR', '/home/arma/.config/ArmaReforger/logs')),
                 'profile')
             scenario_id = (config.get('game') or {}).get('scenarioId', '')
-            pinned_uuid = prepare_startup_save(os.path.dirname(os.path.abspath(config_path)),
+            pinned_uuid = prepare_startup_save(state_directory,
                                                profile_dir, scenario_id)
             args.append('-loadSessionSave')
             if pinned_uuid:
@@ -345,4 +361,4 @@ def launch_server(config_path):
 
 
 if __name__ == '__main__':
-    launch_server(sys.argv[1])
+    launch_server(*sys.argv[1:])

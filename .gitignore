@@ -13,3 +13,4 @@ config.env
 .save-library/
 .panel-save-selection.json
 .panel-save-archives/
+instances/

@@ -12,7 +12,7 @@ Developed with AI assistance using OpenAI Codex. Fork modifications:
   - Auto-discovery of scenarios from addon metadata and resource databases
 """
 
-from flask import Flask, request, jsonify, session, redirect, Response, send_from_directory, g
+from flask import Flask, request, jsonify, session, redirect, Response, send_from_directory, g, has_request_context
 import bcrypt
 from mod_validation import normalize_mod_entry
 import hmac
@@ -281,9 +281,11 @@ def _candidate_addon_roots():
         home = os.path.expanduser("~arma") if os.path.isdir("/home/arma") else os.path.expanduser("~")
 
     roots = []
+    if has_request_context() and getattr(g, 'server_instance', None):
+        return [(str(WORKSHOP_DIR), False), (str(SERVER_DIR), True)]
     # Workshop mod dirs (downloaded via SteamCMD / the game)
     if WORKSHOP_DIR:
-        roots.append((WORKSHOP_DIR, False))
+        roots.append((str(WORKSHOP_DIR), False))
     roots.extend([
         (os.path.join(home, ".local/share/Arma Reforger/profile/addons"), False),
         (os.path.join(home, ".local/share/Arma Reforger/addons"),         False),
@@ -295,7 +297,7 @@ def _candidate_addon_roots():
         roots.extend([
             (os.path.join(SERVER_DIR, "Addons"), True),
             (os.path.join(SERVER_DIR, "addons"), True),
-            (SERVER_DIR,                          True),  # falls back to walking server install
+            (str(SERVER_DIR),                     True),  # falls back to walking server install
         ])
     seen, out = set(), []
     for path, vanilla in roots:
@@ -604,6 +606,14 @@ def all_scenarios_cached():
 
 def get_server_pid():
     try:
+        instance = getattr(g, 'server_instance', None) if has_request_context() else None
+        if instance:
+            result = subprocess.run(['systemctl', 'show', instance.service_name,
+                                     '--property=MainPID', '--value'],
+                                    capture_output=True, text=True, timeout=5)
+            if result.returncode:
+                return None
+            return int(result.stdout.strip()) or None
         expected = os.path.realpath(os.path.join(SERVER_DIR, SERVER_BINARY))
         for entry in glob.glob('/proc/[0-9]*/exe'):
             try:
@@ -658,6 +668,10 @@ def get_system_ram():
         return 0, 0
 
 def get_latest_log():
+    if has_request_context() and getattr(g, 'server_instance', None):
+        direct = os.path.join(LOG_DIR, 'console.log')
+        if os.path.isfile(direct):
+            return direct
     try:
         dirs = sorted(glob.glob(f"{LOG_DIR}/logs_*"), reverse=True)
         if not dirs:
@@ -1016,11 +1030,11 @@ def api_persistence_get():
         "hiveId":           block.get("hiveId", 0),
         "scenarioId":       scenario_id,
         "savePoints":       list_save_points(PROFILE_DIR),
-        "namedSaves":       named_saves_for(_BASE_DIR, scenario_id),
-        "selectedSave":     selection_for(_BASE_DIR, scenario_id),
+        "namedSaves":       named_saves_for(_STATE_DIR, scenario_id),
+        "selectedSave":     selection_for(_STATE_DIR, scenario_id),
         "running":          get_server_pid() is not None,
         "saves":            saves,
-        "profile_dir":      PROFILE_DIR,
+        "profile_dir":      str(PROFILE_DIR),
     })
 
 
@@ -1038,7 +1052,7 @@ def api_persistence_startup_save():
     if not scenario_id:
         return jsonify(ok=False, error="Select a scenario before choosing a startup save"), 400
     try:
-        selected = set_startup_save(_BASE_DIR, PROFILE_DIR, scenario_id, uuid)
+        selected = set_startup_save(_STATE_DIR, PROFILE_DIR, scenario_id, uuid)
     except ValueError as exc:
         return jsonify(ok=False, error=str(exc)), 400
     except OSError:
@@ -1057,7 +1071,7 @@ def api_persistence_named_save():
     if not scenario_id:
         return jsonify(ok=False, error="Select a scenario before backing up a save"), 400
     try:
-        saved = save_named_point(_BASE_DIR, PROFILE_DIR, scenario_id,
+        saved = save_named_point(_STATE_DIR, PROFILE_DIR, scenario_id,
                                  data.get("uuid"), data.get("name"))
     except ValueError as exc:
         return jsonify(ok=False, error=str(exc)), 400
@@ -1076,7 +1090,7 @@ def api_persistence_flush():
     if get_server_pid():
         return jsonify({"ok": False, "error": "Stop the server before flushing saves"})
     scenario_id = (read_config().get("game") or {}).get("scenarioId", "")
-    if selection_for(_BASE_DIR, scenario_id):
+    if selection_for(_STATE_DIR, scenario_id):
         return jsonify({"ok": False, "error": "Clear the pinned startup save before flushing saves"}), 409
     try:
         removed = _flush_saves()
@@ -1350,8 +1364,15 @@ def api_mods_update_pins():
 
 
 def service_command(action):
+    if action not in ('start', 'stop'):
+        raise ValueError('Unsupported service action')
+    instance = getattr(g, 'server_instance', None) if has_request_context() else None
+    service = instance.service_name if instance else 'arma-server.service'
+    if instance:
+        from server_provisioning import service_command as instance_service_command
+        return instance_service_command(action, instance.id)
     result = subprocess.run(
-        ["sudo", "-n", "/usr/bin/systemctl", action, "arma-server.service"],
+        ["sudo", "-n", "/usr/bin/systemctl", action, service],
         capture_output=True, text=True, timeout=150)
     if result.returncode:
         raise RuntimeError(result.stderr.strip() or "Server service command failed")
@@ -1421,6 +1442,9 @@ def api_restart():
         return jsonify(ok=False, error=str(exc))
 
 
+from instance_runtime import install as install_instance_runtime
+install_instance_runtime(sys.modules[__name__])
+
 from legacy_api import install as install_legacy_api
 install_legacy_api(sys.modules[__name__])
 
@@ -1435,6 +1459,9 @@ install_file_manager(sys.modules[__name__])
 
 from server_software import install as install_server_software
 install_server_software(sys.modules[__name__])
+
+from server_provisioning import install as install_server_provisioning
+install_server_provisioning(sys.modules[__name__])
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=PANEL_PORT, threaded=True)

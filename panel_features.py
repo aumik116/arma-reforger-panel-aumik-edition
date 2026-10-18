@@ -20,6 +20,8 @@ ROLES = {
     "admin": {"view", "control", "logs", "configure", "mods", "activity", "users", "admin_config"},
 }
 MUTATIONS = {
+    'servers_create': 'admin_config', 'server_provision_retry': 'admin_config',
+    'server_delete': 'admin_config', 'server_startup_save': 'admin_config',
     "rcon_command": "admin_config",
     "software_check": "admin_config", "software_update": "admin_config",
     "api_start": "control", "api_stop": "control", "api_restart": "control",
@@ -40,7 +42,8 @@ MUTATIONS = {
 def install(api):
     app = api.app
     path = api._cfg.get("PANEL_DATA_FILE", os.path.join(api._BASE_DIR, ".panel-data.sqlite3"))
-    lock = threading.RLock()
+    lock = api.instance_scoped('mutation_lock', threading.RLock, threading.RLock())
+    preset_lock = threading.RLock()
 
     @contextmanager
     def db():
@@ -118,12 +121,14 @@ def install(api):
     def metric_events():
         # Only non-sensitive labels are exposed to dashboard viewers.
         with db() as conn:
-            rows = conn.execute("""SELECT id,ts,action FROM activity
+            rows = conn.execute("""SELECT id,ts,action,details FROM activity
                 WHERE outcome='success' AND ts >= ? AND action IN
                 ('api_start','api_stop','api_restart','api_mods_add','api_mods_remove',
-                 'api_mods_import','presets_apply') ORDER BY id DESC LIMIT 50""",
+                 'api_mods_import','presets_apply') ORDER BY id DESC""",
                 (time.time() - 3600,)).fetchall()
-        return [dict(row) for row in rows]
+        server_id = api.selected_instance().id if api.selected_instance() else None
+        return [dict(id=row['id'], ts=row['ts'], action=row['action']) for row in rows
+                if json.loads(row['details']).get('server_id') == server_id][:50]
 
     api.metric_events = metric_events
 
@@ -141,6 +146,7 @@ def install(api):
         g.user = dict(user)
         g.permissions = ROLES[user["role"]]
         needed = ("view" if request.endpoint == 'api_mods_compare_json' else MUTATIONS.get(request.endpoint)) if request.method == "POST" else {
+            'server_provision_status': 'admin_config',
             "software_status": "admin_config",
             "api_logs": "logs", "users_list": "users", "activity_list": "activity",
             "api_persistence_get": "configure",
@@ -150,6 +156,8 @@ def install(api):
         }.get(request.endpoint, "view")
         if needed and needed not in g.permissions:
             return jsonify(ok=False, error="Your account does not have permission for this action"), 403
+        if hasattr(g, 'instance_selection_error'):
+            return g.instance_selection_error
         if request.method == "POST":
             if request.is_json and not isinstance(request.get_json(silent=True), dict):
                 return jsonify(ok=False, error="Request body must be a JSON object"), 400
@@ -159,11 +167,14 @@ def install(api):
             err = api._csrf_required()
             if err:
                 return err
-            lock.acquire()
-            g.mutation_lock = True
+            held_lock = preset_lock if request.endpoint == 'presets_save' else lock
+            if hasattr(held_lock, '_get_current_object'):
+                held_lock = held_lock._get_current_object()
+            held_lock.acquire()
+            g.mutation_lock = held_lock
             if request.endpoint in {"api_start", "api_restart"} and api.software_manager.busy():
                 return jsonify(ok=False, error="Wait for the server software job to finish before starting or restarting."), 409
-            g.before_config = api.read_config()
+            g.before_config = {} if request.endpoint in getattr(api, 'PROVISIONING_ENDPOINTS', set()) else api.read_config()
             g.audit_actor = user["username"]
             g.audit_details = {}
             if request.endpoint == "api_persistence_set":
@@ -171,8 +182,9 @@ def install(api):
 
     @app.teardown_request
     def release_lock(exc):
-        if g.pop("mutation_lock", False):
-            lock.release()
+        held_lock = g.pop('mutation_lock', None)
+        if held_lock is not None:
+            held_lock.release()
 
     @app.after_request
     def record_action(response):
@@ -181,9 +193,11 @@ def install(api):
             result = response.get_json(silent=True) or {}
             ok = response.status_code < 400 and result.get("ok") is True
             details = g.audit_details
+            if api.selected_instance():
+                details['server_id'] = api.selected_instance().id
             if ok:
                 before = g.before_config.get("game", {})
-                after = api.read_config().get("game", {})
+                after = {} if request.endpoint in getattr(api, 'PROVISIONING_ENDPOINTS', set()) else api.read_config().get("game", {})
                 old = {m.get("modId"): m for m in before.get("mods", [])}
                 new = {m.get("modId"): m for m in after.get("mods", [])}
                 if old != new:
@@ -401,7 +415,7 @@ def install(api):
         return jsonify(events=[dict(row, details=json.loads(row["details"])) for row in rows[:50]],
                        next_before=rows[49]["id"] if len(rows) > 50 else None)
 
-    query = player_query.PlayerQuery()
+    query = api.instance_scoped('player_query', player_query.PlayerQuery, player_query.PlayerQuery())
 
     @app.get("/api/players")
     def players_list():

@@ -1,6 +1,19 @@
 // Shared authenticated request helpers.
 let CSRF = '';
 
+// Selection is explicit per page. Reloading on switch clears all drafts/cursors.
+const selectedServerId = new URLSearchParams(location.search).get('server') || '';
+const originalFetch = window.fetch.bind(window);
+window.fetch = (input, options = {}) => {
+  const url = new URL(typeof input === 'string' ? input : input.url, location.href);
+  if (selectedServerId && url.origin === location.origin && url.pathname.startsWith('/api/')) {
+    const headers = new Headers(options.headers || (input instanceof Request ? input.headers : undefined));
+    headers.set('X-Server-ID', selectedServerId);
+    options = {...options, headers};
+  }
+  return originalFetch(input, options);
+};
+
 async function postJson(url, body) {
   if (!CSRF) {
     try { const r = await fetch('/api/csrf'); if (r.ok) CSRF = (await r.json()).csrf || ''; }

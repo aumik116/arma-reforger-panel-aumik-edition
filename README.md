@@ -81,6 +81,53 @@ For internet access, put the panel behind an HTTPS reverse proxy. If players are
 
 For game settings, see [Bohemia's server configuration reference](https://community.bistudio.com/wiki/Arma_Reforger:Server_Config).
 
+## Multiple servers on one VM
+
+Local multi-server support is under development. Create Server is implemented
+and covered by simulated tests; a complete Ubuntu VM run has not yet been
+verified. The existing interface styling is retained.
+
+Run the current installer (or `sudo bash install.sh --update` for an existing
+panel) once to install the instance service template and root-owned helper.
+An administrator can then use **Servers → Create Server** to start from defaults
+or copy an existing server's settings and mod selections. Each instance gets
+its own game installation, config, profile, logs, workshop directory, and
+service. Passwords and saves are not copied; RCON gets a new random password
+and listens on loopback.
+
+Blank ports are allocated automatically, avoiding registered and currently bound
+UDP ports. Custom ports are checked for conflicts. The detached installer shows
+output through **Progress / retry**, which can resume interrupted downloads.
+Verified installations are enabled at boot and started automatically. A running
+process does not prove the mission has loaded or players can connect.
+
+The header selector reloads the page to clear the previous instance's forms and
+console cursor. **Existing server** targets the original installation. Creation
+and installation output require administrator permission. Existing roles apply
+to all instances; per-server account assignments are not implemented.
+
+The default instance root is `instances/` inside the panel directory. Set
+`INSTANCE_ROOT` in `config.env` before registering instances to use another
+location. Back up this root and the registry in `.panel-data.sqlite3` together.
+Do not move registered directories manually.
+
+Provisioning does not change host firewall rules or router/NAT forwarding.
+Allow the chosen game/query UDP ports before testing external connectivity.
+Use **Startup** in the server list to set an instance's FPS cap (0 disables it).
+Restart that instance to apply changes. **Remove** requires typing the server ID,
+stops/disables its service, and releases its reserved ports. Files are retained
+under `instances/.removed/`; this does not reclaim their disk space. Removal is
+refused while provisioning or a software job holds the instance's file lock.
+
+For Ubuntu 24 validation:
+
+1. Run the updated installer; create a default server and watch installation.
+2. Inspect Console and confirm a player can join.
+3. Copy its settings/mods into a second server; confirm its ports differ.
+4. Edit, stop, and restart each independently.
+5. Reboot the VM and verify both services and their separate saves/logs.
+6. Test an interrupted download and use Retry to resume it.
+
 ## License and credits
 
 MIT — free to use, modify and distribute.

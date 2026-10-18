@@ -14,7 +14,7 @@
 set -e
 
 # Keep both fresh installs and updates on the same file-copy path.
-PANEL_PY_FILES=(app.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py config_backups.py mod_metadata.py server_software.py persistence_saves.py armahq_compare.py mod_validation.py legacy_api.py)
+PANEL_PY_FILES=(app.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py config_backups.py mod_metadata.py server_software.py persistence_saves.py armahq_compare.py mod_validation.py legacy_api.py server_registry.py instance_runtime.py server_provisioning.py instance_control.py)
 
 copy_panel_files() {
     local destination="$1" file
@@ -159,6 +159,37 @@ EOF
     systemctl daemon-reload
 }
 
+configure_instance_control() {
+    local panel_dir="$1" panel_user="$2" config_root="${3:-/etc}" source_dir rule
+    [[ "$panel_user" =~ ^[a-zA-Z_][a-zA-Z0-9_-]*\$?$ ]] || return 1
+    [[ "$panel_dir" == /* && "$panel_dir" != *[\"\%\$\\]* && "$panel_dir" != *$'\n'* ]] || return 1
+    source_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    mkdir -p "$config_root/arma-panel" "$config_root/systemd/system" "$config_root/sudoers.d"
+    install -o root -g root -m 0755 "$source_dir/instance_control.py" "$config_root/arma-panel/instance-control.py"
+    rule=$(mktemp)
+    printf '%s ALL=(root) NOPASSWD: /usr/bin/python3 /etc/arma-panel/instance-control.py\n' "$panel_user" > "$rule"
+    visudo -cf "$rule" || { rm -f "$rule"; return 1; }
+    install -o root -g root -m 0440 "$rule" "$config_root/sudoers.d/arma-panel-instances"
+    rm -f "$rule"
+    cat > "$config_root/systemd/system/arma-server@.service" <<EOF
+[Unit]
+Description=Arma Reforger instance %i
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=simple
+User=${panel_user}
+ExecStart=/usr/bin/python3 "${panel_dir}/runtime_ops.py" "${panel_dir}/config.env" %i
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=120
+UMask=0077
+[Install]
+WantedBy=multi-user.target
+EOF
+    systemctl daemon-reload
+}
+
 if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then return 0; fi
 
 # ── Colors ────────────────────────────────────────────────────────────────────
@@ -233,6 +264,7 @@ if [[ "$MODE" == "update" ]]; then
     rm -f "$PANEL_DIR_EXISTING/save_library.py" "$PANEL_DIR_EXISTING/static/saves.js"
     chown -R "$EXISTING_USER:$EXISTING_USER" "$PANEL_DIR_EXISTING"
     configure_server_control "$PANEL_DIR_EXISTING" "$EXISTING_USER"
+    configure_instance_control "$PANEL_DIR_EXISTING" "$EXISTING_USER"
     systemctl restart arma-panel
     sleep 2
     if ! systemctl is-active --quiet arma-panel; then
@@ -486,6 +518,7 @@ WantedBy=multi-user.target
 EOF
 
 configure_server_control "$PANEL_DIR" "$ARMA_USER"
+configure_instance_control "$PANEL_DIR" "$ARMA_USER"
 systemctl enable arma-panel
 systemctl restart arma-panel
 

@@ -76,6 +76,9 @@ def install(api):
             CREATE TABLE IF NOT EXISTS panel_owner (
                 singleton INTEGER PRIMARY KEY CHECK(singleton=1), user_id INTEGER NOT NULL);
         """)
+        if 'access_all' not in {row['name'] for row in conn.execute('PRAGMA table_info(users)')}:
+            conn.execute('ALTER TABLE users ADD COLUMN access_all INTEGER NOT NULL DEFAULT 1')
+        conn.execute("CREATE TABLE IF NOT EXISTS user_server_roles (user_id INTEGER NOT NULL, server_id TEXT NOT NULL, role TEXT NOT NULL, PRIMARY KEY(user_id,server_id))")
         if 'scenario_id' not in {row['name'] for row in conn.execute('PRAGMA table_info(presets)')}:
             conn.execute('ALTER TABLE presets ADD COLUMN scenario_id TEXT')
         if not conn.execute("SELECT 1 FROM users LIMIT 1").fetchone():
@@ -86,6 +89,20 @@ def install(api):
         conn.execute("INSERT OR IGNORE INTO panel_owner(singleton,user_id) VALUES(1,1)")
         owner_id = conn.execute("SELECT user_id FROM panel_owner WHERE singleton=1").fetchone()[0]
     os.chmod(path, 0o600)
+
+    def server_permissions(user, server_id):
+        with db() as conn:
+            override = conn.execute('SELECT role FROM user_server_roles WHERE user_id=? AND server_id=?', (user['id'], server_id or '__existing__')).fetchone()
+        if user['id'] == owner_id:
+            return set(ROLES[user['role']])
+        role = override['role'] if override else user['role'] if user['access_all'] else None
+        return (set(ROLES.get(role, set())) - {'users'}) if role else set()
+
+    api.server_permissions = server_permissions
+    def clear_server_access(server_id):
+        with db() as conn:
+            conn.execute('DELETE FROM user_server_roles WHERE server_id=?', (server_id,))
+    api.clear_server_access = clear_server_access
 
     def audit(actor, action, outcome, details=None):
         with db() as conn:
@@ -149,7 +166,24 @@ def install(api):
                 return jsonify(error="Please sign in", ok=False), 401
             return redirect("/login")
         g.user = dict(user)
-        g.permissions = ROLES[user["role"]]
+        panel_permissions = set(ROLES[user['role']]) if user['id'] == owner_id or user['access_all'] else {'view'} | ({'users', 'admin_config'} if user['role'] == 'admin' else set())
+        g.panel_permissions = panel_permissions
+        g.permissions = panel_permissions
+        target = (request.view_args or {}).get('server_id')
+        if target is None and request.endpoint in {'account_me','activity_list','admin_label_save'}:
+            target = request.headers.get('X-Server-ID')
+            if target is None and request.endpoint == 'admin_label_save' and not api.manager_mode:
+                target = ''
+        server_request = request.path.startswith('/api/') and request.path != '/api/servers' and request.endpoint not in api.PANEL_WIDE_ENDPOINTS
+        if target is not None or server_request:
+            instance = api.selected_instance()
+            target = target if target is not None else instance.id if instance else ''
+            g.permissions = server_permissions(dict(user), target)
+            if not g.permissions:
+                return jsonify(ok=False, error='You do not have access to this server'), 403
+            if 'users' in panel_permissions:
+                g.permissions.add('users')
+
         needed = ("view" if request.endpoint == 'api_mods_compare_json' else MUTATIONS.get(request.endpoint)) if request.method == "POST" else {
             'server_provision_status': 'admin_config',
             "software_status": "admin_config",
@@ -229,8 +263,10 @@ def install(api):
 
     @app.get("/api/me")
     def account_me():
+        if not request.headers.get('X-Server-ID') and not api.manager_mode:
+            g.permissions = server_permissions(g.user, '') | (g.panel_permissions & {'users'})
         return jsonify(id=g.user['id'], username=g.user["username"], role=g.user["role"],
-                       is_owner=g.user['id'] == owner_id, permissions=sorted(g.permissions))
+                       is_owner=g.user['id'] == owner_id, permissions=sorted(g.permissions), panel_permissions=sorted(g.panel_permissions))
 
     @app.get('/api/preferences')
     def account_preferences():
@@ -275,8 +311,14 @@ def install(api):
     @app.get("/api/users")
     def users_list():
         with db() as conn:
-            rows = conn.execute("SELECT id,username,role,enabled FROM users ORDER BY username").fetchall()
-        return jsonify(users=[dict(row, is_owner=row['id'] == owner_id) for row in rows], roles=list(ROLES))
+            rows = conn.execute("SELECT id,username,role,enabled,access_all FROM users ORDER BY username").fetchall()
+        with db() as conn:
+            assignments = [dict(row) for row in conn.execute('SELECT * FROM user_server_roles')]
+        servers = [dict(id=server.id, name=server.name) for server in api.server_registry.list()]
+        if not api.manager_mode:
+            servers.insert(0, dict(id='__existing__', name='Existing server'))
+        return jsonify(users=[dict(row, is_owner=row['id'] == owner_id, access_all=bool(row['access_all']),
+            server_roles={item['server_id']:item['role'] for item in assignments if item['user_id'] == row['id']}) for row in rows], roles=list(ROLES), servers=servers)
 
     @app.post("/api/users")
     def users_save():
@@ -287,6 +329,15 @@ def install(api):
         if not isinstance(data.get("enabled", True), bool):
             return jsonify(ok=False, error="Enabled must be true or false"), 400
         enabled = int(data.get("enabled", True))
+        access_all, server_roles = data.get('access_all'), data.get('server_roles')
+        known_servers = {server.id for server in api.server_registry.list()}
+        if not api.manager_mode:
+            known_servers.add('__existing__')
+        if access_all is not None and type(access_all) is not bool:
+            return jsonify(ok=False,error='All-server access must be true or false'),400
+        if server_roles is not None and (not isinstance(server_roles,dict) or any(key not in known_servers or not isinstance(value,str) or value not in ROLES for key,value in server_roles.items())):
+            return jsonify(ok=False,error='Choose a valid server and role for each assignment'),400
+
         try:
             with db() as conn:
                 conn.execute("BEGIN IMMEDIATE")
@@ -294,6 +345,8 @@ def install(api):
                 if data.get("id") is not None and not existing:
                     return jsonify(ok=False, error="Account not found"), 404
                 if existing:
+                    if existing['id'] == owner_id and (access_all is False or server_roles):
+                        return jsonify(ok=False,error='Owner access cannot be restricted'),400
                     if existing['id'] == owner_id:
                         if g.user['id'] != owner_id:
                             return jsonify(ok=False, error="Only the Owner can change the Owner account"), 403
@@ -311,11 +364,17 @@ def install(api):
                     if existing["id"] == g.user["id"]:
                         session["user_version"] += 1
                 else:
-                    conn.execute("INSERT INTO users(username,password,role,enabled) VALUES(?,?,?,?)",
-                                 (username, password_hash(data.get("password")), role, enabled))
+                    conn.execute("INSERT INTO users(username,password,role,enabled,access_all) VALUES(?,?,?,?,?)",
+                                 (username, password_hash(data.get("password")), role, enabled, int(access_all is True)))
+                saved_id = existing['id'] if existing else conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+                if existing and access_all is not None:
+                    conn.execute('UPDATE users SET access_all=? WHERE id=?', (int(access_all), saved_id))
+                if server_roles is not None:
+                    conn.execute('DELETE FROM user_server_roles WHERE user_id=?', (saved_id,))
+                    conn.executemany('INSERT INTO user_server_roles VALUES(?,?,?)', [(saved_id,key,value) for key,value in server_roles.items()])
         except (ValueError, sqlite3.IntegrityError) as exc:
             return jsonify(ok=False, error="Username is already in use" if isinstance(exc, sqlite3.IntegrityError) else str(exc)), 400
-        g.audit_details = {"username": username, "role": role, "enabled": bool(enabled)}
+        g.audit_details = {"username": username, "role": role, "enabled": bool(enabled), "access_all":access_all, "server_roles":server_roles}
         return jsonify(ok=True)
 
     @app.post("/api/users/delete")
@@ -333,6 +392,7 @@ def install(api):
                 count = conn.execute("SELECT count(*) FROM users WHERE role='admin' AND enabled=1").fetchone()[0]
                 if count <= 1:
                     return jsonify(ok=False, error="Keep at least one enabled administrator"), 400
+            conn.execute("DELETE FROM user_server_roles WHERE user_id=?", (user["id"],))
             conn.execute("DELETE FROM users WHERE id=?", (user["id"],))
         g.audit_details = {"username": user["username"]}
         return jsonify(ok=True)
@@ -443,7 +503,15 @@ def install(api):
         except ValueError:
             return jsonify(ok=False, error="Invalid activity cursor"), 400
         with db() as conn:
-            rows = conn.execute("SELECT * FROM activity WHERE (?=0 OR id<?) ORDER BY id DESC LIMIT 51", (before, before)).fetchall()
+            if g.user['id'] == owner_id or 'users' in g.panel_permissions:
+                rows = conn.execute("SELECT * FROM activity WHERE (?=0 OR id<?) ORDER BY id DESC LIMIT 51", (before, before)).fetchall()
+            else:
+                visible = [server.id for server in api.server_registry.list() if server_permissions(g.user,server.id)]
+                if not api.manager_mode and server_permissions(g.user,''):
+                    visible.append(None)
+                marks = ','.join('?' for _ in visible) or 'NULL'
+                rows = conn.execute(f"SELECT * FROM activity WHERE (?=0 OR id<?) AND (actor=? OR json_extract(details,'$.server_id') IN ({marks}) OR (? AND json_extract(details,'$.server_id') IS NULL AND action NOT IN ('users_save','users_delete','account_password'))) ORDER BY id DESC LIMIT 51",
+                    (before,before,g.user['username'],*visible,None in visible)).fetchall()
         return jsonify(events=[dict(row, details=json.loads(row["details"])) for row in rows[:50]],
                        next_before=rows[49]["id"] if len(rows) > 50 else None)
 

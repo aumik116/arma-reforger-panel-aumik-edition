@@ -2,6 +2,7 @@
 let currentAccount = {permissions: []};
 let savedPresets = [];
 let accountRows = [];
+let accountServers = [];
 let roster = [];
 let activityCursor = null;
 const can = permission => currentAccount.permissions.includes(permission);
@@ -196,7 +197,7 @@ async function presetAction(action) {
 
 async function loadUsers() {
   const data = await getFeature('/api/users');
-  accountRows = data.users;
+  accountRows = data.users; accountServers = data.servers || [];
   byId('users-list').replaceChildren();
   accountRows.forEach(user => {
     const row = document.createElement('div'); row.className = 'feature-row';
@@ -213,6 +214,7 @@ async function loadUsers() {
       byId('user-role').value = user.role; byId('user-enabled').checked = !!user.enabled;
       byId('user-role').disabled = !!user.is_owner; byId('user-enabled').disabled = !!user.is_owner;
       byId('user-password').value = ''; byId('user-save').textContent = 'Update account';
+      renderUserAccess(user);
     };
     row.append(edit);
     if (user.id !== currentAccount.id && !user.is_owner) {
@@ -226,6 +228,22 @@ async function loadUsers() {
     }
     byId('users-list').append(row);
   });
+  if (!byId('user-id').value) renderUserAccess();
+}
+
+function renderUserAccess(user = null) {
+  const all = byId('user-all-servers'), container = byId('user-server-access');
+  all.checked = !!(user && (user.is_owner || user.access_all)); all.disabled = !!user?.is_owner;
+  container.replaceChildren();
+  for (const server of accountServers) {
+    const label = document.createElement('label'); label.className = 'field'; label.textContent = server.name;
+    const select = document.createElement('select'); select.dataset.server = server.id;
+    for (const [value,text] of [['','No assignment'],['viewer','Viewer'],['operator','Operator'],['manager','Manager'],['admin','Server administrator']]) {
+      const option = document.createElement('option'); option.value = value; option.textContent = text; select.append(option);
+    }
+    select.value = user?.server_roles?.[server.id] || ''; select.disabled = !!user?.is_owner;
+    label.append(select); container.append(label);
+  }
 }
 
 function resetUserForm() {
@@ -233,12 +251,15 @@ function resetUserForm() {
   byId('user-role').value = 'viewer'; byId('user-enabled').checked = true;
   byId('user-role').disabled = false; byId('user-enabled').disabled = false;
   byId('user-save').textContent = 'Create account';
+  renderUserAccess();
 }
 
 async function saveUser() {
   try {
     const data = {username:byId('user-name').value.trim(), password:byId('user-password').value,
-      role:byId('user-role').value, enabled:byId('user-enabled').checked};
+      role:byId('user-role').value, enabled:byId('user-enabled').checked,
+      access_all:byId('user-all-servers').checked,
+      server_roles:Object.fromEntries([...byId('user-server-access').querySelectorAll('select')].filter(select => select.value).map(select => [select.dataset.server,select.value]))};
     if (byId('user-id').value) data.id = Number(byId('user-id').value);
     await changeFeature('/api/users', data);
     if (data.id === currentAccount.id) {

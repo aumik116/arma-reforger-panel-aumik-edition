@@ -280,6 +280,8 @@ def install(api):
             seed_directory = str(api.SERVER_DIR)
             seed_state_directory = api._BASE_DIR
             if data.get('copy_from'):
+                if not api.server_permissions(g.user, data['copy_from']):
+                    return jsonify(ok=False,error='You do not have access to the source server'),403
                 if data['copy_from'] == '__existing__':
                     if api.manager_mode:
                         raise ValueError('This installation has no existing unmanaged server to copy')
@@ -367,6 +369,7 @@ def install(api):
                     if archived:
                         archived.rename(server.directory)
                     raise
+            api.clear_server_access(server_id)
             api.clear_instance_state(server_id)
             g.audit_details = {'server_id':server_id, 'files_archived':bool(archived)}
             return jsonify(ok=True, archived=str(archived) if archived else None)

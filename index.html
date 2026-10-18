@@ -579,6 +579,7 @@
       <div class="field"><label for="user-password">Password (leave blank to keep when editing)</label><input id="user-password" type="password" autocomplete="new-password"></div>
       <div class="field"><label for="user-role">Permission level</label><select id="user-role"><option value="viewer">Viewer</option><option value="operator">Operator</option><option value="manager">Manager</option><option value="admin">Administrator</option></select></div>
     </div>
+    <details open><summary>Server access and roles</summary><p class="feature-note">New accounts have no server access until assigned. The Owner always has full access. Server administrator does not grant panel account-management access.</p><label><input type="checkbox" id="user-all-servers"> Allow all current and future servers at the account's default role</label><p class="feature-note">Assignments below override that default. With all-server access off, unassigned servers are hidden.</p><div id="user-server-access" class="feature-grid"></div></details>
     <label><input id="user-enabled" type="checkbox" checked> Account enabled</label>
     <div class="feature-row"><button id="user-save" class="btn-save" onclick="saveUser()">Create account</button>
     <button class="btn-save" onclick="resetUserForm()">Clear form</button></div>

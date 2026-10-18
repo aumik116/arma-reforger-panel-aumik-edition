@@ -61,7 +61,7 @@ class PanelTests(unittest.TestCase):
         return client.post(path, json=data or {}, headers={'X-CSRF-Token': csrf})
 
     def create(self, name, role):
-        result = self.post(self.admin, '/api/users', {'username': name, 'password':'test-password', 'role': role})
+        result = self.post(self.admin, '/api/users', {'username': name, 'password':'test-password', 'role': role, 'access_all':True})
         self.assertTrue(result.json['ok'], result.json)
         return next(u for u in self.admin.get('/api/users').json['users'] if u['username'] == name)
 

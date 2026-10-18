@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     finally { button.disabled = false; }
   };
   fetch('/api/me').then(response => response.json()).then(async account => {
-    admin = (account.permissions || []).includes('admin_config'); form.hidden = !admin; await load();
+    admin = (account.panel_permissions || account.permissions || []).includes('admin_config'); form.hidden = !admin; await load();
   }).catch(error => result.textContent = error.message);
   poll = setInterval(() => { if (dialog.open && jobId) showJob().catch(error => result.textContent = error.message); }, 2500);
   window.addEventListener('pagehide', () => clearInterval(poll));

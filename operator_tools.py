@@ -35,8 +35,8 @@ class OperatorTools:
 
     def authorized(self, row):
         with self.store.connect() as conn:
-            owner = conn.execute('SELECT enabled,role,username FROM users WHERE id=?', (row['owner_id'],)).fetchone()
-        if not owner or not owner['enabled'] or owner['role'] != 'admin':
+            owner = conn.execute('SELECT * FROM users WHERE id=?', (row['owner_id'],)).fetchone()
+        if not owner or not owner['enabled'] or 'admin_config' not in self.api.server_permissions(dict(owner),row['server_id']):
             raise ValueError('Schedule owner no longer has administrator access')
         return owner['username']
 

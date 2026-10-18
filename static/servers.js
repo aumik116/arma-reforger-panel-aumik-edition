@@ -39,7 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
       name.append(element('small',server.error || (server.port || server.game_port ? `Game ${server.port || server.game_port} · Query ${server.query_port || '—'}` : 'Existing server'))); row.append(name);
       for (const value of [server.players ?? '—', typeof server.cpu === 'number' ? server.cpu.toFixed(1)+'%' : '—', typeof server.ram_process === 'number' ? (server.ram_process/1024).toFixed(2)+' GiB' : '—',server.uptime || '—']) row.append(element('td',value));
       const actions = element('td',''); actions.className = 'manager-actions';
-      if (permissions.includes('control') && ['online','offline'].includes(server.status)) {
+      if ((server.permissions || []).includes('control') && ['online','offline'].includes(server.status)) {
         const command = server.running ? 'stop' : 'start';
         const button = element('button',server.running ? '■ Stop' : '▶ Start','btn-logout'); button.disabled = busy.has(server.id); button.onclick = () => action(server,command,button); actions.append(button);
         if (server.running) { const restart = element('button','Restart','btn-logout'); restart.disabled = busy.has(server.id); restart.onclick = () => action(server,'restart',restart); actions.append(restart); }
@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const button = document.getElementById('overview-refresh'); button.disabled = true;
     try {
       const data = await read('/api/servers');
-      const servers = [...(data.legacy_server ? [{id:'',name:data.legacy_server.name,state:'ready'}] : []),...data.servers];
+      const servers = [...(data.legacy_server ? [{id:'',name:data.legacy_server.name,state:'ready',permissions:data.legacy_server.permissions}] : []),...data.servers];
       if (!rows.children.length) render(servers.map(server => ({...server,status:server.state === 'ready' ? 'checking' : server.state}))); 
       // Three concurrent checks keep a host with many instances responsive.
       const snapshots = new Array(servers.length); let next = 0;
@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   document.getElementById('overview-refresh').onclick = () => refresh();
   document.getElementById('overview-logout').onclick = async () => { await postJson('/logout',{}); location.href = '/login'; };
-  read('/api/me').then(account => { permissions = account.permissions || []; document.getElementById('overview-account').textContent = account.username; document.getElementById('overview-create').hidden = !permissions.includes('admin_config'); return refresh(); }).catch(error => feedback.textContent = error.message);
+  read('/api/me').then(account => { permissions = account.panel_permissions || account.permissions || []; document.getElementById('overview-account').textContent = account.username; document.getElementById('overview-create').hidden = !permissions.includes('admin_config'); return refresh(); }).catch(error => feedback.textContent = error.message);
   timer = setInterval(() => { if (!document.hidden) refresh(); },10000);
   window.addEventListener('pagehide',() => clearInterval(timer));
 });

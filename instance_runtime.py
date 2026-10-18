@@ -131,12 +131,12 @@ def install(api):
     @api.app.get('/api/servers')
     def servers_list():
         legacy = None
-        if not api.manager_mode:
-            legacy = {'name':'Existing server'}
+        if not api.manager_mode and api.server_permissions(g.user, ''):
+            legacy = {'name':'Existing server', 'permissions':sorted(api.server_permissions(g.user,''))}
             try:
                 legacy['name'] = api.read_config().get('game',{}).get('name') or legacy['name']
             except api.ConfigReadError:
                 pass
         return jsonify(manager_mode=api.manager_mode,legacy_server=legacy,servers=[dict(id=s.id, name=s.name, state=s.state,
-            game_port=s.game_port, query_port=s.query_port, rcon_port=s.rcon_port, max_fps=s.max_fps)
-            for s in registry.list()])
+            game_port=s.game_port, query_port=s.query_port, rcon_port=s.rcon_port, max_fps=s.max_fps, permissions=sorted(api.server_permissions(g.user,s.id)))
+            for s in registry.list() if api.server_permissions(g.user,s.id)])

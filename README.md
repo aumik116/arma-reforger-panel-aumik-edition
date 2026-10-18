@@ -29,6 +29,18 @@ Fresh installation prepares the panel and SteamCMD only. Sign in as `admin` and 
 
 Open `http://YOUR_SERVER_IP:8888`, or the port chosen during installation. Sign in as `admin` with the password you set in the installer.
 
+## Per-server staff access
+
+New accounts start with no server access. In Administration, edit an account and
+assign Viewer, Operator, Manager or Server administrator separately for each
+server. Unassigned servers are hidden and their APIs reject access. Server
+administrator does not grant panel account-management rights. The Owner remains
+protected. Existing accounts keep their previous all-server access on upgrade;
+turn that option off to restrict them to explicit assignments. Access changes
+invalidate existing sessions, and scheduled jobs recheck their owner's access.
+Older panel versions do not enforce these assignments: do not downgrade to an
+older build while relying on server restrictions.
+
 ## Server overview
 
 After signing in, `/servers` lists all servers on this VM with process CPU,

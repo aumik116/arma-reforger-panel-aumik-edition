@@ -89,6 +89,7 @@ def install(api):
         if not metadata_target and request.endpoint in getattr(api, 'PROVISIONING_ENDPOINTS', set()):
             return
         if request.endpoint in {'account_me', 'account_password', 'users_list', 'users_save',
+                                'account_preferences', 'account_preferences_save',
                                 'users_delete', 'admin_label_save', 'activity_list',
                                 'presets_delete'}:
             return  # Panel-wide mutations retain their shared lock.

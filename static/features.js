@@ -114,10 +114,21 @@ async function loadPlayers() {
     byId('player-message').textContent = data.message;
     byId('player-select').replaceChildren(new Option(roster.length ? 'Select a player' : 'No players to display', ''));
     roster.forEach(p => byId('player-select').add(new Option(p.name, p.identity)));
+    const list = byId('dashboard-player-list'); list.replaceChildren();
+    for (const player of roster) {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'dashboard-player';
+      const avatar = document.createElement('span'); avatar.className = 'dashboard-player-avatar'; avatar.textContent = player.name.slice(0,1).toUpperCase();
+      const text = document.createElement('span'); text.textContent = player.name;
+      const detail = document.createElement('small'); detail.textContent = 'Player #' + player.id; text.append(detail);
+      button.append(avatar, text);
+      button.onclick = () => { byId('player-select').value = player.identity; byId('player-details-disclosure').open = true; showPlayer(); };
+      list.append(button);
+    }
     byId('player-select').value = roster.some(p => p.identity === selected) ? selected : '';
     showPlayer();
   } catch (error) {
     roster = [];
+    byId('dashboard-player-list').replaceChildren();
     byId('player-select').replaceChildren(new Option('Unavailable', ''));
     byId('player-summary').textContent = 'Player list unavailable';
     byId('player-message').textContent = error.message;

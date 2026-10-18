@@ -81,6 +81,24 @@ const metricDefinitions = [
   ['ping', 'Player latency', ['Median', '95th percentile'], 'ms', 'Requires game telemetry; unavailable with no ping samples'],
 ];
 const extraCharts = {};
+
+function applyChartTheme() {
+  const style = getComputedStyle(document.documentElement);
+  const color = name => style.getPropertyValue(name).trim();
+  for (const chart of Object.values(Chart.instances)) {
+    chart.data.datasets.forEach((dataset, index) => {
+      const stroke = color(index ? '--online' : chart.canvas.id === 'chart-cpu' ? '--cpu-color' : '--accent');
+      dataset.borderColor = stroke; dataset.backgroundColor = stroke + '18';
+    });
+    if (chart.options.scales.y) {
+      chart.options.scales.y.grid.color = color('--chart-grid');
+      chart.options.scales.y.ticks.color = color('--muted');
+    }
+    if (chart.options.plugins.legend?.labels) chart.options.plugins.legend.labels.color = color('--muted');
+    chart.update('none');
+  }
+}
+document.addEventListener('panel-theme-change', applyChartTheme);
 const eventMarkers = {
   id: 'panelEvents',
   afterDraw(chart) {
@@ -88,7 +106,7 @@ const eventMarkers = {
     const times = chart.sampleTimes || [];
     const {ctx, chartArea} = chart;
     if (!chartArea) return;
-    ctx.save(); ctx.strokeStyle = '#c8a84b'; ctx.setLineDash([3, 4]);
+    ctx.save(); ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim(); ctx.setLineDash([3, 4]);
     for (const event of events) {
       const index = times.findIndex(t => t != null && t >= event.ts);
       const first = times.find(t => t != null);
@@ -115,6 +133,7 @@ for (const [id, title, series, unit, description] of metricDefinitions) {
   data.datasets = series.map((label, i) => ({...makeChartData(i ? '#78b88b' : '#c8a84b').datasets[0], label, tension:0, fill:false}));
   extraCharts[id] = new Chart(card.querySelector('canvas'), {type:'line', data, options});
 }
+applyChartTheme();
 function updateExtraMetrics(d) {
   document.getElementById('server-fps-value').textContent = Number.isFinite(d?.server_fps) ? d.server_fps.toFixed(1) + ' FPS' : '— FPS';
   document.getElementById('cpu-frequency').textContent = Number.isFinite(d?.cpu_frequency_mhz) ? (d.cpu_frequency_mhz / 1000).toFixed(2) + ' GHz' : '— GHz';
@@ -175,6 +194,8 @@ async function fetchMetrics() {
     const ramPct = d.ram_total > 0 ? Math.round(d.ram_used / d.ram_total * 100) : 0;
 
     document.getElementById('cpu-val').textContent = (d.cpu ?? 0).toFixed(1) + '%';
+    document.getElementById('summary-cpu').textContent = d.running ? (d.cpu ?? 0).toFixed(1) + '%' : '—';
+    document.getElementById('summary-ram').textContent = d.running && Number.isFinite(d.ram_process) ? (d.ram_process / 1024).toFixed(2) + ' GiB' : '—';
     document.getElementById('ram-val').textContent = ramPct + '%';
     document.getElementById('proc-cpu-sub').textContent = 'Arma: ' + (d.running ? (d.cpu ?? 0).toFixed(1) + '%' : '—%');
     document.getElementById('proc-ram-sub').textContent = 'Arma: ' + (d.running ? (d.ram_process ?? 0) + ' MB / ' + d.ram_total + ' MB' : '— MB');
@@ -184,6 +205,8 @@ async function fetchMetrics() {
     renderTraffic(d.network, networkChart, ['net-rx','net-tx'], 'net-state', 8 / 1000000, 'Mbps', 'All non-loopback interfaces; includes other host traffic');
     renderTraffic(d.disk, diskChart, ['disk-read','disk-write'], 'disk-state', 1 / 1048576, 'MiB/s', 'Storage reads/writes attributed to the game process');
   } catch(e) {
+    document.getElementById('summary-cpu').textContent = '—';
+    document.getElementById('summary-ram').textContent = '—';
     updateExtraMetrics(null);
     renderTraffic(null, networkChart, ['net-rx','net-tx'], 'net-state', 1, 'Mbps', '');
     renderTraffic(null, diskChart, ['disk-read','disk-write'], 'disk-state', 1, 'MiB/s', '');

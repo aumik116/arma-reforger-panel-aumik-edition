@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<script src="/static/theme.js"></script>
 <title>Arma Reforger — Management Panel</title>
 
 <!-- PWA -->
@@ -24,6 +25,8 @@
 <link rel="stylesheet" href="/static/files.css">
 <link rel="stylesheet" href="/static/sharp.css">
 <link rel="stylesheet" href="/static/instances.css">
+<link rel="stylesheet" href="/static/dashboard-layout.css">
+<link rel="stylesheet" href="/static/themes.css">
 </head>
 <body>
 <div class="layout">
@@ -54,11 +57,12 @@
     <button onclick="openPanelSection('dashboard','players-card')">Players <span>↗</span></button>
     <button onclick="openModPresets()">Mod presets <span>↗</span></button>
   </div>
-  <div class="sidebar-bottom"><span class="brand-icon">AR</span><div>Arma Reforger<small>Dedicated server</small></div></div>
+  <div class="sidebar-bottom"><span class="brand-icon">AR</span><div>Arma Reforger<small>Dedicated server</small></div><button class="btn-logout appearance-link" onclick="selectPageSection('admin','accounts');openPanelSection('administration','appearance-card')">Appearance</button></div>
   </aside>
   <div class="page-heading"><div><div class="eyebrow">SERVER WORKSPACE</div><h2 id="page-title">Dashboard</h2><p id="page-description">Monitor your server and manage the action.</p></div></div>
 
   <section class="tab-panel" id="panel-dashboard" role="tabpanel" aria-labelledby="tab-dashboard">
+<div class="dashboard-heading">
   <!-- Status -->
   <div class="card clip server-overview">
     <div class="card-corner"></div>
@@ -104,6 +108,13 @@
     </button>
   </div>
 
+</div>
+<div class="dashboard-summary" aria-label="Server summary">
+  <div class="card"><div class="card-label">Uptime</div><div class="chart-value" id="summary-uptime">—</div><p class="feature-note">Since last start</p></div>
+  <div class="card"><div class="card-label">Server CPU</div><div class="chart-value" id="summary-cpu">—</div><p class="feature-note">Game process usage</p></div>
+  <div class="card"><div class="card-label">Server memory</div><div class="chart-value" id="summary-ram">—</div><p class="feature-note">Game process resident memory</p></div>
+</div>
+<div class="dashboard-columns"><div class="dashboard-performance">
   <!-- Charts -->
   <div class="charts-row">
     <div class="chart-card">
@@ -153,30 +164,6 @@
     </div>
   </div>
   <div class="charts-row" id="extra-metrics"></div>
-  <div class="chart-card entity-counters" aria-label="Live server counts">
-    <div class="entity-counter">
-      <div class="chart-title">AI</div>
-      <div class="chart-value" id="ai-count">—</div>
-      <div class="chart-sub">Current server count</div>
-    </div>
-    <div class="entity-counter">
-      <div class="chart-title">Vehicles</div>
-      <div class="chart-value" id="vehicle-count">—</div>
-      <div class="chart-sub">All spawned vehicles</div>
-    </div>
-  </div>
-
-  <!-- Connected players -->
-  <div class="card clip" id="players-card" tabindex="-1">
-    <div class="card-label">Players · <span id="player-summary">Loading...</span></div>
-    <div class="field"><label for="player-select">Connected usernames</label>
-      <select id="player-select" onchange="showPlayer()"><option>Loading...</option></select></div>
-    <p class="feature-note" id="player-message"></p>
-    <p class="feature-note" id="player-details"></p>
-    <div class="field" id="player-uuid-field" hidden><label for="player-uuid">Player UUID</label>
-      <input id="player-uuid" type="text" readonly spellcheck="false" aria-label="Selected player UUID"><button class="config-button" id="copy-player-uuid" onclick="copyPlayerUuid()" disabled>Copy UUID</button><span id="uuid-copy-status" role="status"></span></div>
-  </div>
-
   <div class="card" id="storage-card">
     <div class="card-label">Server storage</div>
     <div id="disk-space-text" role="status">Waiting for storage sample…</div>
@@ -184,6 +171,21 @@
     <p class="feature-note" id="disk-space-alert" role="status"></p>
     <p class="feature-note">Storage metrics cover the server filesystem device. Network metrics cover host interfaces except loopback. Charts retain the latest 60 samples while this dashboard is open; dashed lines mark panel server controls and mod changes.</p>
     <p class="feature-note" id="metric-events">No recent panel events.</p>
+  </div>
+
+</div><div class="dashboard-live">
+  <!-- Connected players -->
+  <div class="card clip" id="players-card" tabindex="-1">
+    <div class="card-label">Players · <span id="player-summary">Loading...</span></div>
+    <div id="dashboard-player-list" class="dashboard-player-list"></div>
+    <details id="player-details-disclosure" class="player-details-disclosure"><summary>Player details</summary>
+    <div class="field"><label for="player-select">Connected usernames</label>
+      <select id="player-select" onchange="showPlayer()"><option>Loading...</option></select></div>
+    <p class="feature-note" id="player-message"></p>
+    <p class="feature-note" id="player-details"></p>
+    <div class="field" id="player-uuid-field" hidden><label for="player-uuid">Player UUID</label>
+      <input id="player-uuid" type="text" readonly spellcheck="false" aria-label="Selected player UUID"><button class="config-button" id="copy-player-uuid" onclick="copyPlayerUuid()" disabled>Copy UUID</button><span id="uuid-copy-status" role="status"></span></div>
+    </details>
   </div>
 
   <!-- Live Logs -->
@@ -198,6 +200,20 @@
     <div id="log-output" class="hide-performance"></div>
   </div>
 
+  <div class="chart-card entity-counters" aria-label="Live server counts">
+    <div class="entity-counter">
+      <div class="chart-title">AI</div>
+      <div class="chart-value" id="ai-count">—</div>
+      <div class="chart-sub">Current server count</div>
+    </div>
+    <div class="entity-counter">
+      <div class="chart-title">Vehicles</div>
+      <div class="chart-value" id="vehicle-count">—</div>
+      <div class="chart-sub">All spawned vehicles</div>
+    </div>
+  </div>
+
+</div></div>
   </section>
 
   <section class="tab-panel" id="panel-console" role="tabpanel" aria-labelledby="tab-console" hidden>
@@ -539,6 +555,7 @@
     <button type="button" role="tab" id="section-tab-admin-maintenance" aria-controls="section-admin-maintenance" aria-selected="false" tabindex="-1" data-section-group="admin" data-section-key="maintenance" data-permission="admin_config" hidden>Maintenance</button></div>
     <div id="section-admin-accounts" role="tabpanel" aria-labelledby="section-tab-admin-accounts" data-section-content="admin">
   <!-- Accounts and activity -->
+  <div class="card" id="appearance-card" tabindex="-1"><div class="card-label">Appearance</div><div class="field"><label for="theme-choice">Theme</label><select id="theme-choice"><option value="original">Original · Amber</option><option value="ocean">Ocean · Blue</option><option value="forest">Forest · Green</option><option value="light">Light · Amber</option></select></div><p class="feature-note">Saved to your account. Applies across all servers without changing anyone else’s theme.</p><p class="feature-note" id="theme-feedback" role="status"></p></div>
   <div class="card clip">
     <div class="card-label">My account · <span id="account-label"></span></div>
     <div class="config-grid">

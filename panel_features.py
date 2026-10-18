@@ -20,6 +20,7 @@ ROLES = {
     "admin": {"view", "control", "logs", "configure", "mods", "activity", "users", "admin_config"},
 }
 MUTATIONS = {
+    'account_preferences_save': 'view',
     'servers_create': 'admin_config', 'server_provision_retry': 'admin_config',
     'server_delete': 'admin_config', 'server_startup_save': 'admin_config',
     "rcon_command": "admin_config",
@@ -58,6 +59,7 @@ def install(api):
     with db() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS admin_labels (identity TEXT PRIMARY KEY, name TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS user_preferences (user_id INTEGER PRIMARY KEY, theme TEXT NOT NULL);
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE COLLATE NOCASE NOT NULL,
                 password TEXT NOT NULL, role TEXT NOT NULL, enabled INTEGER NOT NULL DEFAULT 1,
@@ -174,7 +176,7 @@ def install(api):
             g.mutation_lock = held_lock
             if request.endpoint in {"api_start", "api_restart"} and api.software_manager.busy():
                 return jsonify(ok=False, error="Wait for the server software job to finish before starting or restarting."), 409
-            g.before_config = {} if request.endpoint in getattr(api, 'PROVISIONING_ENDPOINTS', set()) else api.read_config()
+            g.before_config = {} if request.endpoint in getattr(api, 'PROVISIONING_ENDPOINTS', set()) or request.endpoint == 'account_preferences_save' else api.read_config()
             g.audit_actor = user["username"]
             g.audit_details = {}
             if request.endpoint == "api_persistence_set":
@@ -197,7 +199,7 @@ def install(api):
                 details['server_id'] = api.selected_instance().id
             if ok:
                 before = g.before_config.get("game", {})
-                after = {} if request.endpoint in getattr(api, 'PROVISIONING_ENDPOINTS', set()) else api.read_config().get("game", {})
+                after = {} if request.endpoint in getattr(api, 'PROVISIONING_ENDPOINTS', set()) or request.endpoint == 'account_preferences_save' else api.read_config().get("game", {})
                 old = {m.get("modId"): m for m in before.get("mods", [])}
                 new = {m.get("modId"): m for m in after.get("mods", [])}
                 if old != new:
@@ -216,6 +218,23 @@ def install(api):
     def account_me():
         return jsonify(id=g.user['id'], username=g.user["username"], role=g.user["role"],
                        is_owner=g.user['id'] == owner_id, permissions=sorted(g.permissions))
+
+    @app.get('/api/preferences')
+    def account_preferences():
+        with db() as conn:
+            row = conn.execute('SELECT theme FROM user_preferences WHERE user_id=?', (g.user['id'],)).fetchone()
+        return jsonify(theme=row['theme'] if row else 'original')
+
+    @app.post('/api/preferences')
+    def account_preferences_save():
+        theme = (request.get_json(silent=True) or {}).get('theme')
+        if theme not in ('original', 'ocean', 'forest', 'light'):
+            return jsonify(ok=False, error='Choose a supported theme'), 400
+        with db() as conn:
+            conn.execute('INSERT INTO user_preferences VALUES (?,?) ON CONFLICT(user_id) DO UPDATE SET theme=excluded.theme',
+                         (g.user['id'], theme))
+        g.audit_details = {'theme':theme}
+        return jsonify(ok=True, theme=theme)
 
     def body():
         data = request.get_json(silent=True)

@@ -25,6 +25,7 @@ function updateUI(d) {
   document.getElementById('ip-port-display').textContent = (d.ip && d.port) ? d.ip + ':' + d.port : '—';
   document.getElementById('map-name').textContent = d.map || '—';
   document.getElementById('uptime-display').textContent = d.running ? (d.uptime || '—') : '—';
+  document.getElementById('summary-uptime').textContent = d.running ? (d.uptime || '—') : '—';
 
   if (!busy) {
     document.getElementById('btn-start').disabled = d.running;

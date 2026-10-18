@@ -31,6 +31,12 @@ Open `http://YOUR_SERVER_IP:8888`, or the port chosen during installation. Sign 
 
 ## Everyday use
 
+The dashboard places status and controls above summary cards, with performance
+charts on the left and players/console on the right. The square controls and
+original amber palette remain the default. Open **Appearance** in the sidebar
+to choose Original, Ocean, Forest, or Light. The preference is saved to your
+account and applies across servers; it does not change another user's theme.
+
 **Dashboard** shows server controls, live metrics and the current player list. Network rates are host-wide and may include other services. Player names and IDs need working RCON; FPS and AI/vehicle counts come from game logs.
 
 **Server config** lets you edit settings, select a scenario by name, validate changes and save. `Use default` removes an explicit value. The Raw JSON view shows the current draft, including unsaved edits. Restart the game server to apply saved changes.

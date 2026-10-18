@@ -146,11 +146,11 @@ class Workshop:
                     if node.get('blocked') or node.get('private') or not node.get('published'):
                         raise ValueError('A required dependency is not publicly available')
                     visit(node.get('dependencies', []), depth + 1)
-                    entry = normalize_mod_entry(dict(modId=key, name=dep.get('name', ''), version=node.get('version', '')))
+                    entry = normalize_mod_entry(dict(modId=key, name=dep.get('name', '')))
                     if entry is None:
                         raise ValueError('Invalid dependency metadata')
                     existing = next((m for m in current if str(m.get('modId', '')).upper() == key), None)
-                    if existing and existing.get('version') and existing['version'] != entry.get('version'):
+                    if existing and existing.get('version') and existing['version'] != node.get('version', ''):
                         raise ValueError('A dependency has a different pinned version. Resolve its pin before adding dependencies.')
                     if not existing:
                         entries.append(entry)

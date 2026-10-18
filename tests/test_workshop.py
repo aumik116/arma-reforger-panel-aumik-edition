@@ -12,9 +12,15 @@ class WorkshopTests(unittest.TestCase):
     def test_dependency_preview_and_scope_and_stale_guard(self):
         plan=self.workshop.preview([], (1,'a'),'AAAA','add',dependencies=True)
         self.assertEqual([m['modId'] for m in plan['mods']],['AAAA','BBBB'])
+        self.assertTrue(all('version' not in m for m in plan['mods']))
         self.assertEqual(self.workshop.apply(plan['token'],(1,'a'),[]),plan['mods'])
         for identity,mods in [((2,'a'),[]),((1,'b'),[]),((1,'a'),[{'modId':'CCCC'}])]:
             with self.assertRaises(ValueError):self.workshop.apply(plan['token'],identity,mods)
+    def test_existing_explicit_dependency_pin_is_preserved(self):
+        current=[dict(modId='BBBB',name='Core',version='3')]
+        plan=self.workshop.preview(current,1,'AAAA','add',dependencies=True)
+        self.assertEqual(plan['mods'][0],current[0])
+        self.assertNotIn('version',plan['mods'][1])
     def test_old_release_does_not_guess_dependencies(self):
         with self.assertRaises(ValueError):self.workshop.preview([],1,'AAAA','add','1',True)
         self.assertEqual(self.workshop.preview([],1,'AAAA','add','1')['mods'][0]['version'],'1')
@@ -68,6 +74,7 @@ class WorkshopAPITests(unittest.TestCase):
         cfg=self.module.read_config()
         self.assertEqual(cfg['game']['scenarioId'],scenario)
         self.assertEqual(len(cfg['game']['mods']),2)
+        self.assertTrue(all('version' not in mod for mod in cfg['game']['mods']))
         self.assertTrue(self.admin.get('/api/config/backups').json['backups'])
 
     def test_workshop_permissions_csrf_and_save_backup(self):

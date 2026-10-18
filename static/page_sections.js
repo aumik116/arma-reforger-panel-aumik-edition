@@ -17,6 +17,7 @@ function selectPageSection(group, key) {
   if (group === 'player' && typeof loadOperatorPlayers === 'function') { playerHistoryOffset=0; loadOperatorPlayers(true); }
   if (group === 'mods' && key === 'presets') loadPresets().catch(error => setLog(error.message, 'error'));
   if (group === 'mods' || group === 'mod-review') { renderModUpdates(); refreshModMetadata(); }
+  if (group === 'admin' && key === 'notifications') loadNotificationSettings();
   if (group === 'admin' && key === 'activity') setActivityScope('all');
   if (group === 'admin' && key === 'maintenance') { loadConfigBackups(); loadSoftware(); }
   if (group === 'persistence' && key === 'backups') syncBackupSource();

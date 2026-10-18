@@ -191,6 +191,7 @@
     </details>
   </div>
 
+  <details class="card" id="notification-history"><summary>Server notifications</summary><p class="feature-note">Recent starts, stops and update results for this server.</p><div id="notification-events" role="log"></div></details>
   <!-- Live Logs -->
   <div data-permission="logs" hidden class="log-viewer-card" id="console-card" tabindex="-1">
     <div class="log-viewer-header">
@@ -566,6 +567,7 @@
 
 <section class="tab-panel" id="panel-administration" role="tabpanel" aria-labelledby="tab-administration" hidden><div class="section-tabs" role="tablist" aria-label="admin sections"><button type="button" role="tab" id="section-tab-admin-accounts" aria-controls="section-admin-accounts" aria-selected="true" tabindex="0" data-section-group="admin" data-section-key="accounts">Accounts</button>
     <button type="button" role="tab" id="section-tab-admin-activity" aria-controls="section-admin-activity" aria-selected="false" tabindex="-1" data-section-group="admin" data-section-key="activity" data-permission="activity" hidden>Activity</button>
+    <button type="button" role="tab" id="section-tab-admin-notifications" aria-controls="section-admin-notifications" aria-selected="false" tabindex="-1" data-section-group="admin" data-section-key="notifications" data-permission="admin_config" hidden>Notifications</button>
     <button type="button" role="tab" id="section-tab-admin-maintenance" aria-controls="section-admin-maintenance" aria-selected="false" tabindex="-1" data-section-group="admin" data-section-key="maintenance" data-permission="admin_config" hidden>Maintenance</button></div>
     <div id="section-admin-accounts" role="tabpanel" aria-labelledby="section-tab-admin-accounts" data-section-content="admin">
   <!-- Accounts and activity -->
@@ -613,6 +615,12 @@
     <div id="mods-history" aria-labelledby="section-tab-admin-activity" class="card"><h3>Mod activity</h3><div id="mods-history-events"></div>
     <button id="mods-history-more" onclick="loadModHistory(false)" hidden>Load more</button></div>
   </div></div>
+    <div id="section-admin-notifications" role="tabpanel" aria-labelledby="section-tab-admin-notifications" data-section-content="admin" hidden>
+      <div class="card"><h3>Server notifications</h3><p class="feature-note">Only server administrators can change these settings. History stays inside this server’s Dashboard. Discord messages contain the server name and event type; passwords, logs and configuration contents are never included.</p>
+      <form id="notifications-form"><div class="field"><label for="notifications-webhook">Discord webhook URL</label><input id="notifications-webhook" type="password" autocomplete="off" placeholder="Leave blank to keep the saved webhook"><p id="notifications-configured" class="feature-note"></p></div>
+      <label><input type="checkbox" id="notifications-routine" checked> Also send routine starts, stops and successful updates</label><div class="field"><label for="notifications-role">Optional Discord role ID to mention</label><input id="notifications-role" inputmode="numeric" maxlength="22" placeholder="No mention"><p class="feature-note">Enable Developer Mode in Discord, then copy the role ID. The role must allow mentions. Only this role can be mentioned; @everyone and user mentions are disabled.</p></div>
+      <label><input type="checkbox" id="notifications-clear"> Remove the saved webhook</label><div class="feature-row"><button type="submit" class="btn-save" id="notifications-save">Save notification settings</button><button type="button" class="btn-save" id="notifications-test">Send test message</button></div></form><p id="notifications-status" class="feature-note" role="status"></p></div>
+    </div>
     <div id="section-admin-maintenance" role="tabpanel" aria-labelledby="section-tab-admin-maintenance" data-section-content="admin" hidden><div class="card" id="software-card" data-permission="admin_config" hidden>
     <div class="card-label">Server software</div>
     <p id="software-build">Installed Steam build: loading…</p>
@@ -683,6 +691,7 @@
 <script src="/static/persistence.js"></script>
 <script src="/static/mods.js"></script>
 <script src="/static/features.js"></script>
+<script src="/static/notifications.js"></script>
 <script src="/static/workshop.js"></script>
 <script src="/static/console.js"></script>
 <script src="/static/configuration.js"></script>

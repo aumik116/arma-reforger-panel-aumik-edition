@@ -1483,6 +1483,10 @@ install_operator_tools(sys.modules[__name__])
 from workshop import install as install_workshop
 install_workshop(sys.modules[__name__])
 
+from notifications import install as install_notifications
+install_notifications(sys.modules[__name__])
+
 if __name__ == "__main__":
+    notifications.start()
     operator_tools.start()
     app.run(host="0.0.0.0", port=PANEL_PORT, threaded=True)

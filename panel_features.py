@@ -20,6 +20,7 @@ ROLES = {
     "admin": {"view", "control", "logs", "configure", "mods", "activity", "users", "admin_config"},
 }
 MUTATIONS = {
+    "notifications_save": "admin_config", "notifications_test": "admin_config",
     'workshop_apply': 'mods',
     'files_create': 'admin_config', 'files_upload': 'admin_config', 'files_rename': 'admin_config',
     'files_delete': 'admin_config', 'files_restore': 'admin_config',
@@ -193,6 +194,7 @@ def install(api):
         needed = ("view" if request.endpoint == 'api_mods_compare_json' else MUTATIONS.get(request.endpoint)) if request.method == "POST" else {
             'workshop_preview': 'mods',
             'server_provision_status': 'admin_config',
+            "notifications_settings": "admin_config",
             "software_status": "admin_config",
             'startup_get':'admin_config', 'players_admins':'admin_config',
             'schedules_list':'admin_config',
@@ -218,7 +220,7 @@ def install(api):
             if err:
                 return err
             tools = getattr(api, 'operator_tools', None)
-            if tools and request.endpoint not in api.PANEL_WIDE_ENDPOINTS and request.endpoint not in {'schedules_save','schedules_change'}:
+            if tools and request.endpoint not in api.PANEL_WIDE_ENDPOINTS and request.endpoint not in {'schedules_save','schedules_change','notifications_save','notifications_test'}:
                 selected_id = api.selected_instance().id if api.selected_instance() else ''
                 with tools.active_lock:
                     scheduled_busy = selected_id in tools.active
@@ -231,7 +233,7 @@ def install(api):
             g.mutation_lock = held_lock
             if request.endpoint in {"api_start", "api_restart"} and api.software_manager.busy():
                 return jsonify(ok=False, error="Wait for the server software job to finish before starting or restarting."), 409
-            g.audit_server_config = request.endpoint not in api.PANEL_WIDE_ENDPOINTS and request.endpoint not in getattr(api, 'PROVISIONING_ENDPOINTS', set())
+            g.audit_server_config = request.endpoint not in api.PANEL_WIDE_ENDPOINTS and request.endpoint not in getattr(api, 'PROVISIONING_ENDPOINTS', set()) and request.endpoint not in {'notifications_save','notifications_test'}
             g.before_config = api.read_config() if g.audit_server_config else {}
             g.audit_actor = user["username"]
             g.audit_details = {}

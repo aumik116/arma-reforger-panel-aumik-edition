@@ -11,7 +11,7 @@ function startCountdown() {
   refreshInterval = setInterval(() => {
     countdown--;
     document.getElementById('refresh-timer').textContent = countdown;
-    if (countdown <= 0) { fetchStatus(); countdown = 10; }
+    if (countdown <= 0) { fetchStatus(); loadNotifications(); countdown = 10; }
   }, 1000);
 }
 
@@ -27,3 +27,5 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.log('SW error:', err));
   });
 }
+
+loadNotifications();

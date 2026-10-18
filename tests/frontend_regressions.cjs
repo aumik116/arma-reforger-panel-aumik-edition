@@ -64,4 +64,20 @@ class Element {
   assert.equal(checkbox.parent.parent,list);
   assert.equal(list.children.length,2);
 }
-console.log('Frontend background-refresh regressions passed');
+// Moving administrators into their own card must retain every schema field.
+{
+  const groups = [
+    {title:'Access',fields:[{path:'game.password',kind:'password'},{path:'game.admins',kind:'admins'}]},
+    {title:'Operating',fields:[{path:'operating.playerSaveTime',kind:'int'}]},
+    {title:'Persistence',fields:[{path:'game.gameProperties.persistence.autoSaveInterval',kind:'int'}]}
+  ];
+  const before = JSON.stringify(groups);
+  const context = vm.createContext({configGroups:groups});
+  const arrange = between(source('configuration.js'),'  const playerSave =','  displayGroups.map(');
+  vm.runInContext(arrange + '\nglobalThis.arranged = displayGroups;',context);
+  assert.deepEqual(context.arranged.flatMap(group=>group.fields.map(field=>field.path)).sort(),
+    groups.flatMap(group=>group.fields.map(field=>field.path)).sort());
+  assert.equal(context.arranged.find(group=>group.title==='In-game administrators').fields[0].path,'game.admins');
+  assert.equal(JSON.stringify(groups),before);
+}
+console.log('Frontend refresh and configuration-layout regressions passed');

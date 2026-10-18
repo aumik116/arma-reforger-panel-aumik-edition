@@ -222,3 +222,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-v
 @media(max-width:700px) { .panel-tabs > .nav-label { display:none; } .section-tabs button { padding:12px; } }
 
 #config-category-fields > [data-section-content] { display:grid; gap:18px; }
+
+/* Keep every workspace directly accessible with a tighter navigation rhythm. */
+.brand{min-height:72px}
+.sidebar .nav-label{padding:15px 14px 7px}
+.panel-tabs{gap:3px}
+.panel-tab{padding:10px 14px;font-size:13px}
+.sidebar-bottom{padding:14px 0;flex-wrap:wrap}
+.sidebar-bottom .appearance-link{margin-left:auto}
+.page-heading{margin-bottom:18px}
+.page-heading h2{font-size:24px}
+.page-heading p{font-size:12px;margin-top:5px}
+.header-left h1{max-width:65vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

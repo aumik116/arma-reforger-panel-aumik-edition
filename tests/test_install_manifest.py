@@ -25,6 +25,17 @@ class InstallerManifestTests(unittest.TestCase):
             for asset in re.findall(r'/static/([\w.-]+)', html):
                 self.assertTrue((ROOT / 'static' / asset).is_file(), f'{page} references missing {asset}')
 
+    def test_original_navigation_and_accessible_targets_remain_available(self):
+        html = (ROOT / 'index.html').read_text(encoding='utf-8')
+        sidebar = html.split('<aside', 1)[1].split('</aside>', 1)[0]
+        self.assertEqual(set(re.findall(r'id="tab-([^"]+)"', sidebar)), {
+            'dashboard', 'console', 'persistence', 'configuration',
+            'mods', 'files', 'network', 'administration'})
+        ids = re.findall(r'\bid="([^"]+)"', html)
+        self.assertEqual(len(ids), len(set(ids)), 'Duplicate HTML IDs break shared controls')
+        for target in re.findall(r'aria-controls="([^"]+)"', html):
+            self.assertIn(target, ids, f'Missing accessible tab target: {target}')
+
 
 if __name__ == '__main__':
     unittest.main()

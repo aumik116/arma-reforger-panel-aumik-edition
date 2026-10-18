@@ -17,10 +17,19 @@
 .dashboard-performance,.dashboard-live{display:grid;gap:18px;min-width:0}
 .dashboard-columns :is(.card,.chart-card,.log-viewer-card){margin:0}
 .dashboard-performance>.charts-row{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
-.dashboard-performance .chart-wrap{height:155px}.dashboard-live #log-output{height:440px}.dashboard-live .console-actions{gap:8px}.dashboard-live .console-actions input[type="search"]{width:145px;min-width:0}
+.dashboard-performance .chart-wrap{height:155px}.dashboard-live #log-output{height:280px}.dashboard-live .console-actions{gap:8px}.dashboard-live .console-actions input[type="search"]{width:145px;min-width:0}
 .dashboard-player-list{display:grid;gap:0;max-height:300px;overflow:auto;margin:12px 0}
 .dashboard-player{display:flex;align-items:center;gap:12px;width:100%;padding:12px 8px;background:transparent;color:var(--text);border:0;border-bottom:1px solid var(--border);text-align:left;cursor:pointer;font:inherit}
 .dashboard-player:hover{background:var(--surface2)}.dashboard-player-avatar{width:30px;height:30px;display:grid;place-items:center;color:var(--accent2);background:var(--accent-soft);font-weight:600}.dashboard-player small{display:block;color:var(--muted);font-size:10px;margin-top:4px}
 .player-details-disclosure>summary{font-size:12px;cursor:pointer;color:var(--muted);margin:12px 0}
+.dashboard-console-tools{width:100%;font-size:12px;color:var(--muted)}
+.dashboard-console-tools summary{cursor:pointer;width:fit-content}
+.dashboard-console-tools .console-actions{padding-top:12px}
+.dashboard-diagnostics{border:1px solid var(--border);background:var(--surface);padding:18px}
+.dashboard-diagnostics>summary{cursor:pointer;font-size:13px;color:var(--text)}
+.dashboard-diagnostics>summary span{display:block;margin:5px 0 0 16px;font-size:11px;color:var(--muted)}
+.dashboard-diagnostics-content{display:grid;gap:18px;margin-top:18px}
+.metric-explanation{margin-top:12px;color:var(--muted);font-size:11px}.metric-explanation summary{cursor:pointer}
+.dashboard-summary .card{padding:15px 20px}.dashboard-summary .chart-value{font-size:24px}
 @media(max-width:1050px){.dashboard-columns{grid-template-columns:minmax(0,1fr)}.dashboard-live{grid-row:1}.dashboard-summary{gap:10px}.dashboard-summary .card{padding:16px}}
 @media(max-width:700px){.dashboard-summary{grid-template-columns:minmax(0,1fr)}.dashboard-heading .controls-grid{width:100%}.dashboard-live #log-output{height:280px}}

@@ -124,7 +124,7 @@ for (const [id, title, series, unit, description] of metricDefinitions) {
     <div class="chart-sub" id="metric-${id}-value">Unavailable</div></div></div>
     <div class="chart-wrap" style="height:120px"><canvas id="chart-${id}" role="img" aria-label="${title}"></canvas></div><p class="feature-note" id="metric-${id}-note">${description}</p>`;
   if (id === 'fps') { const value = document.createElement('div'); value.className='chart-value ram'; value.id='server-fps-value'; value.textContent='— FPS'; card.querySelector('.chart-header').append(value); }
-  document.getElementById('extra-metrics').append(card);
+  document.getElementById(id === 'ping' ? 'latency-details' : 'extra-metrics').append(card);
   const options = chartOpts(undefined);
   options.scales.y.ticks.callback = v => v + ' ' + unit;
   options.plugins.legend = {display: series.length > 1, labels: {color:'#8a909d', boxWidth:10}};
@@ -133,6 +133,9 @@ for (const [id, title, series, unit, description] of metricDefinitions) {
   data.datasets = series.map((label, i) => ({...makeChartData(i ? '#78b88b' : '#c8a84b').datasets[0], label, tension:0, fill:false}));
   extraCharts[id] = new Chart(card.querySelector('canvas'), {type:'line', data, options});
 }
+document.querySelector('.dashboard-diagnostics').addEventListener('toggle', event => {
+  if (event.target.open) { ramChart.resize(); diskChart.resize(); extraCharts.ping.resize(); }
+});
 applyChartTheme();
 function updateExtraMetrics(d) {
   document.getElementById('server-fps-value').textContent = Number.isFinite(d?.server_fps) ? d.server_fps.toFixed(1) + ' FPS' : '— FPS';

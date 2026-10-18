@@ -147,10 +147,10 @@ function renderModUpdates() {
   const pinned=modLibrary.mods.filter(mod=>mod.version);
   const checking=pinned.filter(mod=>{const data=modLibrary.metadata.get(String(mod.modId).toUpperCase());return !data || data.status==='pending';}).length;
   const unavailable=pinned.filter(mod=>modLibrary.metadata.get(String(mod.modId).toUpperCase())?.status==='unavailable').length;
-  modEl('section-tab-mod-review-updates').textContent=`Workshop updates (${candidates.length})`;
+  modEl('section-tab-mods-updates').textContent=`Updates (${candidates.length})`;
   modEl('mods-update-status').textContent=`${candidates.length} pinned ${candidates.length===1?'mod differs':'mods differ'} from the current Workshop release · ${checking} checking · ${unavailable} unavailable. Workshop results are cached for up to one hour.`;
   const list=modEl('mods-update-list');
-  if(modEl('panel-mods').hidden || modEl('section-mods-review').hidden || modEl('section-mod-review-updates').hidden){modEl('mods-update-review').disabled=!modUpdates.selected.size;return;}
+  if(modEl('panel-mods').hidden || modEl('section-mods-updates').hidden){modEl('mods-update-review').disabled=!modUpdates.selected.size;return;}
   const previous = new Map([...list.querySelectorAll('[data-update-id]')].map(row => [row.dataset.updateId, row]));
   const rows = [];
   for(const {mod,from,to} of candidates){

@@ -1,4 +1,10 @@
 
+.mods-display-options{position:relative;font-size:13px}
+.mods-display-options>summary{cursor:pointer;padding:10px 14px;border:1px solid var(--border);color:var(--text);list-style:none}
+.mods-display-options>summary::after{content:' ▾'}
+.mods-display-options>div{position:absolute;right:0;top:100%;z-index:20;display:grid;gap:10px;padding:12px;background:var(--surface);border:1px solid var(--border);width:max-content;max-width:calc(100vw - 40px)}
+.mods-display-options:not([open])>div{display:none}
+.mods-display-options .mods-sort{flex-wrap:wrap}
 .mods-compare-search { display:flex; gap:10px; flex-wrap:wrap; margin:18px 0; }
 #mods-compare .mods-update-heading { flex-wrap:wrap; }
 #mods-compare .mods-update-heading > div { flex:1 1 260px; }

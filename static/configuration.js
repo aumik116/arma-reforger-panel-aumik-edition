@@ -106,7 +106,10 @@ function renderConfigFields(missions) {
   const playerSave = configGroups.flatMap(group => group.fields).find(field => field.path === 'operating.playerSaveTime');
   const displayGroups = configGroups.map(group => ({...group, fields: group.fields.filter(field => field.path !== 'operating.playerSaveTime')}));
   if (playerSave) displayGroups.find(group => group.title === 'Persistence')?.fields.push(playerSave);
-  const order = ['Identity', 'Network', 'Access', 'Gameplay', 'Remote console', 'Operating', 'Persistence'];
+  const administrators = displayGroups.flatMap(group => group.fields).filter(field => field.kind === 'admins');
+  displayGroups.forEach(group => { group.fields = group.fields.filter(field => field.kind !== 'admins'); });
+  if (administrators.length) displayGroups.push({title:'In-game administrators', description:'Player identities with in-game administration access.', fields:administrators});
+  const order = ['Identity', 'Network', 'Access', 'In-game administrators', 'Gameplay', 'Remote console', 'Operating', 'Persistence'];
   displayGroups.map((group, index) => ({group, index})).sort((a,b) => order.indexOf(a.group.title) - order.indexOf(b.group.title)).forEach(({group, index:groupIndex}) => {
     const card = configElement('section', 'config-section');
     card.id = `config-group-${groupIndex}`;
@@ -216,7 +219,8 @@ function renderConfigFields(missions) {
       if (!spec.help) hint.classList.add('config-hint-default');
       row.append(label, input, actions, hint);
       if (spec.kind === 'admins') {
-        const names = configElement('div', 'config-admin-names');
+        const names = configElement('details', 'config-admin-names');
+        names.append(configElement('summary', '', 'Manage player name labels'));
         const note = configElement('p', 'config-field-help', 'Save a name for a UUID below. Names are panel labels; administrator access is controlled by the ID list above.');
         const identityLabel = configElement('label', '', 'UUID / Steam ID for name');
         const identityInput = configElement('input'); identityInput.type = 'text';

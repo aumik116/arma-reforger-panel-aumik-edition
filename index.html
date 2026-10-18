@@ -34,7 +34,7 @@
   <header>
     <div class="header-left">
       <div class="tag">DEDICATED SERVER MANAGEMENT</div>
-      <h1>ARMA <span>REFORGER</span></h1>
+      <h1 id="workspace-server-name">ARMA REFORGER</h1>
     </div>
     <button class="btn-logout" onclick="doLogout()">Logout ↗</button>
   </header>
@@ -51,15 +51,10 @@
     <button class="panel-tab" id="tab-files" role="tab" aria-selected="false" aria-controls="panel-files" tabindex="-1" data-permission="admin_config" hidden>Files</button>
     <button class="panel-tab" id="tab-network" role="tab" aria-selected="false" aria-controls="panel-network" tabindex="-1">Network</button><span class="nav-label">ADMINISTRATION</span>
     <button class="panel-tab" id="tab-administration" role="tab" aria-selected="false" aria-controls="panel-administration" tabindex="-1">Administration</button></nav>
-  <div class="nav-label">QUICK ACCESS</div>
-  <div class="quick-links">
-    <button data-permission="logs" hidden onclick="openPanelSection('console','console-workspace')">Console <span>↗</span></button>
-    <button onclick="openPanelSection('dashboard','players-card')">Players <span>↗</span></button>
-    <button onclick="openModPresets()">Mod presets <span>↗</span></button>
-  </div>
   <div class="sidebar-bottom"><span class="brand-icon">AR</span><div>Arma Reforger<small>Dedicated server</small></div><button class="btn-logout appearance-link" onclick="selectPageSection('admin','accounts');openPanelSection('administration','appearance-card')">Appearance</button></div>
   </aside>
   <div class="page-heading"><div><div class="eyebrow">SERVER WORKSPACE</div><h2 id="page-title">Dashboard</h2><p id="page-description">Monitor your server and manage the action.</p></div></div>
+
 
   <section class="tab-panel" id="panel-dashboard" role="tabpanel" aria-labelledby="tab-dashboard">
 <div class="dashboard-heading">
@@ -115,6 +110,7 @@
   <div class="card"><div class="card-label">Server memory</div><div class="chart-value" id="summary-ram">—</div><p class="feature-note">Game process resident memory</p></div>
 </div>
 <div class="dashboard-columns"><div class="dashboard-performance">
+  <div class="charts-row" id="extra-metrics"></div>
   <!-- Charts -->
   <div class="charts-row">
     <div class="chart-card">
@@ -132,7 +128,29 @@
       </div>
       <div class="chart-wrap"><canvas id="chart-cpu"></canvas></div>
     </div>
+
+  </div>
+
+  <div class="charts-row">
     <div class="chart-card">
+      <div class="chart-title">Network traffic — host interfaces</div>
+      <div class="traffic-values"><span class="traffic-first">↓ Receive <strong id="net-rx">—</strong></span><span class="traffic-second">↑ Send <strong id="net-tx">—</strong></span></div>
+      <div class="chart-sub" id="net-state">Waiting for sample</div>
+      <div class="chart-wrap"><canvas id="chart-network" aria-label="Host network receive and send rates"></canvas></div>
+    </div>
+
+  </div>
+
+  <div class="card" id="storage-card">
+    <div class="card-label">Server storage</div>
+    <div id="disk-space-text" role="status">Waiting for storage sample…</div>
+    <progress id="disk-space-gauge" max="100" value="0" aria-label="Disk space used" style="width:100%;margin-top:12px;accent-color:var(--accent)"></progress>
+    <p class="feature-note" id="disk-space-alert" role="status"></p>
+    <details class="metric-explanation"><summary>About these metrics</summary><p class="feature-note">Storage metrics cover the server filesystem device. Network metrics cover host interfaces except loopback. Charts retain the latest 60 samples while this dashboard is open; dashed lines mark panel server controls and mod changes.</p></details>
+    <p class="feature-note" id="metric-events">No recent panel events.</p>
+  </div>
+
+<details class="dashboard-diagnostics"><summary>More performance details <span>Host memory, disk activity & latency</span></summary><div class="dashboard-diagnostics-content"><div class="chart-card">
       <div class="chart-header">
         <div>
           <div class="chart-title">RAM Usage</div>
@@ -146,33 +164,12 @@
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chart-ram"></canvas></div>
-    </div>
-  </div>
-
-  <div class="charts-row">
-    <div class="chart-card">
-      <div class="chart-title">Network traffic — host interfaces</div>
-      <div class="traffic-values"><span class="traffic-first">↓ Receive <strong id="net-rx">—</strong></span><span class="traffic-second">↑ Send <strong id="net-tx">—</strong></span></div>
-      <div class="chart-sub" id="net-state">Waiting for sample</div>
-      <div class="chart-wrap"><canvas id="chart-network" aria-label="Host network receive and send rates"></canvas></div>
-    </div>
-    <div class="chart-card">
+    </div><div class="chart-card">
       <div class="chart-title">Disk activity — Arma process</div>
       <div class="traffic-values"><span class="traffic-first">Read <strong id="disk-read">—</strong></span><span class="traffic-second">Write <strong id="disk-write">—</strong></span></div>
       <div class="chart-sub" id="disk-state">Waiting for sample</div>
       <div class="chart-wrap"><canvas id="chart-disk" aria-label="Arma disk read and write rates"></canvas></div>
-    </div>
-  </div>
-  <div class="charts-row" id="extra-metrics"></div>
-  <div class="card" id="storage-card">
-    <div class="card-label">Server storage</div>
-    <div id="disk-space-text" role="status">Waiting for storage sample…</div>
-    <progress id="disk-space-gauge" max="100" value="0" aria-label="Disk space used" style="width:100%;margin-top:12px;accent-color:var(--accent)"></progress>
-    <p class="feature-note" id="disk-space-alert" role="status"></p>
-    <p class="feature-note">Storage metrics cover the server filesystem device. Network metrics cover host interfaces except loopback. Charts retain the latest 60 samples while this dashboard is open; dashed lines mark panel server controls and mod changes.</p>
-    <p class="feature-note" id="metric-events">No recent panel events.</p>
-  </div>
-
+    </div><div id="latency-details"></div></div></details>
 </div><div class="dashboard-live">
   <!-- Connected players -->
   <div class="card clip" id="players-card" tabindex="-1">
@@ -195,7 +192,8 @@
         <div class="log-live-dot off" id="log-live-dot"></div>
         Server console — live
       </div>
-      <div class="console-actions"><label class="console-filter"><input type="checkbox" id="show-performance-logs" onchange="togglePerformanceLogs()"> Show performance logs</label><label class="console-filter"><input type="checkbox" id="pause-console-scroll"> Pause scrolling</label><input type="search" id="console-search" aria-label="Search console" placeholder="Search console…" oninput="filterConsole()"><button class="btn-clear-log" onclick="clearLog()">Clear</button></div>
+      <button class="btn-clear-log" onclick="openPanelSection('console','console-workspace')">Open console ↗</button>
+      <details class="dashboard-console-tools"><summary>Preview filters</summary><div class="console-actions"><label class="console-filter"><input type="checkbox" id="show-performance-logs" onchange="togglePerformanceLogs()"> Show performance logs</label><label class="console-filter"><input type="checkbox" id="pause-console-scroll"> Pause scrolling</label><input type="search" id="console-search" aria-label="Search console" placeholder="Search console…" oninput="filterConsole()"><button class="btn-clear-log" onclick="clearLog()">Clear</button></div></details>
     </div>
     <div id="log-output" class="hide-performance"></div>
   </div>
@@ -272,8 +270,8 @@
   <div id="configuration-editor" data-permission="configure" hidden>
     <div class="config-toolbar">
       <div class="config-modes" role="tablist" aria-label="Configuration view">
-        <button id="config-visual-tab" role="tab" aria-controls="config-visual" aria-selected="true" onclick="setConfigurationView('visual')">Visual controls</button>
-        <button id="config-json-tab" role="tab" aria-controls="config-json" aria-selected="false" tabindex="-1" onclick="setConfigurationView('json')">{ } Raw JSON</button>
+        <button id="config-visual-tab" role="tab" aria-controls="config-visual" aria-selected="true" onclick="setConfigurationView('visual')">Settings</button>
+        <button id="config-json-tab" role="tab" aria-controls="config-json" aria-selected="false" tabindex="-1" onclick="setConfigurationView('json')">Advanced · JSON</button>
       </div>
       <button class="config-button" onclick="reloadConfiguration()">Reload from disk</button>
     </div>
@@ -282,7 +280,7 @@
     <fieldset id="config-fields" disabled>
       <div id="config-visual" role="tabpanel" aria-labelledby="config-visual-tab"><div id="config-category-tabs"><div class="section-tabs" role="tablist" aria-label="config sections"><button type="button" role="tab" id="section-tab-config-general" aria-controls="section-config-general" aria-selected="true" tabindex="0" data-section-group="config" data-section-key="general">General</button>
     <button type="button" role="tab" id="section-tab-config-gameplay" aria-controls="section-config-gameplay" aria-selected="false" tabindex="-1" data-section-group="config" data-section-key="gameplay">Gameplay</button>
-    <button type="button" role="tab" id="section-tab-config-connection" aria-controls="section-config-connection" aria-selected="false" tabindex="-1" data-section-group="config" data-section-key="connection">Connection & RCON</button></div></div>
+    <button type="button" role="tab" id="section-tab-config-connection" aria-controls="section-config-connection" aria-selected="false" tabindex="-1" data-section-group="config" data-section-key="connection">Advanced connection</button></div></div>
     <div id="config-category-fields"><div id="section-config-general" role="tabpanel" aria-labelledby="section-tab-config-general" data-section-content="config"></div><div id="section-config-gameplay" role="tabpanel" aria-labelledby="section-tab-config-gameplay" data-section-content="config" hidden></div><div id="section-config-connection" role="tabpanel" aria-labelledby="section-tab-config-connection" data-section-content="config" hidden></div></div></div>
       <div id="config-json" role="tabpanel" aria-labelledby="config-json-tab" hidden>
         <div class="config-json-heading"><div><h3>Configuration JSON</h3><p id="config-json-description">Read-only preview of your configuration draft.</p></div>
@@ -427,7 +425,7 @@
 </div>
 </section>
 <section class="tab-panel" id="panel-mods" role="tabpanel" aria-labelledby="tab-mods" hidden><div class="section-tabs" role="tablist" aria-label="mods sections"><button type="button" role="tab" id="section-tab-mods-installed" aria-controls="section-mods-installed" aria-selected="true" tabindex="0" data-section-group="mods" data-section-key="installed">Installed</button>
-    <button type="button" role="tab" id="section-tab-mods-review" aria-controls="section-mods-review" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="review">Compare & updates</button>
+    <button type="button" role="tab" id="section-tab-mods-updates" aria-controls="section-mods-updates" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="updates">Updates</button><button type="button" role="tab" id="section-tab-mods-compare" aria-controls="section-mods-compare" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="compare">Compare lists</button>
     <button type="button" role="tab" id="section-tab-mods-presets" aria-controls="section-mods-presets" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="presets">Presets</button></div>
     <div id="section-mods-installed" role="tabpanel" aria-labelledby="section-tab-mods-installed" data-section-content="mods">
     <div class="mods-heading" id="mods-card" tabindex="-1"><div><span id="mods-count" class="mod-badge">0 configured</span></div>
@@ -438,12 +436,14 @@
     <div id="mods-configured" aria-labelledby="tab-mods">
       <div class="mods-toolbar">
         <input id="mods-search" type="search" aria-label="Search mods" placeholder="Search mods…">
+        <details class="mods-display-options"><summary>View & order</summary><div>
         <div class="mods-sort" role="group" aria-label="Mod view"><button id="mods-view-cards" aria-pressed="true" onclick="setModView('cards')">Cards</button>
     <button id="mods-view-list" aria-pressed="false" onclick="setModView('list')">List</button>
     <button id="mods-view-details" aria-pressed="false" onclick="setModView('details')">Details</button></div>
         <div class="mods-sort" aria-label="Sort mods"><button id="mods-sort-order" aria-pressed="true" onclick="sortModLibrary('order')">Load order</button>
     <button id="mods-sort-name" aria-pressed="false" onclick="sortModLibrary('name')">Name</button>
     <button id="mods-reorder" aria-pressed="false" data-permission="mods" onclick="toggleModReorder()">Reorder</button></div>
+        </div></details>
         <div class="mods-actions"><details class="action-menu"><summary>Actions</summary><div><button onclick="exportModLibrary()">Export JSON</button>
     <button onclick="copyModLibrary()">Copy list</button>
     <button data-permission="mods" onclick="openModDialog('import')">Import mods</button></div></details><button class="mod-primary" data-permission="mods" onclick="openModDialog('add')">＋ Add mod</button></div>
@@ -504,18 +504,16 @@
     <div class="mods-update-dialog-actions"><button type="button" onclick="modEl('mods-update-dialog').close()">Cancel</button>
     <button type="button" class="mod-primary" id="mods-update-save" onclick="saveModUpdates()">Save selected pins</button></div><p id="mods-update-error" role="alert"></p></dialog>
   </div>
-    <div id="section-mods-review" role="tabpanel" aria-labelledby="section-tab-mods-review" data-section-content="mods" hidden><div class="section-tabs" role="tablist" aria-label="mod-review sections"><button type="button" role="tab" id="section-tab-mod-review-updates" aria-controls="section-mod-review-updates" aria-selected="true" tabindex="0" data-section-group="mod-review" data-section-key="updates">Workshop updates</button>
-    <button type="button" role="tab" id="section-tab-mod-review-compare" aria-controls="section-mod-review-compare" aria-selected="false" tabindex="-1" data-section-group="mod-review" data-section-key="compare">Compare lists</button></div>
-    <div id="section-mod-review-updates" role="tabpanel" aria-labelledby="section-tab-mod-review-updates" data-section-content="mod-review">
-    <div id="mods-updates" aria-labelledby="section-tab-mod-review-updates" class="card">
+    <div id="section-mods-updates" role="tabpanel" aria-labelledby="section-tab-mods-updates" data-section-content="mods" hidden>
+    <div id="mods-updates" aria-labelledby="section-tab-mods-updates" class="card">
       <div class="mods-update-heading"><div><h3>Mod update review</h3><p>Compare pinned versions with the current Workshop release. Only selected pins will change; restart the game server to load them.</p></div>
     <button id="mods-update-review" class="mod-primary" data-permission="mods" onclick="reviewModUpdates()" disabled>Review selected</button></div>
       <p id="mods-update-status" class="feature-note" role="status">Checking Workshop versions…</p>
       <div id="mods-update-list" class="mods-update-list"></div>
     </div>
   </div>
-    <div id="section-mod-review-compare" role="tabpanel" aria-labelledby="section-tab-mod-review-compare" data-section-content="mod-review" hidden>
-    <div id="mods-compare" aria-labelledby="section-tab-mod-review-compare" class="card">
+    <div id="section-mods-compare" role="tabpanel" aria-labelledby="section-tab-mods-compare" data-section-content="mods" hidden>
+    <div id="mods-compare" aria-labelledby="section-tab-mods-compare" class="card">
       <div class="mods-update-heading"><div><h3>Compare mod lists</h3><p>Find your group's server, paste an event server URL, or compare a JSON list. Choose individual changes; nothing is selected automatically.</p></div><a href="https://www.armahq.com/servers" target="_blank" rel="noopener noreferrer">Browse ArmaHQ ↗</a></div>
       <div class="mods-sort" role="group" aria-label="Comparison source"><button id="mods-compare-source-server" aria-pressed="true" onclick="setComparisonSource('server')">ArmaHQ server</button>
     <button id="mods-compare-source-json" aria-pressed="false" onclick="setComparisonSource('json')">Paste JSON</button></div>
@@ -532,7 +530,7 @@
       <div id="mods-compare-differences"></div>
     </div>
     <dialog id="mods-compare-dialog" class="mods-dialog" aria-labelledby="mods-compare-title"><div class="mods-dialog-heading"><h3 id="mods-compare-title">Review server mod changes</h3><button aria-label="Close review" onclick="this.closest('dialog').close()">✕</button></div><p class="feature-note">Only the changes below will be applied. A config backup is created before saving. Restart the game server afterward to load the changed list.</p><div id="mods-compare-preview"></div><p id="mods-compare-error" role="alert"></p><button id="mods-compare-save" class="mod-primary" onclick="applyServerModChanges()">Apply these changes</button></dialog>
-  </div></div>
+  </div>
     <div id="section-mods-presets" role="tabpanel" aria-labelledby="section-tab-mods-presets" data-section-content="mods" hidden>
     <div id="mods-presets" aria-labelledby="section-tab-mods-presets" class="card">    <!-- Mod presets -->
     <div class="field"><label for="preset-select">Saved server presets</label>

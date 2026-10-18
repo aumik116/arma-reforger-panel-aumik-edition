@@ -22,6 +22,7 @@ function updateUI(d) {
   txt.textContent = d.running ? 'ONLINE' : 'OFFLINE';
 
   document.getElementById('server-name-display').textContent = d.server_name || '—';
+  document.getElementById('workspace-server-name').textContent = d.server_name || 'ARMA REFORGER';
   document.getElementById('ip-port-display').textContent = (d.ip && d.port) ? d.ip + ':' + d.port : '—';
   document.getElementById('map-name').textContent = d.map || '—';
   document.getElementById('uptime-display').textContent = d.running ? (d.uptime || '—') : '—';

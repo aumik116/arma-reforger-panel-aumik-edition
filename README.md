@@ -37,6 +37,12 @@ original amber palette remain the default. Open **Appearance** in the sidebar
 to choose Original, Ocean, Forest, or Light. The preference is saved to your
 account and applies across servers; it does not change another user's theme.
 
+All eight sidebar workspaces remain directly accessible. The dashboard prioritizes
+simulation FPS and places host memory, disk activity and latency under **More
+performance details**. Configuration uses compact cards, with player name labels
+under an expandable section. The Mods toolbar keeps search and adding mods visible;
+**View & order** contains display and sorting controls.
+
 **Dashboard** shows server controls, live metrics and the current player list. Network rates are host-wide and may include other services. Player names and IDs need working RCON; FPS and AI/vehicle counts come from game logs.
 
 **Server config** lets you edit settings, select a scenario by name, validate changes and save. `Use default` removes an explicit value. The Raw JSON view shows the current draft, including unsaved edits. Restart the game server to apply saved changes.
@@ -45,7 +51,7 @@ account and applies across servers; it does not change another user's theme.
 
 **Configuration backups** are created before panel-managed server JSON changes. Administrators can review and restore the latest 20 versions in **Administration → Maintenance**. Backups live in `.panel-config-backups` beside the server JSON; they include passwords but not game saves. Restoring also backs up the current JSON.
 
-**Mods → Compare & updates → Compare lists** compares your configured mods with an ArmaHQ server or pasted mod JSON. Search a name/address or paste a server URL. Missing mods, extras and version differences have individual checkboxes; review and apply only the changes you want. ArmaHQ data may lag behind the live server. Restart the game server after changing mods.
+**Mods → Compare lists** compares your configured mods with an ArmaHQ server or pasted mod JSON. Search a name/address or paste a server URL. Missing mods, extras and version differences have individual checkboxes; review and apply only the changes you want. ArmaHQ data may lag behind the live server. Restart the game server after changing mods.
 
 **Persistence** has Settings, Save points and Named backups tabs. Save selection and named backups are marked WIP pending production verification. It shows the game's save settings and detected session save points. After an autosave, you can keep a named backup and select a save point to load on every server start; the panel preserves a copy outside the game's normal save retention. Startup selections are remembered per scenario. The selected scenario must support persistence; an autosave interval alone does not mean a save was written. Stop the game server and clear its pinned startup save before using **Flush saves**.
 

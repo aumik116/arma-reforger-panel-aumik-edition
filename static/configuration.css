@@ -90,3 +90,14 @@
 .config-field-locked .config-field-state { color:var(--accent); }
 .config-field-locked input:disabled,.config-field-locked textarea:disabled,.config-field-locked select:disabled { opacity:.7; cursor:not-allowed; }
 .config-backup-diff { max-height:320px; overflow:auto; padding:14px; margin:12px 0; border:1px solid var(--border); background:var(--bg); color:var(--text); font:12px/1.5 'Roboto Mono',monospace; white-space:pre-wrap; overflow-wrap:anywhere; }
+
+/* Compact cards keep related settings together across desktop widths. */
+#config-category-fields > [data-section-content] { grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));align-items:start }
+#config-visual .config-fields-grid { grid-template-columns:minmax(0,1fr);gap:16px }
+.config-section-heading { padding:16px 18px;margin:0;border-bottom:1px solid var(--border) }
+.config-section-heading h3 { font-size:13px;letter-spacing:.06em;text-transform:uppercase }
+.config-section-heading p { font-size:11px }
+.config-admin-names { display:block }
+.config-admin-names summary { color:var(--accent2);font-size:12px;cursor:pointer }
+.config-admin-names[open] > :not(summary) { margin-top:10px }
+.config-admin-names > label { display:block }

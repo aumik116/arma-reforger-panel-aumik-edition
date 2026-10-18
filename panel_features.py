@@ -197,7 +197,7 @@ def install(api):
             "notifications_settings": "admin_config",
             "software_status": "admin_config",
             'startup_get':'admin_config', 'players_admins':'admin_config',
-            'schedules_list':'admin_config',
+            'schedules_list':'admin_config', 'schedules_runs':'admin_config',
             "api_logs": "logs", "users_list": "users", "activity_list": "activity",
             "api_persistence_get": "configure",
             "config_editor_get": "configure",

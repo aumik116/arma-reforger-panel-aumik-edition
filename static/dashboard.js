@@ -172,11 +172,11 @@ function updateExtraMetrics(d) {
   document.getElementById('latency-wip').hidden = Number.isFinite(d?.ping_median) || Number.isFinite(d?.ping_p95);
   document.getElementById('metric-ping-note').textContent = d?.telemetry_message || 'Player latency unavailable';
   const available = Number.isFinite(d?.disk_free) && d.disk_total > 0;
-  const low = available && (d.disk_used_percent >= 90 || d.disk_free < 5 * 1024 ** 3);
+  const low = available && (d.disk_used_percent >= 90 || d.disk_free < 5000000000);
   document.getElementById('disk-space-gauge').hidden = !available;
   document.getElementById('disk-space-gauge').value = available ? d.disk_used_percent : 0;
-  document.getElementById('disk-space-text').textContent = available ? `${(d.disk_free / 1024 ** 3).toFixed(1)} GiB free of ${(d.disk_total / 1024 ** 3).toFixed(1)} GiB (${d.disk_used_percent.toFixed(1)}% used)` : 'Disk space unavailable';
-  document.getElementById('disk-space-alert').textContent = low ? 'Low disk space: less than 10% or 5 GiB remaining. Free space before updating mods or creating saves.' : '';
+  document.getElementById('disk-space-text').textContent = available ? `${(d.disk_free / 1000000000).toFixed(1)} GB free of ${(d.disk_total / 1000000000).toFixed(1)} GB (${d.disk_used_percent.toFixed(1)}% used)` : 'Disk space unavailable';
+  document.getElementById('disk-space-alert').textContent = low ? 'Low disk space: less than 10% or 5 GB remaining. Free space before updating mods or creating saves.' : '';
   document.getElementById('disk-space-alert').style.color = low ? '#ef7777' : '';
   const names = {api_start:'Server start', api_stop:'Server stop', api_restart:'Server restart', presets_apply:'Mod preset applied', api_mods_add:'Mod added', api_mods_remove:'Mod removed', api_mods_import:'Mods imported'};
   document.getElementById('metric-events').textContent = events.length ? events.slice(0,5).map(e => `${new Date(e.ts * 1000).toLocaleTimeString()} — ${names[e.action] || e.action}`).join(' · ') : 'No recent panel events.';

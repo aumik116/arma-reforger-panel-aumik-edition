@@ -12,7 +12,7 @@ let filesReadSerial = 0;
 
 const filesEditor = byId('files-content');
 const fileUrl = (endpoint, root, path) => `${endpoint}?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}${selectedServerId ? '&_server=' + encodeURIComponent(selectedServerId) : ''}`;
-const fileSize = bytes => bytes == null ? '' : bytes < 1024 ? `${bytes} B` : bytes < 1048576 ? `${(bytes / 1024).toFixed(1)} KiB` : `${(bytes / 1048576).toFixed(1)} MiB`;
+const fileSize = bytes => bytes == null ? '' : bytes < 1000 ? `${bytes} B` : bytes < 1000000 ? `${(bytes / 1000).toFixed(1)} KB` : bytes < 1000000000 ? `${(bytes / 1000000).toFixed(1)} MB` : `${(bytes / 1000000000).toFixed(2)} GB`;
 const filesDirty = () => filesSelected?.editable && filesEditor.value !== filesOriginal;
 
 function filesFeedback(message, error = false) {

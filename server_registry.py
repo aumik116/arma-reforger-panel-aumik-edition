@@ -144,6 +144,19 @@ class ServerRegistry:
         return ServerInstance(row['id'], row['name'], ports['game'], ports['query'],
                               ports['rcon'], row['state'], directory, startup[0] if startup else 60)
 
+    def resources(self, server_id):
+        with self.connect() as conn:
+            conn.execute('CREATE TABLE IF NOT EXISTS server_resources (server_id TEXT PRIMARY KEY,cpus TEXT NOT NULL,memory_high_mb INTEGER NOT NULL,memory_max_mb INTEGER NOT NULL)')
+            row=conn.execute('SELECT cpus,memory_high_mb,memory_max_mb FROM server_resources WHERE server_id=?',(server_id,)).fetchone()
+        return dict(row) if row else dict(cpus='',memory_high_mb=0,memory_max_mb=0)
+
+    def set_resources(self, server_id, data):
+        from instance_control import normalize_limits
+        value=normalize_limits(data.get('cpus',''),data.get('memory_high_mb',0),data.get('memory_max_mb',0))
+        self.resources(server_id)
+        with self.connect() as conn:
+            conn.execute('INSERT OR REPLACE INTO server_resources VALUES(?,?,?,?)',(server_id,value['cpus'],value['memory_high_mb'],value['memory_max_mb']))
+
     def get(self, server_id):
         with self.connect() as conn:
             return self._instance(conn, server_id)
@@ -232,6 +245,8 @@ class ServerRegistry:
             self._instance(conn, server_id)
             if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='schedules'").fetchone():
                 conn.execute('UPDATE schedules SET enabled=0,deleted=1 WHERE server_id=?',(server_id,))
+            if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='server_resources'").fetchone():
+                conn.execute('DELETE FROM server_resources WHERE server_id=?',(server_id,))
             conn.execute('DELETE FROM server_startup WHERE server_id=?', (server_id,))
             conn.execute('DELETE FROM server_ports WHERE server_id=?', (server_id,))
             conn.execute('DELETE FROM server_instances WHERE id=?', (server_id,))

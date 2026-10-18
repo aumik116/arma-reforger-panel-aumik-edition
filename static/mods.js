@@ -98,8 +98,8 @@ function applyModMetadata(art,mod) {
   art.querySelector('.mod-size').textContent=bytes===null?(metadata?.status==='unavailable'?'Size unknown':metadata?.status==='available'?'Version size unknown':'Loading size…'):formatModSize(bytes);
 }
 function formatModSize(bytes) {
-  const units=['B','KiB','MiB','GiB','TiB'];let unit=0;
-  while(bytes>=1024&&unit<units.length-1){bytes/=1024;unit++;}
+  const units=['B','KB','MB','GB','TB'];let unit=0;
+  while(bytes>=1000&&unit<units.length-1){bytes/=1000;unit++;}
   return `${bytes.toLocaleString(undefined,{maximumFractionDigits:unit?1:0})} ${units[unit]}`;
 }
 function drawModTotal() {

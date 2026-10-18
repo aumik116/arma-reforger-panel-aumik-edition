@@ -1,5 +1,7 @@
 """Player history, fixed startup settings and scheduled local-server operations."""
 from pathlib import Path
+from datetime import datetime
+import os
 import re
 import sys
 import threading
@@ -243,7 +245,7 @@ def install(api):
             output = read_console(log,None,initial_lines=30)['lines'] if log else []
         except OSError:
             output = ['The recent log rotated or is unavailable. Refresh diagnostics to try again.']
-        return jsonify(max_fps=value,service=instance.service_name if instance else 'arma-server.service',
+        return jsonify(resources=api.server_registry.resources(server_id() or '__existing__'),resource_supported=sys.platform=='linux',cpu_count=os.cpu_count(),max_fps=value,service=instance.service_name if instance else 'arma-server.service',
                        running=bool(api.get_server_pid()),binary_exists=(Path(str(api.SERVER_DIR))/api.SERVER_BINARY).is_file(),
                        config_path=str(api.SERVER_CONFIG),server_path=str(api.SERVER_DIR),profile_path=str(api.PROFILE_DIR),
                        logs_path=str(api.LOG_DIR),output=output,software=api.software_manager.status())
@@ -251,12 +253,18 @@ def install(api):
     @api.app.post('/api/startup')
     def startup_save():
         try:
-            value = request.get_json().get('max_fps')
+            data=request.get_json()
+            value = data.get('max_fps')
+            from instance_control import normalize_limits
+            current=api.server_registry.resources(server_id() or '__existing__')
+            resources=normalize_limits(data.get('cpus',current['cpus']),data.get('memory_high_mb',current['memory_high_mb']),data.get('memory_max_mb',current['memory_max_mb']))
+            api.server_registry.validate_max_fps(value)
             if api.selected_instance():
                 api.server_registry.set_max_fps(server_id(),value)
             else:
                 api.server_registry.set_existing_max_fps(value)
-            g.audit_details={'max_fps':value}
+            api.server_registry.set_resources(server_id() or '__existing__',resources)
+            g.audit_details={'max_fps':value,**resources}
             return jsonify(ok=True,restart_required=bool(api.get_server_pid()))
         except ValueError as exc:
             return jsonify(ok=False,error=str(exc)),400
@@ -264,7 +272,7 @@ def install(api):
     @api.app.get('/api/schedules')
     def schedules_list():
         rows,runs = tools.store.list(server_id())
-        return jsonify(schedules=rows,runs=runs,supported=sys.platform=='linux',worker_alive=tools.store.heartbeat())
+        return jsonify(server_time=datetime.now().strftime('%Y-%m-%dT%H:%M'),default_run=datetime.fromtimestamp(time.time()+900).strftime('%Y-%m-%dT%H:%M'),schedules=rows,runs=runs,supported=sys.platform=='linux',worker_alive=tools.store.heartbeat())
 
     @api.app.post('/api/schedules')
     def schedules_save():
@@ -277,11 +285,22 @@ def install(api):
         except ValueError as exc:
             return jsonify(ok=False,error=str(exc)),400
 
+    @api.app.get('/api/schedules/runs')
+    def schedules_runs():
+        try:
+            rows=tools.store.runs(server_id(),int(request.args.get('before',0)),request.args.get('state',''),request.args.get('search',''))
+            return jsonify(ok=True,runs=rows[:50],next_cursor=rows[49]['id'] if len(rows)>50 else None)
+        except (ValueError,TypeError) as exc:
+            return jsonify(ok=False,error=str(exc)),400
+
     @api.app.post('/api/schedules/<int:schedule_id>')
     def schedules_change(schedule_id):
         try:
             data=request.get_json()
-            tools.store.change(server_id(),schedule_id,enabled=data.get('enabled'),remove=data.get('remove') is True)
+            if data.get('edit') is True:
+                tools.store.update(server_id(),schedule_id,g.user['id'],data)
+            else:
+                tools.store.change(server_id(),schedule_id,enabled=data.get('enabled'),remove=data.get('remove') is True)
             g.audit_details={'schedule_id':schedule_id,'removed':data.get('remove') is True}
             return jsonify(ok=True)
         except ValueError as exc:

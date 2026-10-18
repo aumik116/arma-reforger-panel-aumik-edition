@@ -14,3 +14,5 @@
 #tab-startup::before{content:'▷'}#tab-players::before{content:'♙'}#tab-scheduler::before{content:'◷'}
 @media(max-width:950px){.operator-cards{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:600px){.operator-cards .config-grid{grid-template-columns:minmax(0,1fr)}.operator-table :is(th,td){padding:12px}.operator-pagination{justify-content:space-between}.operator-facts{grid-template-columns:minmax(0,1fr)}}
+
+.operator-toolbar select{padding:10px 12px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit}

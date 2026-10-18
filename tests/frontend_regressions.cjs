@@ -121,3 +121,14 @@ console.log('Frontend refresh and configuration-layout regressions passed');
   assert.match(fields['user-access-summary'].textContent,/Account disabled: cannot sign in/);
   console.log('Permission summaries explain server scope, panel privileges and disabled accounts');
 }
+
+// Storage uses decimal units rather than relabeling binary GiB values.
+{
+  const nodes=new Map();
+  const context=vm.createContext({byId:id=>{if(!nodes.has(id))nodes.set(id,{});return nodes.get(id);}});
+  vm.runInContext(source('storage.js'),context);
+  assert.equal(vm.runInContext('storageBytes(1000000000)',context),'1.00 GB');
+  assert.equal(vm.runInContext('storageBytes(1500000)',context),'1.50 MB');
+  assert.equal(vm.runInContext('storageBytes(2500)',context),'2.5 KB');
+}
+console.log('Storage displays decimal GB and MB');

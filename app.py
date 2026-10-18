@@ -1486,6 +1486,9 @@ install_workshop(sys.modules[__name__])
 from notifications import install as install_notifications
 install_notifications(sys.modules[__name__])
 
+from storage_usage import install as install_storage
+install_storage(sys.modules[__name__])
+
 if __name__ == "__main__":
     notifications.start()
     operator_tools.start()

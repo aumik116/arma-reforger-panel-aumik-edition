@@ -1,7 +1,7 @@
 const workshopState={page:1,category:'',request:0,detailRequest:0,previewRequest:0};
 function workshopNode(tag,text,className){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(className)node.className=className;return node;}
 function workshopButton(text,action,write=false){const button=workshopNode('button',text);button.type='button';button.onclick=action;if(write)button.disabled=!can('mods');return button;}
-function workshopSize(value){return Number.isFinite(value)?`${(value/1048576).toFixed(1)} MB`:'Size unavailable';}
+function workshopSize(value){return Number.isFinite(value)?(value>=1e9?`${(value/1e9).toFixed(2)} GB`:`${(value/1000000).toFixed(1)} MB`):'Size unavailable';}
 async function workshopGet(url){const response=await fetch(url);const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'Workshop request failed');return data;}
 function workshopImage(asset){if(!asset.thumbnail)return workshopNode('div','No preview','workshop-image');const img=workshopNode('img');img.src=asset.thumbnail;img.alt='';img.loading='lazy';img.className='workshop-image';img.referrerPolicy='no-referrer';return img;}
 async function loadWorkshop(reset=false){

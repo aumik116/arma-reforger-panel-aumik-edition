@@ -5,6 +5,7 @@ import os
 import threading
 import time
 import sys
+import subprocess
 import hashlib
 import shutil
 import math
@@ -362,6 +363,17 @@ def launch_server(config_path, server_id=None):
             args.append('-keepSessionSave')
     if settings.get('MAX_FPS', '').strip():
         args.append('-maxFPS=' + settings['MAX_FPS'].strip())
+    if sys.platform=='linux' and os.path.isfile(database):
+        limits=registry.resources(server_id or '__existing__')
+        helper='/etc/arma-panel/instance-control.py'
+        supported=False
+        if os.path.isfile(helper):
+            with open(helper,'rb') as stream: supported=b'def limit_args(' in stream.read(16384)
+        if supported:
+            subprocess.run(['sudo','-n',helper,'limits',server_id or '__existing__',limits['cpus'],
+                str(limits['memory_high_mb']),str(limits['memory_max_mb'])],check=True,timeout=30)
+        elif any(limits.values()):
+            raise RuntimeError('Run install.sh --update to install resource-limit support')
     os.chdir(directory)
     os.execv(binary, args)
 

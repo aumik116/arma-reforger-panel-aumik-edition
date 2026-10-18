@@ -2,9 +2,57 @@
 import math
 import sqlite3
 import time
+from datetime import datetime, timedelta, time as daytime
+
 from contextlib import contextmanager
 
 ACTIONS = {'restart', 'update', 'backup'}
+
+
+def calendar_next(row, now):
+    today=datetime.fromtimestamp(now).date()
+    hour,minute=map(int,row['local_time'].split(':'))
+    for offset in range(15):
+        date=today+timedelta(days=offset)
+        if row['recurrence']=='weekly' and date.weekday()!=row['weekday']:
+            continue
+        candidate=datetime.combine(date,daytime(hour,minute))
+        stamp=candidate.timestamp()
+        # Skip nonexistent DST times; ambiguous times run once, using the first occurrence.
+        if datetime.fromtimestamp(stamp).replace(tzinfo=None)!=candidate.replace(tzinfo=None):
+            continue
+        if stamp>now:
+            return stamp
+    raise ValueError('No valid calendar occurrence within two weeks')
+
+
+def schedule_values(data,now):
+    name,action,run_at=data.get('name'),data.get('action'),data.get('run_at')
+    if 'local_run_at' in data:
+        try:
+            local=datetime.strptime(data['local_run_at'],'%Y-%m-%dT%H:%M')
+            run_at=local.timestamp()
+            if datetime.fromtimestamp(run_at)!=local: raise ValueError()
+        except (ValueError,TypeError,OverflowError):
+            raise ValueError('Choose a valid first run on the server clock') from None
+    repeat=data.get('interval_seconds',0)
+    recurrence=data.get('recurrence','interval')
+
+    if not isinstance(name,str) or not 1<=len(name.strip())<=80 or any(ord(c)<32 for c in name):
+        raise ValueError('Enter a schedule name of 1–80 printable characters')
+    if not isinstance(action,str) or action not in ACTIONS:
+        raise ValueError('Choose restart, update or backup')
+    if type(repeat) is not int or repeat<0 or repeat>30*86400 or repeat and (repeat<3600 or repeat%3600):
+        raise ValueError('Repeat every 1–720 whole hours, or choose once')
+    if recurrence not in ('interval','daily','weekly'):
+        raise ValueError('Choose once, interval, daily or weekly')
+    lead=360 if action in {'restart','update'} else 60
+    if type(run_at) not in (int,float) or not math.isfinite(run_at) or not now+lead<=run_at<=now+366*86400:
+        raise ValueError(f'First run must be at least {lead//60} minutes ahead and within a year')
+    local=datetime.fromtimestamp(run_at)
+    if recurrence!='interval': repeat=0
+    return dict(name=name.strip(),action=action,run_at=run_at,interval_seconds=repeat,recurrence=recurrence,
+                local_time=local.strftime('%H:%M'),weekday=local.weekday())
 
 
 class ScheduleStore:
@@ -29,6 +77,14 @@ class ScheduleStore:
                 CREATE TABLE IF NOT EXISTS scheduler_health (
                     singleton INTEGER PRIMARY KEY CHECK(singleton=1), heartbeat REAL NOT NULL);
             ''')
+            columns={row[1] for row in conn.execute('PRAGMA table_info(schedules)')}
+            for name,definition in [('recurrence',"TEXT NOT NULL DEFAULT 'interval'"),('local_time',"TEXT NOT NULL DEFAULT '00:00'"),('weekday','INTEGER NOT NULL DEFAULT 0')]:
+                if name not in columns: conn.execute(f'ALTER TABLE schedules ADD COLUMN {name} {definition}')
+            run_columns={row[1] for row in conn.execute('PRAGMA table_info(schedule_runs)')}
+            for name in ('schedule_name','schedule_action'):
+                if name not in run_columns: conn.execute(f"ALTER TABLE schedule_runs ADD COLUMN {name} TEXT NOT NULL DEFAULT ''")
+            conn.execute("UPDATE schedule_runs SET schedule_name=COALESCE((SELECT name FROM schedules WHERE schedules.id=schedule_id),'') WHERE schedule_name=''")
+            conn.execute("UPDATE schedule_runs SET schedule_action=COALESCE((SELECT action FROM schedules WHERE schedules.id=schedule_id),'') WHERE schedule_action=''")
 
     @contextmanager
     def connect(self):
@@ -42,28 +98,37 @@ class ScheduleStore:
 
     def create(self, server_id, owner_id, data, now=None):
         now = time.time() if now is None else now
-        name, action, run_at = data.get('name'), data.get('action'), data.get('run_at')
-        repeat = data.get('interval_seconds', 0)
-        if not isinstance(name, str) or not 1 <= len(name.strip()) <= 80 or any(ord(c) < 32 for c in name):
-            raise ValueError('Enter a schedule name of 1–80 printable characters')
-        if not isinstance(action, str) or action not in ACTIONS:
-            raise ValueError('Choose restart, update or backup')
-        if type(repeat) is not int or repeat < 0 or repeat > 30*86400 or (repeat and (repeat < 3600 or repeat % 3600)):
-            raise ValueError('Repeat every 1–720 whole hours, or choose once')
-        lead = 360 if action in {'restart', 'update'} else 60
-        if type(run_at) not in (int, float) or not math.isfinite(run_at) or not now + lead <= run_at <= now + 366*86400:
-            raise ValueError(f'First run must be at least {lead//60} minutes ahead and within a year')
+        values=schedule_values(data,now)
         with self.connect() as conn:
             conn.execute('BEGIN IMMEDIATE')
             if conn.execute('SELECT count(*) FROM schedules WHERE server_id=? AND deleted=0', (server_id,)).fetchone()[0] >= 100:
                 raise ValueError('Keep at most 100 schedules per server')
-            return conn.execute('INSERT INTO schedules(server_id,owner_id,name,action,run_at,interval_seconds) VALUES(?,?,?,?,?,?)',
-                                (server_id, owner_id, name.strip(), action, run_at, repeat)).lastrowid
+            return conn.execute('INSERT INTO schedules(server_id,owner_id,name,action,run_at,interval_seconds,recurrence,local_time,weekday) VALUES(?,?,?,?,?,?,?,?,?)',
+                                (server_id,owner_id,*values.values())).lastrowid
+
+    def update(self,server_id,schedule_id,owner_id,data,now=None):
+        values=schedule_values(data,time.time() if now is None else now)
+        with self.connect() as conn:
+            result=conn.execute('UPDATE schedules SET owner_id=?,name=?,action=?,run_at=?,interval_seconds=?,recurrence=?,local_time=?,weekday=?,enabled=1,warning5=0,warning1=0,warning_error=? WHERE id=? AND server_id=? AND deleted=0',
+                (owner_id,*values.values(),'',schedule_id,server_id))
+            if not result.rowcount: raise ValueError('Schedule not found on this server')
+
+    def runs(self,server_id,before=0,state='',search=''):
+        if type(before) is not int or before<0 or state not in ('','success','failed','interrupted','running') or not isinstance(search,str) or len(search)>120:
+            raise ValueError('Invalid run-history filters')
+        with self.connect() as conn:
+            rows=[dict(row) for row in conn.execute("SELECT r.*,COALESCE(NULLIF(r.schedule_name,''),s.name) AS name,COALESCE(NULLIF(r.schedule_action,''),s.action) AS action FROM schedule_runs r JOIN schedules s ON s.id=r.schedule_id WHERE r.server_id=? AND (?=0 OR r.id<?) AND (?='' OR r.state=?) AND COALESCE(NULLIF(r.schedule_name,''),s.name) LIKE ? ORDER BY r.id DESC LIMIT 51",
+                (server_id,before,before,state,state,'%'+search+'%'))]
+        for row in rows:
+            for field in ('scheduled_for','started','finished'):
+                row[field+'_local']=datetime.fromtimestamp(row[field]).strftime('%Y-%m-%d %H:%M:%S') if row[field] else '—'
+        return rows
 
     def list(self, server_id):
         with self.connect() as conn:
             rows = [dict(row) for row in conn.execute('SELECT * FROM schedules WHERE server_id=? AND deleted=0 ORDER BY run_at,id', (server_id,))]
-            runs = [dict(row) for row in conn.execute('SELECT r.*,s.name,s.action FROM schedule_runs r JOIN schedules s ON s.id=r.schedule_id WHERE r.server_id=? ORDER BY r.id DESC LIMIT 50', (server_id,))]
+            for row in rows: row['local_run_at']=datetime.fromtimestamp(row['run_at']).strftime('%Y-%m-%dT%H:%M')
+            runs = [dict(row) for row in conn.execute("SELECT r.*,COALESCE(NULLIF(r.schedule_name,''),s.name) AS name,COALESCE(NULLIF(r.schedule_action,''),s.action) AS action FROM schedule_runs r JOIN schedules s ON s.id=r.schedule_id WHERE r.server_id=? ORDER BY r.id DESC LIMIT 50", (server_id,))]
         return rows, runs
 
     def change(self, server_id, schedule_id, enabled=None, remove=False, now=None):
@@ -77,7 +142,12 @@ class ScheduleStore:
                 raise ValueError('Schedule not found on this server')
             # Pausing/removing affects future runs, never interrupts a running update.
             if enabled and row['run_at'] < now + (360 if row['action'] != 'backup' else 60):
-                raise ValueError('This run is too close or has passed. Create a new schedule with a future time.')
+                threshold=now+(360 if row['action']!='backup' else 60)
+                if row['recurrence']!='interval': next_run=calendar_next(row,threshold)
+                elif row['interval_seconds']:
+                    repeat=row['interval_seconds'];next_run=row['run_at']+(int((threshold-row['run_at'])//repeat)+1)*repeat
+                else: raise ValueError('This run is too close or has passed. Edit it with a future time.')
+                conn.execute('UPDATE schedules SET run_at=? WHERE id=?',(next_run,schedule_id))
             conn.execute('UPDATE schedules SET enabled=?,deleted=?,warning5=0,warning1=0,warning_error=? WHERE id=?',
                          (int(bool(enabled) and not remove), int(remove), '', schedule_id))
 
@@ -98,11 +168,12 @@ class ScheduleStore:
             if current is None or current['run_at'] > now:
                 return None
             repeat = current['interval_seconds']
-            next_run = current['run_at'] + ((int((now-current['run_at'])//repeat)+1)*repeat if repeat else 0)
+            calendar=current['recurrence']!='interval'
+            next_run = calendar_next(current,now) if calendar else current['run_at'] + ((int((now-current['run_at'])//repeat)+1)*repeat if repeat else 0)
             conn.execute('UPDATE schedules SET run_at=?,enabled=?,warning5=0,warning1=0,warning_error=? WHERE id=?',
-                         (next_run, int(bool(repeat)), '', row['id']))
-            run_id = conn.execute('INSERT INTO schedule_runs(schedule_id,server_id,scheduled_for,started,state) VALUES(?,?,?,?,?)',
-                                  (row['id'],row['server_id'],row['run_at'],now,'running')).lastrowid
+                         (next_run, int(bool(repeat) or calendar), '', row['id']))
+            run_id = conn.execute('INSERT INTO schedule_runs(schedule_id,server_id,scheduled_for,started,state,schedule_name,schedule_action) VALUES(?,?,?,?,?,?,?)',
+                                  (row['id'],row['server_id'],row['run_at'],now,'running',current['name'],current['action'])).lastrowid
             return dict(current, run_id=run_id)
 
     def finish(self, run_id, state, message):

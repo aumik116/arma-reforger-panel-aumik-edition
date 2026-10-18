@@ -8,6 +8,7 @@ import time
 from urllib.parse import urlencode, urlparse
 from urllib.request import Request, build_opener
 from flask import g, jsonify, request
+from config_editor import FIELDS, validate_value
 from mod_metadata import NoRedirect
 from mod_validation import normalize_mod_entry
 
@@ -90,9 +91,19 @@ class Workshop:
         asset = normalize_asset(data['asset'])
         if asset['modId'] != value:
             raise ValueError('Workshop ID mismatch')
+        asset['scenarios'] = []
+        if 'TERRAINS' in {tag.upper() for tag in asset['tags']}:
+            for scenario in (data.get('assetVersionDetail') or {}).get('scenarios', []):
+                resource = scenario.get('gameId', '')
+                try:
+                    validate_value(FIELDS['game.scenarioId'], resource)
+                except ValueError:
+                    continue
+                asset['scenarios'].append(dict(id=resource, name=scenario.get('name') or resource,
+                    description=scenario.get('description', ''), mode=scenario.get('gameMode', ''), players=scenario.get('playerCount')))
         return asset
 
-    def preview(self, current, identity, value, action, version='', dependencies=False):
+    def preview(self, current, identity, value, action, version='', dependencies=False, scenario='', current_scenario=''):
         asset = self.detail(value)
         value = asset['modId']
         if action not in {'add', 'remove'} or type(dependencies) is not bool:
@@ -101,6 +112,14 @@ class Workshop:
             raise ValueError('This release is not published')
         if dependencies and version and version != asset['version']:
             raise ValueError('Dependency versions are only verified for the latest release. Select Latest or manage dependencies separately.')
+        if scenario:
+            if action != 'add' or scenario not in {row['id'] for row in asset.get('scenarios', [])}:
+                raise ValueError('This scenario is not published by this terrain mod')
+            existing = next((m for m in current if str(m.get('modId', '')).upper() == value), None)
+            if existing and existing.get('version') and existing['version'] != asset['version']:
+                raise ValueError('Scenario metadata describes the latest release. Update this terrain mod before selecting its scenarios.')
+            dependencies = True
+            version = existing.get('version', '') if existing else ''
         result = copy.deepcopy(current)
         notes = []
         if action == 'remove':
@@ -146,12 +165,12 @@ class Workshop:
             result.extend(entries)
         token = secrets.token_urlsafe(24)
         with self.lock:
-            self.plans[token] = (time.monotonic(), identity, copy.deepcopy(current), result)
+            self.plans[token] = (time.monotonic(), identity, copy.deepcopy(current), result, current_scenario, scenario)
             while len(self.plans) > 64:
                 self.plans.pop(next(iter(self.plans)))
-        return dict(ok=True, token=token, mods=result, notes=notes)
+        return dict(ok=True, token=token, mods=result, notes=notes, scenario=scenario)
 
-    def apply(self, token, identity, current):
+    def apply(self, token, identity, current, current_scenario=None, configure=False, with_scenario=False):
         if not isinstance(token, str):
             raise ValueError('Preview the change first')
         with self.lock:
@@ -160,7 +179,12 @@ class Workshop:
                 raise ValueError('Preview expired. Preview the change again.')
             if plan[2] != current:
                 raise ValueError('The mod list changed. Preview the change again.')
-            return copy.deepcopy(plan[3])
+            if plan[5]:
+                if not configure:
+                    raise ValueError('Changing scenarios requires server configuration permission')
+                if plan[4] != current_scenario:
+                    raise ValueError('The scenario changed. Preview the change again.')
+            return (copy.deepcopy(plan[3]), plan[5]) if with_scenario else copy.deepcopy(plan[3])
 
 
 def install(api):
@@ -186,8 +210,13 @@ def install(api):
     @api.app.get('/api/mods/workshop/<value>/preview')
     def workshop_preview(value):
         try:
-            mods = api.read_config().get('game', {}).get('mods', [])
-            return jsonify(api.workshop.preview(mods, identity(), value, request.args.get('action', 'add'), request.args.get('version', ''), request.args.get('dependencies') == '1'))
+            cfg = api.read_config()
+            scenario = request.args.get('scenario', '')
+            if scenario and 'configure' not in g.permissions:
+                return jsonify(ok=False, error='Changing scenarios requires server configuration permission'), 403
+            return jsonify(api.workshop.preview(cfg.get('game', {}).get('mods', []), identity(), value,
+                request.args.get('action', 'add'), request.args.get('version', ''), request.args.get('dependencies') == '1',
+                scenario, cfg.get('game', {}).get('scenarioId', '')))
         except (ValueError, KeyError, TypeError) as exc:
             return jsonify(ok=False, error=str(exc)), 400
 
@@ -195,7 +224,11 @@ def install(api):
     def workshop_apply():
         try:
             cfg = api.read_config()
-            mods = api.workshop.apply((request.get_json(silent=True) or {}).get('token'), identity(), cfg.get('game', {}).get('mods', []))
+            token = (request.get_json(silent=True) or {}).get('token')
+            mods, scenario = api.workshop.apply(token, identity(), cfg.get('game', {}).get('mods', []),
+                cfg.get('game', {}).get('scenarioId', ''), 'configure' in g.permissions, with_scenario=True)
+            if scenario:
+                cfg.setdefault('game', {})['scenarioId'] = scenario
             cfg.setdefault('game', {})['mods'] = mods
             api.write_config(cfg)
             return jsonify(ok=True, mods=mods, restart_required=api.get_server_pid() is not None)

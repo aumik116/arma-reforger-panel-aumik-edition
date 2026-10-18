@@ -38,6 +38,16 @@ async function openWorkshopDetails(id){
     const link=workshopNode('a','View on Workshop');link.href='https://reforger.armaplatform.com/workshop/'+asset.modId;link.target='_blank';link.rel='noopener noreferrer';actions.append(link);body.append(actions);
     body.append(workshopNode('h3',`Dependencies (${asset.dependencies.length})`));
     for(const dep of asset.dependencies){const row=workshopNode('div',undefined,'workshop-row');row.append(workshopNode('span',`${dep.asset.name} · v${dep.version} · ${workshopSize(dep.totalFileSize)}`),workshopButton('View',()=>openWorkshopDetails(dep.asset.id)));body.append(row);}
+    if(asset.tags.some(tag=>tag.toUpperCase()==='TERRAINS')){
+      body.append(workshopNode('h3','Scenarios in this mod'));
+      for(const scenario of asset.scenarios||[]){
+        const card=workshopNode('div',undefined,'workshop-scenario');
+        card.append(workshopNode('h4',scenario.name),workshopNode('p',scenario.description),
+          workshopNode('p',`${scenario.mode.replace('#AR-Scenario_GameMode_','')}${scenario.players?' · '+scenario.players+' players':''}`),workshopNode('code',scenario.id));
+        const use=workshopButton('Use scenario',()=>previewWorkshop(asset,'add','',true,scenario.id),true);use.disabled=!can('mods')||!can('configure');card.append(use);body.append(card);
+      }
+      if(!asset.scenarios?.length)body.append(workshopNode('p','The Workshop does not list scenarios for this terrain’s current release.','feature-note'));
+    }
     body.append(workshopNode('h3','Version history'));
     const versionRow=workshopNode('div',undefined,'workshop-toolbar');
     const versionSelect=workshopNode('select');versionSelect.id='workshop-version';
@@ -50,14 +60,15 @@ async function openWorkshopDetails(id){
     body.append(workshopNode('h3','Description'),workshopNode('p',asset.description,'workshop-description'));
   }catch(error){if(serial===workshopState.detailRequest)body.replaceChildren(workshopNode('h2','Workshop unavailable'),workshopNode('p',error.message),workshopButton('Retry',()=>openWorkshopDetails(id)));}
 }
-async function previewWorkshop(asset,action,version='',dependencies=false){
+async function previewWorkshop(asset,action,version='',dependencies=false,scenario=''){
   const serial=workshopState.detailRequest;const previewSerial=++workshopState.previewRequest;const status=modEl('workshop-detail-status');const panel=modEl('workshop-preview');status.textContent='Preparing change preview…';panel.replaceChildren();
   try{
-    const query=new URLSearchParams({action,version,dependencies:dependencies?'1':'0'});const data=await workshopGet(`/api/mods/workshop/${asset.modId}/preview?${query}`);if(serial!==workshopState.detailRequest||previewSerial!==workshopState.previewRequest)return;
+    const query=new URLSearchParams({action,version,dependencies:dependencies?'1':'0',scenario});const data=await workshopGet(`/api/mods/workshop/${asset.modId}/preview?${query}`);if(serial!==workshopState.detailRequest||previewSerial!==workshopState.previewRequest)return;
     status.textContent='Review changes before saving. Restart the server after saving to apply them.';
     const before=new Map(modLibrary.mods.map(m=>[m.modId.toUpperCase(),m]));const after=new Map(data.mods.map(m=>[m.modId.toUpperCase(),m]));
     for(const [id,mod] of after)if(JSON.stringify(before.get(id))!==JSON.stringify(mod))panel.append(workshopNode('p',`${before.has(id)?'Change':'Add'}: ${mod.name||id} · ${mod.version?'pin v'+mod.version:'latest'}`));
     for(const [id,mod] of before)if(!after.has(id))panel.append(workshopNode('p','Remove: '+(mod.name||id)));
+    if(data.scenario)panel.append(workshopNode('p','Use scenario: '+data.scenario));
     for(const note of data.notes)panel.append(workshopNode('p',note,'feature-note'));
     panel.append(workshopButton('Save changes',async function(){this.disabled=true;try{await changeFeature('/api/mods/workshop/apply',{token:data.token});await fetchStatus();await openWorkshopDetails(asset.modId);}catch(error){status.textContent=error.message;this.disabled=false;}},true));panel.scrollIntoView({block:'nearest'});
   }catch(error){if(serial===workshopState.detailRequest)status.textContent=error.message;}

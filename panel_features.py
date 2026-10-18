@@ -20,6 +20,7 @@ ROLES = {
     "admin": {"view", "control", "logs", "configure", "mods", "activity", "users", "admin_config"},
 }
 MUTATIONS = {
+    'workshop_apply': 'mods',
     'startup_save':'admin_config', 'players_admin_save':'admin_config',
     'schedules_save':'admin_config', 'schedules_change':'admin_config',
     'account_preferences_save': 'view',
@@ -188,6 +189,7 @@ def install(api):
                 g.permissions.add('users')
 
         needed = ("view" if request.endpoint == 'api_mods_compare_json' else MUTATIONS.get(request.endpoint)) if request.method == "POST" else {
+            'workshop_preview': 'mods',
             'server_provision_status': 'admin_config',
             "software_status": "admin_config",
             'startup_get':'admin_config', 'players_admins':'admin_config',

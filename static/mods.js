@@ -58,7 +58,8 @@ function drawModLibrary() {
     const version = document.createElement('span'); version.className='mod-version'+(mod.version ? ' pinned' : ''); version.textContent=mod.version ? `Pinned · ${mod.version}` : 'Latest';
     meta.append(id,version);
     const controls = document.createElement('div'); controls.className='mod-controls';
-    controls.append(modButton('Details', () => openModDetails(mod)));
+    controls.append(modButton('Details', () => openWorkshopDetails(mod.modId)));
+    controls.append(modButton('Edit fields', () => openModDetails(mod)));
     const link = document.createElement('a'); link.href='https://reforger.armaplatform.com/workshop/'+encodeURIComponent(mod.modId); link.target='_blank'; link.rel='noopener noreferrer'; link.textContent='↗'; link.setAttribute('aria-label',`View ${title.textContent} on Workshop`); controls.append(link);
     const remove = modButton('Remove', () => removeMod(mod.modId),'mod-remove'); remove.dataset.permission='mods'; controls.append(remove);
     body.append(title,meta,controls);

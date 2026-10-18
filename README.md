@@ -191,3 +191,9 @@ For Ubuntu 24 validation:
 MIT — free to use, modify and distribute.
 
 Based on the panel by [Mateusz Gołębiewski](https://mateuszgolebiewski.pl). This fork is developed with AI assistance, including code, interface changes and documentation, using OpenAI Codex.
+
+### Workshop browser
+
+Mods includes the official Workshop catalog with search, categories, sorting and pagination. Open a card for author, ratings, dependencies and a release dropdown. Track latest or pin a published release, then preview and save the change. Changes require a game-server restart. Staff need the server Mods permission to save; previews expire after five minutes and reject changes if the configured list changed. Configuration backups and activity history apply as usual.
+
+Adding dependencies uses current-release metadata and refuses conflicting existing pins. Historical pins do not guess dependency versions. Removing a mod retains dependencies so shared requirements are not accidentally removed. Workshop availability depends on the public website; unavailable metadata produces a retryable error.

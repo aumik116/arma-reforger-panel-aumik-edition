@@ -29,6 +29,7 @@
 <link rel="stylesheet" href="/static/operator-tools.css">
 <link rel="stylesheet" href="/static/themes.css">
 <link rel="stylesheet" href="/static/manager-layout.css">
+<link rel="stylesheet" href="/static/workshop.css">
 </head>
 <body>
 <div class="layout">
@@ -429,9 +430,14 @@
 <div id="persistence-backup-list" class="feature-note"></div></div>
 </div>
 </section>
-<section class="tab-panel" id="panel-mods" role="tabpanel" aria-labelledby="tab-mods" hidden><div class="section-tabs" role="tablist" aria-label="mods sections"><button type="button" role="tab" id="section-tab-mods-installed" aria-controls="section-mods-installed" aria-selected="true" tabindex="0" data-section-group="mods" data-section-key="installed">Installed</button>
+<section class="tab-panel" id="panel-mods" role="tabpanel" aria-labelledby="tab-mods" hidden><div class="section-tabs" role="tablist" aria-label="mods sections"><button type="button" role="tab" id="section-tab-mods-workshop" aria-controls="section-mods-workshop" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="workshop">Workshop</button><button type="button" role="tab" id="section-tab-mods-installed" aria-controls="section-mods-installed" aria-selected="true" tabindex="0" data-section-group="mods" data-section-key="installed">Installed</button>
     <button type="button" role="tab" id="section-tab-mods-updates" aria-controls="section-mods-updates" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="updates">Updates</button><button type="button" role="tab" id="section-tab-mods-compare" aria-controls="section-mods-compare" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="compare">Compare lists</button>
     <button type="button" role="tab" id="section-tab-mods-presets" aria-controls="section-mods-presets" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="presets">Presets</button></div>
+    <div id="section-mods-workshop" role="tabpanel" aria-labelledby="section-tab-mods-workshop" data-section-content="mods" hidden>
+<p class="feature-note">Browse the official Workshop. Restart the server after saving mod changes.</p>
+<form id="workshop-search-form" class="workshop-toolbar"><input id="workshop-search" aria-label="Search Workshop" maxlength="120" placeholder="Search Workshop mods"><select id="workshop-sort" aria-label="Sort Workshop"><option value="popularity">Popular</option><option value="newest">Newest</option><option value="subscribers">Most subscribed</option><option value="version_size">Largest</option></select><button>Search</button></form>
+<div id="workshop-categories" class="workshop-toolbar"></div><p id="workshop-status" role="status"></p><div id="workshop-grid" class="workshop-grid"></div><div class="workshop-toolbar"><button id="workshop-previous" type="button">Previous</button><span id="workshop-page"></span><button id="workshop-next" type="button">Next</button></div></div>
+<dialog id="workshop-detail" class="mods-dialog workshop-dialog" aria-labelledby="workshop-title"><button type="button" class="workshop-close" aria-label="Close Workshop details" onclick="this.closest('dialog').close()">Close</button><div id="workshop-detail-content"></div><p id="workshop-detail-status" role="status"></p><div id="workshop-preview"></div></dialog>
     <div id="section-mods-installed" role="tabpanel" aria-labelledby="section-tab-mods-installed" data-section-content="mods">
     <div class="mods-heading" id="mods-card" tabindex="-1"><div><span id="mods-count" class="mod-badge">0 configured</span></div>
 
@@ -672,6 +678,7 @@
 <script src="/static/persistence.js"></script>
 <script src="/static/mods.js"></script>
 <script src="/static/features.js"></script>
+<script src="/static/workshop.js"></script>
 <script src="/static/console.js"></script>
 <script src="/static/configuration.js"></script>
 <script src="/static/config_backups.js"></script>

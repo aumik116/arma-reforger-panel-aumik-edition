@@ -12,6 +12,7 @@ function selectPageSection(group, key) {
   document.querySelectorAll(`[data-section-content="${group}"]`).forEach(panel => {
     panel.hidden = panel.id !== `section-${group}-${key}`;
   });
+  if (group === 'mods' && key === 'workshop') loadWorkshop();
   if (group === 'config') { configCategory = key; applyConfigCategory(); }
   if (group === 'player' && typeof loadOperatorPlayers === 'function') { playerHistoryOffset=0; loadOperatorPlayers(true); }
   if (group === 'mods' && key === 'presets') loadPresets().catch(error => setLog(error.message, 'error'));

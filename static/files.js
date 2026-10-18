@@ -1,4 +1,4 @@
-// Admin-only, scoped browser for profile text configs and read-only logs.
+// Server-administrator file management with isolated profile writes.
 let filesRoot = 'profile';
 let filesPath = '';
 let filesEntries = [];
@@ -8,6 +8,7 @@ let filesRevision = '';
 let filesReviewedText = null;
 let filesLoaded = false;
 let filesBusy = false;
+let filesReadSerial = 0;
 
 const filesEditor = byId('files-content');
 const fileUrl = (endpoint, root, path) => `${endpoint}?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}${selectedServerId ? '&_server=' + encodeURIComponent(selectedServerId) : ''}`;
@@ -20,6 +21,7 @@ function filesFeedback(message, error = false) {
 }
 
 function resetFileEditor() {
+  filesReadSerial++;
   filesSelected = null;
   filesOriginal = '';
   filesRevision = '';
@@ -34,6 +36,7 @@ function resetFileEditor() {
 }
 
 function updateFileActions() {
+  document.querySelectorAll('[data-files-root], #files-management button, .files-row-action').forEach(button=>button.disabled=filesBusy);
   const editable = filesSelected?.editable && !filesBusy;
   const dirty = filesDirty();
   byId('files-download').disabled = !filesSelected;
@@ -50,7 +53,7 @@ function confirmLeaveFile() {
 
 function renderFileBreadcrumbs() {
   const holder = byId('files-breadcrumbs');
-  const labels = {profile:'Game profile', logs:'Server logs', 'server-config':'Server config'};
+  const labels = {profile:'Game profile', logs:'Server logs', 'server-config':'Server config',workshop:'Workshop',server:'Game files',backups:'Backups'};
   const segments = filesPath ? filesPath.split('/') : [];
   const buttons = [];
   for (let depth = 0; depth <= segments.length; depth++) {
@@ -69,18 +72,24 @@ function renderFilesEntries() {
   const visible = filesEntries.filter(entry => entry.name.toLowerCase().includes(filter));
   const rows = visible.map(entry => {
     const button = document.createElement('button');
-    button.type = 'button'; button.className = 'files-entry';
+    button.type = 'button'; button.className = 'files-entry'; button.title=entry.name;
     button.setAttribute('aria-current', String(filesSelected?.root === filesRoot && filesSelected?.path === entry.path));
     const icon = document.createElement('span'); icon.className = 'files-entry-icon'; icon.textContent = entry.directory ? '▣' : '▤';
     const name = document.createElement('span'); name.textContent = entry.name;
     const size = document.createElement('small'); size.textContent = entry.directory ? '' : fileSize(entry.size);
     button.append(icon, name, size);
     button.addEventListener('click', () => entry.directory ? openFilesFolder(entry.path) : openFilesFile(entry));
-    return button;
+    const row=document.createElement('div');row.className='files-entry-row';row.append(button);
+    if(filesRoot==='profile'){
+      for(const [label,action] of [['Rename',()=>renameFilesEntry(entry)],['Trash',()=>trashFilesEntry(entry)]]){
+        const control=document.createElement('button');control.type='button';control.className='files-row-action';control.textContent=label;control.setAttribute('aria-label',label+' '+entry.name);control.onclick=action;row.append(control);
+      }
+    }
+    return row;
   });
   if (!rows.length) {
     const empty = document.createElement('p');
-    empty.textContent = filter ? 'No matches in this folder.' : 'No supported text files in this folder.';
+    empty.textContent = filter ? 'No matches in this folder.' : 'This folder is empty.';
     rows.push(empty);
   }
   byId('files-list').replaceChildren(...rows);
@@ -89,8 +98,10 @@ function renderFilesEntries() {
 async function refreshFiles() {
   if (filesBusy) return;
   byId('files-list-note').textContent = 'Loading folder…';
+  const root=filesRoot,path=filesPath;
   try {
-    const data = await getFeature(fileUrl('/api/files', filesRoot, filesPath));
+    const data = await getFeature(fileUrl('/api/files', root, path));
+    if(root!==filesRoot||path!==filesPath)return;
     filesEntries = data.entries;
     renderFileBreadcrumbs();
     renderFilesEntries();
@@ -103,9 +114,11 @@ async function refreshFiles() {
 }
 
 function selectFilesRoot(root) {
+  if(filesBusy)return;
   if (root === filesRoot && filesLoaded) return;
   if (!confirmLeaveFile()) return;
   filesRoot = root;
+  byId('files-management').hidden=root!=='profile';
   filesPath = '';
   filesLoaded = true;
   byId('files-search').value = '';
@@ -115,6 +128,7 @@ function selectFilesRoot(root) {
 }
 
 function openFilesFolder(path) {
+  if(filesBusy)return;
   if (path === filesPath) return;
   if (!confirmLeaveFile()) return;
   filesPath = path;
@@ -124,6 +138,8 @@ function openFilesFolder(path) {
 }
 
 async function openFilesFile(entry, bypassDirty = false) {
+  if(filesBusy)return;
+  const serial=++filesReadSerial;
   if (!bypassDirty && !confirmLeaveFile()) return;
   filesSelected = {...entry, root:filesRoot};
   filesOriginal = '';
@@ -137,9 +153,10 @@ async function openFilesFile(entry, bypassDirty = false) {
   filesFeedback('Loading file…');
   renderFilesEntries();
   updateFileActions();
+  if(entry.text===false){filesFeedback('Binary file. Use Download to save a copy.');return;}
   try {
     const data = await getFeature(fileUrl('/api/files/content', filesRoot, entry.path));
-    if (filesSelected?.root !== filesRoot || filesSelected?.path !== entry.path) return;
+    if (serial!==filesReadSerial||filesSelected?.root !== filesRoot || filesSelected?.path !== entry.path) return;
     filesSelected.editable = data.editable;
     filesEditor.value = data.content;
     filesOriginal = filesEditor.value;
@@ -150,6 +167,7 @@ async function openFilesFile(entry, bypassDirty = false) {
     filesFeedback(data.editable ? 'Review changes before saving. A backup is created automatically.' : 'This file is read-only here.');
     updateFileActions();
   } catch (error) {
+    if(serial!==filesReadSerial)return;
     filesFeedback(error.message, true);
     updateFileActions();
   }
@@ -227,3 +245,60 @@ filesEditor.addEventListener('input', () => {
 window.addEventListener('beforeunload', event => {
   if (filesDirty()) { event.preventDefault(); event.returnValue = ''; }
 });
+
+
+async function filesMutation(url,body){
+  const response=await postJson(url,body);const data=await response.json();
+  if(!response.ok||!data.ok)throw new Error(data.error||'File operation failed');
+  return data;
+}
+function filesChildPath(name){return filesPath?filesPath+'/'+name:name;}
+async function createFilesEntry(kind){
+  if(filesBusy||filesRoot!=='profile'||!confirmLeaveFile())return;
+  const name=prompt(kind==='folder'?'New folder name':'New text file name (for example settings.json)');if(!name)return;
+  if(name.includes('/')||name.includes('\\')){filesFeedback('Enter a name, without folder separators.',true);return;}
+  filesBusy=true;updateFileActions();
+  try{await filesMutation('/api/files/create',{root:filesRoot,path:filesChildPath(name),kind});resetFileEditor();filesFeedback('Created '+name+'.');}
+  catch(error){filesFeedback(error.message,true);}finally{filesBusy=false;updateFileActions();await refreshFiles();}
+}
+async function renameFilesEntry(entry){
+  if(filesBusy||!confirmLeaveFile())return;
+  const name=prompt('New name for '+entry.name,entry.name);if(!name||name===entry.name)return;
+  if(name.includes('/')||name.includes('\\')){filesFeedback('Enter a name, without folder separators.',true);return;}
+  filesBusy=true;updateFileActions();
+  try{await filesMutation('/api/files/rename',{root:filesRoot,path:entry.path,destination:filesChildPath(name),revision:entry.revision});resetFileEditor();filesFeedback('Renamed to '+name+'.');}
+  catch(error){filesFeedback(error.message,true);}finally{filesBusy=false;updateFileActions();await refreshFiles();}
+}
+async function trashFilesEntry(entry){
+  if(filesBusy||!confirmLeaveFile()||!confirm('Move '+entry.name+(entry.directory?' and everything inside it':'')+' to Trash? You can restore it later.'))return;
+  filesBusy=true;updateFileActions();
+  try{await filesMutation('/api/files/delete',{root:filesRoot,path:entry.path,revision:entry.revision});resetFileEditor();filesFeedback('Moved to Trash. Use Trash / restore deleted files to undo.');}
+  catch(error){filesFeedback(error.message,true);}finally{filesBusy=false;updateFileActions();await refreshFiles();}
+}
+async function uploadFiles(files){
+  if(filesBusy||filesRoot!=='profile'||!confirmLeaveFile())return;
+  filesBusy=true;updateFileActions();const messages=[];
+  try{
+    for(const file of files){
+      if(file.size>50*1024*1024){messages.push(file.name+': exceeds 50 MiB');continue;}
+      filesFeedback('Uploading '+file.name+'…');
+      const form=new FormData();form.append('root',filesRoot);form.append('path',filesChildPath(file.name));form.append('file',file);
+      try{const response=await postForm('/api/files/upload',form);const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'Upload failed');messages.push(file.name+': uploaded');}
+      catch(error){messages.push(file.name+': '+error.message);}
+    }
+    resetFileEditor();filesFeedback(messages.join(' · '));
+  }finally{filesBusy=false;byId('files-upload-input').value='';updateFileActions();await refreshFiles();}
+}
+byId('files-upload-input').onchange=event=>uploadFiles([...event.target.files]);
+async function openFilesTrash(){
+  const dialog=byId('files-trash-dialog');if(!dialog.open)dialog.showModal();
+  const status=byId('files-trash-status'),holder=byId('files-trash-items');status.textContent='Loading Trash…';holder.replaceChildren();
+  try{
+    const data=await getFeature('/api/files/trash');status.textContent=data.entries.length?'':'Trash is empty.';
+    for(const item of data.entries){
+      const row=document.createElement('div');row.className='files-trash-row';const label=document.createElement('span');label.textContent=item.path+' · '+new Date(item.deleted).toLocaleString();
+      const restore=document.createElement('button');restore.type='button';restore.textContent='Restore';restore.onclick=async()=>{restore.disabled=true;try{await filesMutation('/api/files/restore',{token:item.token});await openFilesTrash();await refreshFiles();}catch(error){status.textContent=error.message;restore.disabled=false;}};
+      row.append(label,restore);holder.append(row);
+    }
+  }catch(error){status.textContent=error.message;}
+}

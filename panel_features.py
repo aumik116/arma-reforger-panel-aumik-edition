@@ -21,6 +21,8 @@ ROLES = {
 }
 MUTATIONS = {
     'workshop_apply': 'mods',
+    'files_create': 'admin_config', 'files_upload': 'admin_config', 'files_rename': 'admin_config',
+    'files_delete': 'admin_config', 'files_restore': 'admin_config',
     'startup_save':'admin_config', 'players_admin_save':'admin_config',
     'schedules_save':'admin_config', 'schedules_change':'admin_config',
     'account_preferences_save': 'view',
@@ -198,13 +200,15 @@ def install(api):
             "api_persistence_get": "configure",
             "config_editor_get": "configure",
             "config_backups_list": "admin_config", "config_backup_preview": "admin_config",
-            "files_list": "admin_config", "files_content": "admin_config", "files_download": "admin_config",
+            "files_trash": "admin_config", "files_list": "admin_config", "files_content": "admin_config", "files_download": "admin_config",
         }.get(request.endpoint, "view")
         if needed and needed not in g.permissions:
             return jsonify(ok=False, error="Your account does not have permission for this action"), 403
         if hasattr(g, 'instance_selection_error'):
             return g.instance_selection_error
         if request.method == "POST":
+            if request.endpoint == "files_upload":
+                request.max_content_length = 51 * 1024 * 1024
             if request.is_json and not isinstance(request.get_json(silent=True), dict):
                 return jsonify(ok=False, error="Request body must be a JSON object"), 400
             data = request.get_json(silent=True) or {}

@@ -43,3 +43,7 @@
 #panel-files .files-diff pre { max-height:260px; overflow:auto; margin:0; padding:12px; color:#c8c7bc; font:11px/1.5 'Roboto Mono',monospace; white-space:pre; }
 @media(max-width:1000px) { #panel-files .files-workspace { grid-template-columns:minmax(0,1fr); } #panel-files .files-list { max-height:260px; } }
 @media(max-width:600px) { #panel-files .files-toolbar { align-items:stretch; flex-direction:column; } #panel-files .files-roots button { flex:1; } #panel-files .files-editor-actions { align-items:stretch; } #panel-files #files-edit-state { flex-basis:100%; } }
+
+#panel-files .files-management{display:flex;flex-wrap:wrap;align-items:center;gap:8px}#panel-files .files-management span{font-size:11px;color:var(--muted)}#panel-files .files-entry-row{display:flex;align-items:center;border-bottom:1px solid var(--border)}#panel-files .files-entry-row .files-entry{flex:1;min-width:0;border-bottom:0}#panel-files .files-row-action{font-size:10px;padding:6px;background:transparent;border:0;color:var(--muted)}#panel-files .files-row-action:hover{color:var(--accent)}.files-trash-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}.files-trash-row span{overflow-wrap:anywhere}
+
+#panel-files .files-toolbar-actions{display:flex;gap:8px;flex-shrink:0}

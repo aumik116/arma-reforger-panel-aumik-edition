@@ -8,7 +8,7 @@ A self-hosted web panel for multiple Arma Reforger dedicated servers on one Linu
 - View and filter live logs, use RCON, and inspect network listeners.
 - Edit server settings through grouped controls or inspect the raw JSON draft.
 - Manage Workshop mods, version pins, load order and scenario-plus-mod presets. Review current Workshop releases before changing pins.
-- Edit game-profile text files with a diff and automatic backup. Logs and the main server config are read-only in Files.
+- Manage profile files with uploads, folders, rename, recoverable Trash and text editing with diff review and automatic backups. Workshop, game files, logs and the main server config are read-only.
 - Manage panel accounts and view an activity history.
 
 Game configuration and mod changes take effect after a game-server restart. The panel does not restart the game automatically when you save them.
@@ -88,7 +88,7 @@ Scheduled restarts and game updates warn at 5 minutes and 1 minute using Server 
 
 **Persistence** has Settings, Save points and Named backups tabs. Save selection and named backups are marked WIP pending production verification. It shows the game's save settings and detected session save points. After an autosave, you can keep a named backup and select a save point to load on every server start; the panel preserves a copy outside the game's normal save retention. Startup selections are remembered per scenario. The selected scenario must support persistence; an autosave interval alone does not mean a save was written. Stop the game server and clear its pinned startup save before using **Flush saves**.
 
-**Files** lets Administrators review and edit UTF-8 text files in the game profile. Each save backs up the previous file under `.file-backups`. Server logs and the main server config are read-only here. File edits do not reload a mod or restart the game.
+**Files** is available to Administrators assigned to the selected server. Browse Profile, Workshop, Game files, Logs, Backups and Server config. Profile supports uploads (50 MiB per file), new folders/text files, rename and deletion to recoverable Trash. Existing names are never overwritten; rename or move the existing item to Trash first. Regular files can be downloaded, while supported UTF-8 text files can be edited with diff review and automatic backups. Backups are available in the read-only Backups location. Trash retains deleted files and folders on disk until restored; restore the parent folder first, and rename any conflicting destination before restoring. Links and paths outside the selected location are refused. Workshop, game files, logs, backups and the main server config are read-only; use Server config for validated server settings. File operations do not reload a mod or restart the game.
 
 **Console** filters recent logs and exports the visible lines. Connect, Disconnect, Kill and Chat are event filters; Hide RCON removes RCON lines from the log view. RCON shortcuts fill the command box for review; press Enter or Execute to send. Broadcast requires the Server Admin Tools mod.
 

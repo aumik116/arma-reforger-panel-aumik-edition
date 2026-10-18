@@ -344,13 +344,18 @@
   <section class="tab-panel" id="panel-files" role="tabpanel" aria-labelledby="tab-files" hidden>
     <div class="files-toolbar">
       <div class="files-roots" role="group" aria-label="File locations">
-        <button type="button" data-files-root="profile" aria-pressed="true">Profile configs</button>
+        <button type="button" data-files-root="profile" aria-pressed="true">Profile</button>
+        <button type="button" data-files-root="workshop" aria-pressed="false">Workshop</button>
+        <button type="button" data-files-root="server" aria-pressed="false">Game files</button>
         <button type="button" data-files-root="logs" aria-pressed="false">Logs</button>
+        <button type="button" data-files-root="backups" aria-pressed="false">Backups</button>
         <button type="button" data-files-root="server-config" aria-pressed="false">Server config</button>
       </div>
-      <button class="files-plain-button" type="button" onclick="refreshFiles()">Refresh</button>
+      <div class="files-toolbar-actions"><button type="button" class="files-plain-button" onclick="openFilesTrash()">Trash / restore</button><button class="files-plain-button" type="button" onclick="refreshFiles()">Refresh</button></div>
     </div>
-    <p class="files-intro">Browse the game profile for mod-created text configs. Logs and the server config are read-only here; use Server config for changes to IPs, ports and gameplay settings. Saving a file does not restart or reload the game server.</p>
+    <p class="files-intro">Manage files for this server. Profile files can be uploaded, renamed and moved to Trash; text edits receive an automatic backup. Workshop, game files, logs and the main server config are read-only. Use Server config to change server settings. Changes do not restart the server.</p>
+    <div class="files-management" id="files-management"><button type="button" class="files-plain-button" onclick="createFilesEntry('folder')">New folder</button><button type="button" class="files-plain-button" onclick="createFilesEntry('file')">New text file</button><button type="button" class="files-plain-button" onclick="document.getElementById('files-upload-input').click()">Upload files</button><input id="files-upload-input" type="file" multiple hidden><span>Up to 50 MiB per file. Existing files are never overwritten.</span></div>
+    <dialog id="files-trash-dialog" class="mods-dialog" aria-labelledby="files-trash-title"><div class="mods-dialog-heading"><h3 id="files-trash-title">Profile Trash</h3><button type="button" onclick="this.closest('dialog').close()">Close</button></div><p class="feature-note">Deleted items stay here until restored. Restore their parent folder first if it was deleted too. Existing files are never overwritten.</p><div id="files-trash-items"></div><p id="files-trash-status" role="status"></p></dialog>
     <div class="files-workspace">
       <div class="files-browser">
         <div class="files-browser-head"><h3>FILES</h3><div id="files-breadcrumbs" aria-label="Current folder"></div></div>

@@ -25,7 +25,7 @@ function selectPanelTab(tab) {
     'tab-scheduler':'Schedule restarts, game updates and configuration backups.',
     'tab-configuration': 'Manage server identity, gameplay, connections and security.',
     'tab-network': 'Watch node traffic, tune view distances and check UDP listeners.',
-    'tab-files': 'Browse server logs and edit mod-created profile configuration files.',
+    'tab-files': 'Browse server files, upload profile files and restore deleted items.',
     'tab-persistence': 'Manage the game’s built-in save settings and save-file maintenance.',
     'tab-mods': 'Manage Workshop mods, imports and saved presets.',
     'tab-administration': 'Manage your account, permissions and activity.'

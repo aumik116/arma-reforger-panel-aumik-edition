@@ -1,8 +1,9 @@
-"""Scoped text-file browser for game profile configs and server logs."""
+"""Server-scoped file browsing, profile editing, uploads and recoverable deletion."""
 import difflib
 import hashlib
 import json
 import os
+import secrets
 import stat
 import tempfile
 from datetime import datetime, timezone
@@ -15,7 +16,7 @@ READ_SUFFIXES = {'.json', '.conf', '.cfg', '.ini', '.txt', '.xml', '.yaml', '.ym
 EDIT_SUFFIXES = READ_SUFFIXES - {'.log'}
 MAX_READ = 1024 * 1024
 MAX_EDIT = 512 * 1024
-MAX_DOWNLOAD = 50 * 1024 * 1024
+MAX_UPLOAD = 50 * 1024 * 1024
 MAX_ENTRIES = 500
 
 
@@ -29,14 +30,16 @@ def _parts(relative):
     if not relative:
         return []
     parts = relative.split('/')
-    if any(part in ('', '.', '..') or ':' in part or any(ord(ch) < 32 for ch in part) for part in parts):
+    if any(part in ('', '.', '..') or part.startswith('.panel-') or part.endswith((' ', '.')) or ':' in part or any(ord(ch) < 32 for ch in part) for part in parts):
         raise FileAccessError('Invalid file path')
     return parts
 
 
 def _root(api, key):
-    roots = {'profile': api.PROFILE_DIR, 'logs': api.LOG_DIR, 'server-config': api.SERVER_CONFIG}
-    if key not in roots:
+    roots = {'profile': api.PROFILE_DIR, 'logs': api.LOG_DIR, 'server-config': api.SERVER_CONFIG,
+             'workshop': api.WORKSHOP_DIR, 'server': api.SERVER_DIR,
+             'backups': api._cfg.get('FILE_BACKUP_DIR') or Path(api._STATE_DIR) / '.file-backups'}
+    if not isinstance(key, str) or key not in roots:
         raise FileAccessError('Unknown file location')
     return Path(roots[key]).resolve(strict=True)
 
@@ -121,7 +124,7 @@ def _review(api, data):
 
 
 def _backup(api, key, relative, original, revision):
-    backup_root = Path(api._cfg.get('FILE_BACKUP_DIR') or Path(api._BASE_DIR) / '.file-backups')
+    backup_root = Path(api._cfg.get('FILE_BACKUP_DIR') or Path(api._STATE_DIR) / '.file-backups')
     stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
     backup = backup_root / key / Path(*_parts(relative)).parent / f'{Path(relative).name}.{stamp}.{revision[:8]}.bak'
     backup.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -133,8 +136,68 @@ def _backup(api, key, relative, original, revision):
     return backup
 
 
+def _fingerprint(target):
+    info = target.stat()
+    return f'{info.st_ino}:{info.st_size}:{info.st_mtime_ns}'
+
+
+def _destination(api, key, relative):
+    parts = _parts(relative)
+    if key != 'profile' or not parts:
+        raise FileAccessError('Only game profile files can be changed here')
+    parent = _target(api, key, '/'.join(parts[:-1]))
+    if not parent.is_dir():
+        raise FileAccessError('Select a destination folder')
+    result = parent / parts[-1]
+    if result.exists() or result.is_symlink():
+        raise FileAccessError('A file or folder already has that name. Rename it or move it to Trash first.')
+    return result
+
+
+def _mutable(api, key, relative, revision):
+    if key != 'profile' or not _parts(relative):
+        raise FileAccessError('Only game profile files can be changed here')
+    target = _target(api, key, relative)
+    config = Path(api.SERVER_CONFIG).resolve()
+    if target == config or target.is_dir() and target in config.parents:
+        raise FileAccessError('Use Server config to manage the main server configuration')
+    if target.is_file() and os.path.samefile(target, config):
+        raise FileAccessError('Use Server config to manage the main server configuration')
+    if not target.is_dir() and not target.is_file():
+        raise FileAccessError('Only regular files and folders can be changed')
+    if revision != _fingerprint(target):
+        raise FileAccessError('File or folder changed. Refresh before trying again.')
+    return target
+
+
+def _trash_root(api):
+    return _root(api, 'profile') / '.panel-trash'
+
+
+def _trash_entries(api):
+    folder = _trash_root(api)
+    if folder.is_symlink():
+        raise FileAccessError('Trash location cannot be a link')
+    entries = []
+    if folder.exists():
+        for record in folder.glob('*/record.json'):
+            if record.parent.is_symlink() or record.is_symlink():
+                continue
+            try:
+                data = json.loads(record.read_text(encoding='utf-8'))
+                if (record.parent / 'content').exists():
+                    entries.append(dict(token=record.parent.name, path=data['path'], deleted=data['deleted']))
+            except (OSError, ValueError, KeyError):
+                continue
+    return sorted(entries, key=lambda row: row['deleted'], reverse=True)[:MAX_ENTRIES]
+
+
 def install(api):
     app = api.app
+
+    @app.errorhandler(413)
+    def files_payload_too_large(error):
+        return jsonify(ok=False, error='Upload is limited to 50 MiB per file' if request.endpoint == 'files_upload' else 'Request is too large'), 413
 
     @app.get('/api/files')
     def files_list():
@@ -145,19 +208,18 @@ def install(api):
             if key == 'server-config':
                 entries = [dict(name=target.name, path='', directory=False,
                                 size=target.stat().st_size, modified=target.stat().st_mtime,
-                                editable=False)]
+                                editable=False, text=True, revision=_fingerprint(target))]
                 return jsonify(root=key, path='', entries=entries, truncated=False)
             if not target.is_dir():
                 raise FileAccessError('Select a folder')
             entries = []
             with os.scandir(target) as scanner:
                 for entry in scanner:
-                    if entry.name.startswith('.') or entry.is_symlink():
+                    if entry.name.startswith('.panel-') or entry.is_symlink():
                         continue
                     try:
                         folder = entry.is_dir(follow_symlinks=False)
-                        if not folder and (not entry.is_file(follow_symlinks=False) or
-                                           Path(entry.name).suffix.lower() not in READ_SUFFIXES):
+                        if not folder and not entry.is_file(follow_symlinks=False):
                             continue
                         info = entry.stat(follow_symlinks=False)
                     except OSError:
@@ -165,7 +227,9 @@ def install(api):
                     path = '/'.join(_parts(relative) + [entry.name])
                     entries.append(dict(name=entry.name, path=path, directory=folder,
                                         size=None if folder else info.st_size, modified=info.st_mtime,
-                                        editable=not folder and _editable(api, key, Path(entry.path))))
+                                        editable=not folder and _editable(api, key, Path(entry.path)),
+                                        text=not folder and Path(entry.name).suffix.lower() in READ_SUFFIXES,
+                                        revision=_fingerprint(Path(entry.path))))
                     if len(entries) > MAX_ENTRIES:
                         break
             entries.sort(key=lambda item: (not item['directory'], item['name'].lower()))
@@ -189,10 +253,8 @@ def install(api):
     def files_download():
         try:
             target = _target(api, request.args.get('root', ''), request.args.get('path', ''))
-            if not target.is_file() or target.suffix.lower() not in READ_SUFFIXES:
-                raise FileAccessError('This file type cannot be downloaded')
-            if target.stat().st_size > MAX_DOWNLOAD:
-                raise FileAccessError('Download is limited to 50 MiB')
+            if not target.is_file():
+                raise FileAccessError('Select a regular file to download')
             return send_file(target, as_attachment=True, download_name=target.name, max_age=0)
         except (FileAccessError, OSError) as exc:
             return jsonify(ok=False, error=str(exc)), 400
@@ -233,3 +295,124 @@ def install(api):
             return jsonify(ok=False, error=str(exc)), 409 if 'changed on disk' in str(exc) else 400
         except OSError:
             return jsonify(ok=False, error='Unable to back up or save the file'), 500
+
+    @app.post('/api/files/create')
+    def files_create():
+        data = request.get_json(silent=True) or {}
+        try:
+            target = _destination(api, data.get('root'), data.get('path'))
+            kind = data.get('kind')
+            if kind == 'folder':
+                target.mkdir(mode=0o750)
+            elif kind == 'file':
+                if target.suffix.lower() not in EDIT_SUFFIXES:
+                    raise FileAccessError('Choose a supported text file extension')
+                with target.open('xb') as stream:
+                    stream.write(b'{}\n' if target.suffix.lower() == '.json' else b'')
+            else:
+                raise FileAccessError('Choose file or folder')
+            g.audit_details = dict(path=data['path'], kind=kind)
+            return jsonify(ok=True)
+        except (FileAccessError, OSError) as exc:
+            return jsonify(ok=False, error=str(exc)), 400
+
+    @app.post('/api/files/upload')
+    def files_upload():
+        temporary = None
+        try:
+            data = request.form
+            upload = request.files.get('file')
+            if upload is None:
+                raise FileAccessError('Select a file to upload')
+            target = _destination(api, data.get('root'), data.get('path'))
+            fd, temporary = tempfile.mkstemp(prefix='.panel-upload-', dir=target.parent)
+            total = 0
+            with os.fdopen(fd, 'wb') as stream:
+                while chunk := upload.stream.read(1024 * 1024):
+                    total += len(chunk)
+                    if total > MAX_UPLOAD:
+                        raise FileAccessError('Upload is limited to 50 MiB per file')
+                    stream.write(chunk)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.chmod(temporary, 0o640)
+            # Hard-link installation is atomic and never replaces an existing name.
+            os.link(temporary, target)
+            g.audit_details = dict(path=data['path'], size=total)
+            return jsonify(ok=True)
+        except (FileAccessError, OSError) as exc:
+            return jsonify(ok=False, error=str(exc)), 400
+        finally:
+            if temporary and os.path.exists(temporary):
+                os.unlink(temporary)
+
+    @app.post('/api/files/rename')
+    def files_rename():
+        data = request.get_json(silent=True) or {}
+        try:
+            target = _mutable(api, data.get('root'), data.get('path'), data.get('revision'))
+            destination = _destination(api, data.get('root'), data.get('destination'))
+            if destination.parent != target.parent:
+                raise FileAccessError('Rename keeps the file in its current folder')
+            if target.is_file():
+                os.link(target, destination)
+                target.unlink()
+            else:
+                target.rename(destination)
+            g.audit_details = dict(path=data['path'], destination=data['destination'])
+            return jsonify(ok=True)
+        except (FileAccessError, OSError) as exc:
+            return jsonify(ok=False, error=str(exc)), 400
+
+    @app.post('/api/files/delete')
+    def files_delete():
+        data = request.get_json(silent=True) or {}
+        try:
+            target = _mutable(api, data.get('root'), data.get('path'), data.get('revision'))
+            trash = _trash_root(api)
+            if trash.is_symlink():
+                raise FileAccessError('Trash location cannot be a link')
+            record = trash / secrets.token_hex(16)
+            record.mkdir(mode=0o700, parents=True)
+            metadata = dict(path=data['path'], deleted=datetime.now(timezone.utc).isoformat())
+            (record / 'record.json').write_text(json.dumps(metadata), encoding='utf-8')
+            target.rename(record / 'content')
+            g.audit_details = metadata
+            return jsonify(ok=True, message='Moved to Trash', token=record.name)
+        except (FileAccessError, OSError) as exc:
+            return jsonify(ok=False, error=str(exc)), 400
+
+    @app.get('/api/files/trash')
+    def files_trash():
+        try:
+            return jsonify(ok=True, entries=_trash_entries(api))
+        except (FileAccessError, OSError) as exc:
+            return jsonify(ok=False, error=str(exc)), 400
+
+    @app.post('/api/files/restore')
+    def files_restore():
+        data = request.get_json(silent=True) or {}
+        try:
+            token = data.get('token')
+            if not isinstance(token, str) or len(token) != 32 or any(c not in '0123456789abcdef' for c in token):
+                raise FileAccessError('Invalid Trash item')
+            trash = _trash_root(api)
+            record = trash / token
+            if trash.is_symlink() or record.is_symlink() or (record / 'record.json').is_symlink() or (record / 'content').is_symlink():
+                raise FileAccessError('Trash item cannot be a link')
+            metadata = json.loads((record / 'record.json').read_text(encoding='utf-8'))
+            destination = _destination(api, 'profile', metadata['path'])
+            content = record / 'content'
+            if content.is_file():
+                os.link(content, destination)
+                content.unlink()
+            elif content.is_dir():
+                content.rename(destination)
+            else:
+                raise FileAccessError('Trash item is unavailable')
+            (record / 'record.json').unlink()
+            record.rmdir()
+            g.audit_details = dict(path=metadata['path'])
+            return jsonify(ok=True)
+        except (FileAccessError, OSError, ValueError, KeyError) as exc:
+            return jsonify(ok=False, error=str(exc)), 400

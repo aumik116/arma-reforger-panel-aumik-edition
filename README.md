@@ -101,7 +101,7 @@ output through **Progress / retry**, which can resume interrupted downloads.
 Verified installations are enabled at boot and started automatically. A running
 process does not prove the mission has loaded or players can connect.
 
-The header selector reloads the page to clear the previous instance's forms and
+The selector at the top of the sidebar reloads the page to clear the previous instance's forms and
 console cursor. **Existing server** targets the original installation. Creation
 and installation output require administrator permission. Existing roles apply
 to all instances; per-server account assignments are not implemented.

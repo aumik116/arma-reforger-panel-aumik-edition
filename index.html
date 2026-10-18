@@ -23,6 +23,7 @@
 <link rel="stylesheet" href="/static/network.css">
 <link rel="stylesheet" href="/static/files.css">
 <link rel="stylesheet" href="/static/sharp.css">
+<link rel="stylesheet" href="/static/instances.css">
 </head>
 <body>
 <div class="layout">
@@ -32,11 +33,12 @@
       <div class="tag">DEDICATED SERVER MANAGEMENT</div>
       <h1>ARMA <span>REFORGER</span></h1>
     </div>
-    <div class="instance-header"><label for="instance-switcher" class="instance-label">Server</label><select id="instance-switcher" aria-label="Select server"><option value="">Existing server</option></select><button class="btn-logout" id="manage-instances">Servers</button><button class="btn-logout" onclick="doLogout()">Logout ↗</button></div>
+    <button class="btn-logout" onclick="doLogout()">Logout ↗</button>
   </header>
 
   <aside class="sidebar" aria-label="Workspace navigation">
   <div class="brand"><span class="brand-icon">AR</span><div>REFORGER<small>SERVER PANEL</small></div></div>
+  <div class="sidebar-instances"><label for="instance-switcher" class="instance-label">Server</label><select id="instance-switcher" aria-label="Select server"><option value="">Existing server</option></select><button class="btn-logout" id="manage-instances">Servers</button></div>
 <nav class="panel-tabs" role="tablist" aria-label="Panel sections" aria-orientation="vertical"><span class="nav-label">OVERVIEW</span>
     <button class="panel-tab" id="tab-dashboard" role="tab" aria-selected="true" aria-controls="panel-dashboard" tabindex="0">Dashboard</button><span class="nav-label">OPERATIONS</span>
     <button class="panel-tab" id="tab-console" role="tab" aria-selected="false" aria-controls="panel-console" tabindex="-1" data-permission="logs" hidden>Console</button>
@@ -645,6 +647,5 @@
     </details><button class="btn-save" type="submit">Create and start server</button>
   </form><form id="startup-instance" hidden><h3>Startup settings · <span id="startup-instance-name"></span></h3><label class="field" for="startup-fps">FPS cap (0 disables)<input id="startup-fps" type="number" min="0" max="1000" required></label><p class="feature-note">Restart the server to apply changes.</p><button class="btn-save" type="submit">Save startup settings</button></form><p id="instance-result" class="feature-note" role="status"></p><pre id="instance-job-output" class="instance-job-output" hidden></pre>
 </dialog>
-<link rel="stylesheet" href="/static/instances.css">
 </body>
 </html>

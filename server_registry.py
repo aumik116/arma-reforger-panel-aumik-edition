@@ -214,10 +214,24 @@ class ServerRegistry:
             conn.execute('INSERT INTO server_startup VALUES (?,?) ON CONFLICT(server_id) DO UPDATE SET max_fps=excluded.max_fps',
                          (server_id, value))
 
+    def existing_max_fps(self, default=''):
+        with self.connect() as conn:
+            row = conn.execute("SELECT value FROM server_registry_settings WHERE key='existing_max_fps'").fetchone()
+        value = int(row[0]) if row else int(default or 0)
+        self.validate_max_fps(value)
+        return value
+
+    def set_existing_max_fps(self, value):
+        self.validate_max_fps(value)
+        with self.connect() as conn:
+            conn.execute("INSERT INTO server_registry_settings VALUES('existing_max_fps',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",(str(value),))
+
     def remove(self, server_id):
         with self.connect() as conn:
             conn.execute('BEGIN IMMEDIATE')
             self._instance(conn, server_id)
+            if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='schedules'").fetchone():
+                conn.execute('UPDATE schedules SET enabled=0,deleted=1 WHERE server_id=?',(server_id,))
             conn.execute('DELETE FROM server_startup WHERE server_id=?', (server_id,))
             conn.execute('DELETE FROM server_ports WHERE server_id=?', (server_id,))
             conn.execute('DELETE FROM server_instances WHERE id=?', (server_id,))

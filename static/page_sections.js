@@ -13,6 +13,7 @@ function selectPageSection(group, key) {
     panel.hidden = panel.id !== `section-${group}-${key}`;
   });
   if (group === 'config') { configCategory = key; applyConfigCategory(); }
+  if (group === 'player' && typeof loadOperatorPlayers === 'function') { playerHistoryOffset=0; loadOperatorPlayers(true); }
   if (group === 'mods' && key === 'presets') loadPresets().catch(error => setLog(error.message, 'error'));
   if (group === 'mods' || group === 'mod-review') { renderModUpdates(); refreshModMetadata(); }
   if (group === 'admin' && key === 'activity') setActivityScope('all');

@@ -19,6 +19,9 @@ function selectPanelTab(tab) {
   byId('page-description').textContent = {
     'tab-dashboard': 'Monitor your server and manage the action.',
     'tab-console': 'Inspect live output, player events and RCON responses.',
+    'tab-startup':'Manage launch settings and inspect startup health.',
+    'tab-players':'Connected players and searchable history for this server.',
+    'tab-scheduler':'Schedule restarts, game updates and configuration backups.',
     'tab-configuration': 'Manage server identity, gameplay, connections and security.',
     'tab-network': 'Watch node traffic, tune view distances and check UDP listeners.',
     'tab-files': 'Browse server logs and edit mod-created profile configuration files.',
@@ -27,6 +30,9 @@ function selectPanelTab(tab) {
     'tab-administration': 'Manage your account, permissions and activity.'
   }[tab.id];
   window.scrollTo({top:0});
+  if(tab.id==='tab-startup'&&typeof loadStartup==='function')loadStartup();
+  if(tab.id==='tab-players'&&typeof loadOperatorPlayers==='function')loadOperatorPlayers(true);
+  if(tab.id==='tab-scheduler'&&typeof loadSchedules==='function')loadSchedules();
   if (['tab-configuration', 'tab-persistence'].includes(tab.id) && can('configure') && typeof loadConfiguration === 'function') {
     byId(tab.id === 'tab-persistence' ? 'persistence-savebar-slot' : 'configuration-savebar-slot').append(byId('shared-config-savebar'));
     loadConfiguration();
@@ -251,6 +257,9 @@ async function changePassword() {
 }
 
 const actionNames = {
+  startup_save:'Save startup settings', players_admin_save:'Change in-game administrator access',
+  schedules_save:'Create schedule', schedules_change:'Change schedule',
+  scheduled_restart:'Scheduled restart', scheduled_update:'Scheduled game update', scheduled_backup:'Scheduled configuration backup',
   login:'Signed in', api_start:'Start server', api_stop:'Stop server', api_restart:'Restart server',
   api_config:'Change server configuration', api_mods_add:'Add mod', api_mods_remove:'Remove mod',
   api_mods_import:'Import mods', api_persistence_set:'Change persistence', api_persistence_flush:'Delete saves',

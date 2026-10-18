@@ -315,6 +315,12 @@ def launch_server(config_path, server_id=None):
                 settings[key.strip()] = value.strip().strip('"').strip("'")
     instance = None
     state_directory = os.path.dirname(os.path.abspath(config_path))
+    database = settings.get('PANEL_DATA_FILE', os.path.join(state_directory, '.panel-data.sqlite3'))
+    if server_id is None and os.path.isfile(database):
+        from server_registry import ServerRegistry
+        registry = ServerRegistry(database, settings.get('INSTANCE_ROOT', os.path.join(state_directory,'instances')))
+        cap = registry.existing_max_fps(settings.get('MAX_FPS',''))
+        settings['MAX_FPS'] = str(cap) if cap else ''
     if server_id is not None:
         from server_registry import ServerRegistry
         registry = ServerRegistry(settings.get('PANEL_DATA_FILE', os.path.join(state_directory, '.panel-data.sqlite3')),

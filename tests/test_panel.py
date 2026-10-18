@@ -167,7 +167,7 @@ class PanelTests(unittest.TestCase):
             client = self.login(role)
             for endpoint, permission in MUTATIONS.items():
                 if permission not in ROLES[role]:
-                    result = self.post(client, routes[endpoint])
+                    result = self.post(client, routes[endpoint].replace('<int:schedule_id>', '1'))
                     self.assertEqual(result.status_code, 403, (role, endpoint, result.json))
             status = client.get('/api/status').json
             self.assertEqual(status['password_admin'], '')

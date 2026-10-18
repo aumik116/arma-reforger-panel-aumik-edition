@@ -10,6 +10,7 @@ config.env
 .test-deps/
 .local-preview/
 .software-job*
+.scheduler.lock
 .save-library/
 .panel-save-selection.json
 .panel-save-archives/

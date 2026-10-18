@@ -20,6 +20,8 @@ ROLES = {
     "admin": {"view", "control", "logs", "configure", "mods", "activity", "users", "admin_config"},
 }
 MUTATIONS = {
+    'startup_save':'admin_config', 'players_admin_save':'admin_config',
+    'schedules_save':'admin_config', 'schedules_change':'admin_config',
     'account_preferences_save': 'view',
     'servers_create': 'admin_config', 'server_provision_retry': 'admin_config',
     'server_delete': 'admin_config', 'server_startup_save': 'admin_config',
@@ -44,6 +46,7 @@ def install(api):
     app = api.app
     path = api._cfg.get("PANEL_DATA_FILE", os.path.join(api._BASE_DIR, ".panel-data.sqlite3"))
     lock = api.instance_scoped('mutation_lock', threading.RLock, threading.RLock())
+    api.operation_lock = lock
     preset_lock = threading.RLock()
 
     @contextmanager
@@ -150,6 +153,8 @@ def install(api):
         needed = ("view" if request.endpoint == 'api_mods_compare_json' else MUTATIONS.get(request.endpoint)) if request.method == "POST" else {
             'server_provision_status': 'admin_config',
             "software_status": "admin_config",
+            'startup_get':'admin_config', 'players_admins':'admin_config',
+            'schedules_list':'admin_config',
             "api_logs": "logs", "users_list": "users", "activity_list": "activity",
             "api_persistence_get": "configure",
             "config_editor_get": "configure",
@@ -169,7 +174,14 @@ def install(api):
             err = api._csrf_required()
             if err:
                 return err
-            held_lock = preset_lock if request.endpoint == 'presets_save' else lock
+            tools = getattr(api, 'operator_tools', None)
+            if tools and request.endpoint not in {'schedules_save','schedules_change','account_preferences_save','account_password'}:
+                selected_id = api.selected_instance().id if api.selected_instance() else ''
+                with tools.active_lock:
+                    scheduled_busy = selected_id in tools.active
+                if scheduled_busy:
+                    return jsonify(ok=False,error='A scheduled server operation is running. Wait for it to finish.'),409
+            held_lock = preset_lock if request.endpoint in {'presets_save','schedules_save','schedules_change','account_preferences_save','account_password'} else lock
             if hasattr(held_lock, '_get_current_object'):
                 held_lock = held_lock._get_current_object()
             held_lock.acquire()
@@ -438,10 +450,19 @@ def install(api):
 
     @app.get("/api/players")
     def players_list():
+        return jsonify(player_snapshot())
+
+    def player_snapshot():
         if not api.get_server_pid():
             query.clear()
-            return jsonify(available=True, players=[], message="Server is offline")
-        return jsonify(query.read(api.read_config().get("rcon", {}), api._cfg))
+            return dict(available=True, players=[], message="Server is offline")
+        snapshot = query.read(api.read_config().get("rcon", {}), api._cfg)
+        tools = getattr(api, 'operator_tools', None)
+        if tools:
+            tools.store.observe(api.selected_instance().id if api.selected_instance() else '',snapshot)
+        return snapshot
+
+    api.player_snapshot = player_snapshot
 
     @app.post('/api/rcon/command')
     def rcon_command():

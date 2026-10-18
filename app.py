@@ -1463,5 +1463,9 @@ install_server_software(sys.modules[__name__])
 from server_provisioning import install as install_server_provisioning
 install_server_provisioning(sys.modules[__name__])
 
+from operator_tools import install as install_operator_tools
+install_operator_tools(sys.modules[__name__])
+
 if __name__ == "__main__":
+    operator_tools.start()
     app.run(host="0.0.0.0", port=PANEL_PORT, threaded=True)

@@ -37,13 +37,23 @@ original amber palette remain the default. Open **Appearance** in the sidebar
 to choose Original, Ocean, Forest, or Light. The preference is saved to your
 account and applies across servers; it does not change another user's theme.
 
-All eight sidebar workspaces remain directly accessible. The dashboard prioritizes
+All original sidebar workspaces remain directly accessible. The dashboard prioritizes
 simulation FPS and places host memory, disk activity and latency under **More
 performance details**. Configuration uses compact cards, with player name labels
 under an expandable section. The Mods toolbar keeps search and adding mods visible;
 **View & order** contains display and sorting controls.
 
 **Dashboard** shows server controls, live metrics and the current player list. Network rates are host-wide and may include other services. Player names and IDs need working RCON; FPS and AI/vehicle counts come from game logs.
+
+**Players** adds live search, identity copying and per-server player history. The Linux panel service samples running servers every 30 seconds even with the browser closed; dashboard queries also update history. First/last observed timestamps describe panel observations, not exact connection/disconnection times, and short connections between samples may be missed. History starts when this version is installed. Administrators can grant or remove in-game access here; a game-server restart applies those changes. Existing game-admin controls remain in Server config.
+
+**Startup** lets administrators save an FPS cap (0 disables it) for managed servers or the original server. It shows launch paths, process/build status and recent output. Changes apply on the next game-server start; startup settings are stored in the panel database, without rewriting `config.env`. The original Servers dialog's FPS control still works.
+
+**Scheduler** lets administrators create one-time jobs or repeat them every 6/12/24 hours or 7 days. Dates are entered/displayed in the browser's timezone and stored as UTC timestamps. Repeats use elapsed hours, so local clock times can change across daylight-saving transitions. Schedules belong to the selected server; no default jobs are created.
+
+The installed Linux `app.py` service runs the scheduler; it must stay active, but the browser can be closed. A file lock prevents duplicate scheduler loops and database claims prevent replaying a run. Jobs more than 90 seconds late fail instead of catching up; work interrupted by a panel restart is recorded as interrupted. Pause/removal affects future runs and does not cancel an update already in progress. Removing a managed server disables its schedules, and each execution rechecks its creator's administrator access.
+
+Scheduled restarts and game updates warn at 5 minutes and 1 minute using Server Admin Tools `#message` over admin RCON. A running server's run is skipped if either warning failed/missed or its process changed. Restarts leave stopped servers stopped. Successful updates restart only servers that were running beforehand; failed/interrupted updates leave them stopped for review. **Configuration backup** copies only the server JSON into the existing backup library (20 versions); world saves are not included. Scheduler and run history, player history and startup caps persist in `.panel-data.sqlite3`; include that database in your VM backups.
 
 **Server config** lets you edit settings, select a scenario by name, validate changes and save. `Use default` removes an explicit value. The Raw JSON view shows the current draft, including unsaved edits. Restart the game server to apply saved changes.
 

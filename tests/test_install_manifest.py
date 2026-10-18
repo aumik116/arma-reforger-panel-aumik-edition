@@ -30,7 +30,7 @@ class InstallerManifestTests(unittest.TestCase):
         sidebar = html.split('<aside', 1)[1].split('</aside>', 1)[0]
         self.assertEqual(set(re.findall(r'id="tab-([^"]+)"', sidebar)), {
             'dashboard', 'console', 'persistence', 'configuration',
-            'mods', 'files', 'network', 'administration'})
+            'mods', 'files', 'network', 'administration','startup','players','scheduler'})
         ids = re.findall(r'\bid="([^"]+)"', html)
         self.assertEqual(len(ids), len(set(ids)), 'Duplicate HTML IDs break shared controls')
         for target in re.findall(r'aria-controls="([^"]+)"', html):

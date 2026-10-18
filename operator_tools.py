@@ -24,6 +24,8 @@ class OperatorTools:
     @contextmanager
     def selected(self, server_id):
         with self.api.app.test_request_context('/internal/scheduled-operation'):
+            if not server_id and self.api.manager_mode:
+                raise ValueError('This installation has no unmanaged default server')
             if server_id:
                 server = self.api.server_registry.get(server_id)
                 if server.state != 'ready':
@@ -148,7 +150,7 @@ class OperatorTools:
                     threading.Thread(target=self.execute, args=(claimed,), daemon=True).start()
 
     def collect_players(self):
-        for server_id in ['']+[s.id for s in self.api.server_registry.list() if s.state == 'ready']:
+        for server_id in ([] if self.api.manager_mode else [''])+[s.id for s in self.api.server_registry.list() if s.state == 'ready']:
             try:
                 with self.selected(server_id):
                     self.api.player_snapshot()

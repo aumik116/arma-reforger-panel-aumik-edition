@@ -1,5 +1,6 @@
 // Use full page navigation when switching to discard old instance form/log state.
 document.addEventListener('DOMContentLoaded', () => {
+  const setupPage = document.body.hasAttribute('data-setup-page');
   const dialog = document.getElementById('instances-dialog');
   const switcher = document.getElementById('instance-switcher');
   const form = document.getElementById('create-instance');
@@ -11,9 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const response = await fetch('/api/servers');
     if (!response.ok) throw new Error('Could not load servers');
     const data = await response.json();
-    switcher.replaceChildren(option('', 'Existing server'));
+    switcher.replaceChildren();
+    if (data.legacy_server) switcher.append(option('', data.legacy_server.name));
     const copy = document.getElementById('instance-copy'), copyValue = copy.value;
-    copy.replaceChildren(option('', 'Defaults'), option('__existing__', 'Copy existing server settings and mods'));
+    copy.replaceChildren(option('', 'Defaults'));
+    if (data.legacy_server) copy.append(option('__existing__', 'Copy existing server settings and mods'));
     const list = document.getElementById('instance-list'); list.replaceChildren();
     for (const server of data.servers) {
       if (server.state === 'ready') {
@@ -50,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       list.append(row);
     }
-    if (!data.servers.length) list.textContent = 'No managed instances yet. The existing server remains available from the selector.';
+    if (!data.servers.length) list.textContent = data.legacy_server ? 'No managed instances yet. Select your existing server above.' : 'No servers yet. Create your first server below.';
     if (selectedServerId && !data.servers.some(s => s.id === selectedServerId && s.state === 'ready')) {
       switcher.append(option(selectedServerId, 'Selected instance unavailable'));
     }
@@ -71,9 +74,9 @@ document.addEventListener('DOMContentLoaded', () => {
         catch (error) { result.textContent = error.message; }
       }; result.append(document.createTextNode(' '), retry);
     }
-    if (job.state === 'ready') { jobId = ''; await load(); }
+    if (job.state === 'ready') { const readyId = jobId; jobId = ''; await load(); if (setupPage) go(readyId); }
   }
-  document.getElementById('manage-instances').onclick = () => { dialog.showModal(); load().catch(error => result.textContent = error.message); };
+  document.getElementById('manage-instances').onclick = () => { if (!dialog.open) dialog.showModal(); load().catch(error => result.textContent = error.message); };
   document.getElementById('close-instances').onclick = () => dialog.close();
   switcher.onchange = () => go(switcher.value);
   form.onsubmit = async event => {

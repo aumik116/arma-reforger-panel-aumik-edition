@@ -27,7 +27,7 @@ def backup(panel, source, config_root='/etc', backup_root='/var/backups/arma-pan
     snapshot = Path(tempfile.mkdtemp(prefix='update-', dir=root))
     # Include files that the new installer may create, so rollback removes them.
     names = {p.name for folder in (panel, source) for p in folder.glob('*.py')}
-    names.update(('index.html', 'login.html', 'config.env', '.panel-secret'))
+    names.update(('index.html', 'login.html', 'setup.html', 'config.env', '.panel-secret'))
     names.update('static/' + p.name for folder in (panel, source)
                  for p in (folder / 'static').glob('*') if p.is_file())
     targets = [panel / name for name in sorted(names)] + [config_root / name for name in SERVICE_FILES]

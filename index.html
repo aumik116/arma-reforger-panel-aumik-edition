@@ -689,6 +689,7 @@
     <div class="field"><label for="instance-copy">Starting configuration</label><select id="instance-copy" name="copy_from"><option value="">Defaults</option></select></div>
     <div class="field"><label for="instance-players">Player limit</label><input id="instance-players" name="max_players" type="number" min="1" max="128" value="64" required></div>
     <div class="field"><label for="instance-fps">FPS cap (0 disables)</label><input id="instance-fps" name="max_fps" type="number" min="0" max="1000" value="60" required></div>
+    <div class="field"><label for="instance-address">Public IPv4 address</label><input id="instance-address" name="public_address" placeholder="Blank for automatic detection"><p class="feature-note">Internet-facing address advertised to players. Use the VM address only for private-network testing.</p></div>
     <details><summary>Custom ports (leave blank for automatic allocation)</summary>
       <div class="field"><label for="instance-game-port">Game UDP port</label><input id="instance-game-port" name="game_port" type="number" min="1024" max="65535"></div>
       <div class="field"><label for="instance-query-port">Query UDP port</label><input id="instance-query-port" name="query_port" type="number" min="1024" max="65535"></div>

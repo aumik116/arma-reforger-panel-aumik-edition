@@ -29,8 +29,9 @@ class ScopedPath:
 def install(api):
     panel_settings = dict(api._cfg)
     database = panel_settings.get('PANEL_DATA_FILE', str(Path(api._BASE_DIR) / '.panel-data.sqlite3'))
+    api.manager_mode = panel_settings.get('PANEL_MODE') == 'manager'
     registry = ServerRegistry(database, panel_settings.get('INSTANCE_ROOT', str(Path(api._BASE_DIR) / 'instances')),
-                              legacy_config=api.SERVER_CONFIG)
+                              legacy_config=None if api.manager_mode else api.SERVER_CONFIG)
     api.server_registry = registry
     states, state_lock = {}, threading.Lock()
 
@@ -99,14 +100,16 @@ def install(api):
         if request.endpoint in {'account_me', 'account_password', 'users_list', 'users_save',
                                 'account_preferences', 'account_preferences_save',
                                 'users_delete', 'admin_label_save', 'activity_list',
-                                'presets_delete'}:
+                                'presets_delete', 'api_csrf'}:
             return  # Panel-wide mutations retain their shared lock.
         if not request.path.startswith('/api/') or request.path == '/api/servers':
             return
         server_id = request.view_args['server_id'] if metadata_target else request.headers.get('X-Server-ID')
         if server_id is None and request.endpoint == 'files_download':
             server_id = request.args.get('_server')
-        if server_id is None:
+        if not server_id:
+            if api.manager_mode:
+                g.instance_selection_error = (jsonify(ok=False,error='Select or create a server first',setup_required=True),409)
             return  # Existing single-server API remains available during integration.
         try:
             instance = registry.get(server_id)
@@ -123,6 +126,13 @@ def install(api):
 
     @api.app.get('/api/servers')
     def servers_list():
-        return jsonify(servers=[dict(id=s.id, name=s.name, state=s.state,
+        legacy = None
+        if not api.manager_mode:
+            legacy = {'name':'Existing server'}
+            try:
+                legacy['name'] = api.read_config().get('game',{}).get('name') or legacy['name']
+            except api.ConfigReadError:
+                pass
+        return jsonify(manager_mode=api.manager_mode,legacy_server=legacy,servers=[dict(id=s.id, name=s.name, state=s.state,
             game_port=s.game_port, query_port=s.query_port, rcon_port=s.rcon_port, max_fps=s.max_fps)
             for s in registry.list()])

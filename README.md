@@ -1,6 +1,6 @@
 # Arma Reforger Server Management Panel
 
-A self-hosted web panel for one Arma Reforger dedicated server on Linux.
+A self-hosted web panel for multiple Arma Reforger dedicated servers on one Linux VM.
 
 ## What it does
 
@@ -17,15 +17,15 @@ Game configuration and mod changes take effect after a game-server restart. The 
 
 Use an x86_64 Ubuntu server with Python 3.10 or newer. The installer sets up the panel's dependencies.
 
-For a new game server and panel:
+For a new manager installation:
 
 ```bash
-git clone https://github.com/aumik116/arma-reforger-panel-aumik-edition.git
+git clone --branch multi-server-manager https://github.com/aumik116/arma-reforger-panel-aumik-edition.git
 cd arma-reforger-panel-aumik-edition
 sudo bash install.sh
 ```
 
-To add the panel to an existing game server, run `sudo bash install.sh --panel-only` instead and provide the existing server paths when prompted.
+Fresh installation prepares the panel and SteamCMD only. Sign in as `admin` and create your first server in the browser; it starts automatically after installation. Additional servers can start from defaults or copy a managed server’s settings and mods. Set Public IPv4 address when automatic detection is unsuitable behind NAT. Firewall and router rules remain your responsibility. `--panel-only` is an alias for this installation flow. Existing installations should use `--update`, which retains their settings and servers.
 
 Open `http://YOUR_SERVER_IP:8888`, or the port chosen during installation. Sign in as `admin` with the password you set in the installer.
 

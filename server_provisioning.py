@@ -1,5 +1,6 @@
 """Detached, file-locked local instance provisioning with persistent progress."""
 import copy
+import ipaddress
 import json
 import os
 import re
@@ -53,7 +54,21 @@ def available(port):
         return False
 
 
-def instance_config(server, source=None, max_players=64):
+def validate_public_address(value):
+    if not isinstance(value, str):
+        raise ValueError('Public address must be an IPv4 address or blank')
+    value = value.strip()
+    try:
+        if value:
+            ipaddress.IPv4Address(value)
+    except ValueError:
+        raise ValueError('Public address must be an IPv4 address or blank') from None
+    return value
+
+
+def instance_config(server, source=None, max_players=64, public_address=''):
+    public_address = validate_public_address(public_address)
+
     if type(max_players) is not int or not 1 <= max_players <= 128:
         raise ValueError('Player limit must be between 1 and 128')
     if source is not None and (not isinstance(source, dict) or not isinstance(source.get('game'), dict)
@@ -62,7 +77,7 @@ def instance_config(server, source=None, max_players=64):
     config = copy.deepcopy(source or {'game': {'scenarioId': DEFAULT_SCENARIO, 'mods': [],
         'visible': True, 'crossPlatform': True, 'supportedPlatforms': ['PLATFORM_PC', 'PLATFORM_XBL', 'PLATFORM_PSN']}})
     config.update(bindAddress='0.0.0.0', bindPort=server.game_port,
-                  publicAddress='', publicPort=server.game_port,
+                  publicAddress=public_address, publicPort=server.game_port,
                   a2s={'address':'0.0.0.0', 'port':server.query_port},
                   rcon={'address':'127.0.0.1', 'port':server.rcon_port,
                         'password':secrets.token_hex(16), 'permission':'admin'})
@@ -266,6 +281,8 @@ def install(api):
             seed_state_directory = api._BASE_DIR
             if data.get('copy_from'):
                 if data['copy_from'] == '__existing__':
+                    if api.manager_mode:
+                        raise ValueError('This installation has no existing unmanaged server to copy')
                     source = api.read_config()
                 else:
                     origin = registry.get(data['copy_from'])
@@ -282,6 +299,7 @@ def install(api):
             limit = data.get('max_players', 64)
             if type(limit) is not int or not 1 <= limit <= 128:
                 raise ValueError('Player limit must be between 1 and 128')
+            public_address = validate_public_address(data.get('public_address', ''))
             server = registry.register(data.get('server_id'), data.get('name'),
                 game_port=data.get('game_port'), query_port=data.get('query_port'),
                 rcon_port=data.get('rcon_port'), port_available=available, max_fps=data.get('max_fps', 60))
@@ -290,7 +308,7 @@ def install(api):
                 for key in ('server', 'profile', 'logs', 'workshop', 'backups'):
                     server.paths[key].mkdir(mode=0o700)
                 config = server.paths['config']
-                config.write_text(json.dumps(instance_config(server, source, limit), indent=2))
+                config.write_text(json.dumps(instance_config(server, source, limit, public_address), indent=2))
                 config.chmod(0o600)
                 options = server.directory / '.provision-options.json'
                 options.write_text(json.dumps({'seed_directory':seed_directory,

@@ -40,7 +40,7 @@ class PanelTests(unittest.TestCase):
         self.config = self.root / 'server.json'
         self.config.write_text(json.dumps({'game': {'name': 'Test', 'password': 'game-secret',
             'passwordAdmin': 'admin-secret', 'mods': [], 'scenarioId': 'original'}}))
-        (self.root / 'config.env').write_text(f'PANEL_PASSWORD=test-password\nSERVER_CONFIG={self.config}\n')
+        (self.root / 'config.env').write_text(f'PANEL_PASSWORD=test-password\nSERVER_CONFIG={self.config}\n' + ('PANEL_MODE=manager\n' if getattr(self, 'manager_mode', False) else ''))
         spec = importlib.util.spec_from_file_location('test_app', self.root / 'app.py')
         self.module = importlib.util.module_from_spec(spec)
         sys.modules['test_app'] = self.module

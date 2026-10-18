@@ -12,6 +12,7 @@
   document.addEventListener('DOMContentLoaded', async () => {
     const picker = document.getElementById('theme-choice');
     const feedback = document.getElementById('theme-feedback');
+    if (!picker) return;
     picker.value = current;
     try {
       const response = await fetch('/api/preferences');

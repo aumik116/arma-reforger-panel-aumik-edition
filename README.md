@@ -29,6 +29,14 @@ Fresh installation prepares the panel and SteamCMD only. Sign in as `admin` and 
 
 Open `http://YOUR_SERVER_IP:8888`, or the port chosen during installation. Sign in as `admin` with the password you set in the installer.
 
+## Server overview
+
+After signing in, `/servers` lists all servers on this VM with process CPU,
+resident memory, uptime and available player counts. Start, stop, restart and
+open a server from its row. Failed installations link to setup for progress and
+retry. Unavailable readings stay marked unavailable; the overview refreshes every
+10 seconds. Existing unmanaged servers remain accessible through their own row.
+
 ## Everyday use
 
 The dashboard places status and controls above summary cards, with performance

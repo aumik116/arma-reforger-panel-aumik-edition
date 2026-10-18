@@ -28,13 +28,14 @@
 <link rel="stylesheet" href="/static/dashboard-layout.css">
 <link rel="stylesheet" href="/static/operator-tools.css">
 <link rel="stylesheet" href="/static/themes.css">
+<link rel="stylesheet" href="/static/manager-layout.css">
 </head>
 <body>
 <div class="layout">
 
   <header>
     <div class="header-left">
-      <div class="tag">DEDICATED SERVER MANAGEMENT</div>
+      <a class="workspace-back" href="/servers">← All servers</a>
       <h1 id="workspace-server-name">ARMA REFORGER</h1>
     </div>
     <button class="btn-logout" onclick="doLogout()">Logout ↗</button>
@@ -115,26 +116,6 @@
 </div>
 <div class="dashboard-columns"><div class="dashboard-performance">
   <div class="charts-row" id="extra-metrics"></div>
-  <!-- Charts -->
-  <div class="charts-row">
-    <div class="chart-card">
-      <div class="chart-header">
-        <div>
-          <div class="chart-title">CPU Usage</div>
-          <div class="chart-sub" id="proc-cpu-sub">Arma: —%</div>
-        </div>
-        <div>
-          <div class="metric-counter-pair">
-            <div><div class="chart-value cpu" id="cpu-val">—%</div><span class="metric-caption">Arma CPU</span></div>
-            <div><div class="chart-value cpu" id="cpu-frequency">— GHz</div><span class="metric-caption">Average CPU clock</span></div>
-          </div>
-        </div>
-      </div>
-      <div class="chart-wrap"><canvas id="chart-cpu"></canvas></div>
-    </div>
-
-  </div>
-
   <div class="charts-row">
     <div class="chart-card">
       <div class="chart-title">Network traffic — host interfaces</div>
@@ -154,7 +135,27 @@
     <p class="feature-note" id="metric-events">No recent panel events.</p>
   </div>
 
-<details class="dashboard-diagnostics"><summary>More performance details <span>Host memory, disk activity & latency</span></summary><div class="dashboard-diagnostics-content"><div class="chart-card">
+<details class="dashboard-diagnostics"><summary>More performance details <span>CPU, host memory, disk activity & latency</span></summary><div class="dashboard-diagnostics-content">  <!-- Charts -->
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">CPU Usage</div>
+          <div class="chart-sub" id="proc-cpu-sub">Arma: —%</div>
+        </div>
+        <div>
+          <div class="metric-counter-pair">
+            <div><div class="chart-value cpu" id="cpu-val">—%</div><span class="metric-caption">Arma CPU</span></div>
+            <div><div class="chart-value cpu" id="cpu-frequency">— GHz</div><span class="metric-caption">Average CPU clock</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="chart-wrap"><canvas id="chart-cpu"></canvas></div>
+    </div>
+
+  </div>
+
+<div class="chart-card">
       <div class="chart-header">
         <div>
           <div class="chart-title">RAM Usage</div>

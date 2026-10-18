@@ -17,7 +17,7 @@ class ManagerSetupTests(unittest.TestCase):
     def test_empty_manager_does_not_invent_legacy_server(self):
         self.config.unlink()
         response = self.admin.get('/')
-        self.assertEqual(response.location, '/setup')
+        self.assertEqual(response.location, '/servers')
         servers = self.admin.get('/api/servers').json
         self.assertTrue(servers['manager_mode'])
         self.assertIsNone(servers['legacy_server'])
@@ -28,6 +28,12 @@ class ManagerSetupTests(unittest.TestCase):
         self.assertEqual(self.admin.get('/setup').status_code, 200)
         self.assertIn(b'create-instance', self.admin.get('/setup').data)
         self.assertNotEqual(self.module.app.test_client().get('/setup').status_code, 200)
+
+    def test_server_overview_is_authenticated_and_logout_needs_no_server(self):
+        shutil.copy(Path(__file__).resolve().parents[1] / 'servers.html', self.root / 'servers.html')
+        self.assertEqual(self.admin.get('/servers').status_code, 200)
+        self.assertNotEqual(self.module.app.test_client().get('/servers').status_code, 200)
+        self.assertEqual(self.post(self.admin, '/logout').status_code, 200)
 
     def test_address_validation(self):
         self.assertEqual(validate_public_address(' 203.0.113.4 '), '203.0.113.4')
@@ -53,4 +59,4 @@ class ManagerSetupTests(unittest.TestCase):
         self.assertEqual(server.game_port, 2001)
         launch.assert_called_once()
         self.module.server_registry.set_state('first', 'ready')
-        self.assertEqual(self.admin.get('/').location, '/?server=first')
+        self.assertEqual(self.admin.get('/').location, '/servers')

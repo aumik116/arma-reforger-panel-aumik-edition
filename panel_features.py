@@ -188,7 +188,7 @@ def install(api):
             g.mutation_lock = held_lock
             if request.endpoint in {"api_start", "api_restart"} and api.software_manager.busy():
                 return jsonify(ok=False, error="Wait for the server software job to finish before starting or restarting."), 409
-            g.before_config = {} if request.endpoint in getattr(api, 'PROVISIONING_ENDPOINTS', set()) or request.endpoint in {'account_preferences_save', 'admin_label_save'} else api.read_config()
+            g.before_config = {} if request.endpoint in getattr(api, 'PROVISIONING_ENDPOINTS', set()) or request.endpoint in {'account_preferences_save', 'admin_label_save', 'logout'} else api.read_config()
             g.audit_actor = user["username"]
             g.audit_details = {}
             if request.endpoint == "api_persistence_set":
@@ -211,7 +211,7 @@ def install(api):
                 details['server_id'] = api.selected_instance().id
             if ok:
                 before = g.before_config.get("game", {})
-                after = {} if request.endpoint in getattr(api, 'PROVISIONING_ENDPOINTS', set()) or request.endpoint in {'account_preferences_save', 'admin_label_save'} else api.read_config().get("game", {})
+                after = {} if request.endpoint in getattr(api, 'PROVISIONING_ENDPOINTS', set()) or request.endpoint in {'account_preferences_save', 'admin_label_save', 'logout'} else api.read_config().get("game", {})
                 old = {m.get("modId"): m for m in before.get("mods", [])}
                 new = {m.get("modId"): m for m in after.get("mods", [])}
                 if old != new:

@@ -81,3 +81,19 @@ class Element {
   assert.equal(JSON.stringify(groups),before);
 }
 console.log('Frontend refresh and configuration-layout regressions passed');
+
+// An overview control must target its row, including after another row is used.
+(async () => {
+  const calls = [], feedback = {textContent:''};
+  const context = vm.createContext({CSRF:'token', busy:new Set(), feedback,
+    confirm:()=>true, refresh:async()=>{},
+    fetch:async(url,options)=>{calls.push({url,options});return {ok:true,json:async()=>({ok:true})};}});
+  vm.runInContext(between(source('servers.js'),'  async function action(', '  function render('),context);
+  for (const id of ['training','everon','']) await context.action({id,name:id || 'Existing'},'restart',{disabled:false});
+  assert.equal(calls[0].options.headers['X-Server-ID'],'training');
+  assert.equal(calls[1].options.headers['X-Server-ID'],'everon');
+  assert.equal(calls[2].options.headers['X-Server-ID'],undefined);
+  assert.equal(calls[0].options.headers['X-CSRF-Token'],'token');
+  assert.equal(context.busy.size,0);
+  console.log('Overview controls preserve per-server targets and CSRF');
+})().catch(error=>{console.error(error);process.exitCode=1;});

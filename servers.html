@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Servers — Management Panel</title>
+<script src="/static/theme.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/base.css"><link rel="stylesheet" href="/static/workspace.css"><link rel="stylesheet" href="/static/sharp.css"><link rel="stylesheet" href="/static/themes.css"><link rel="stylesheet" href="/static/manager-layout.css">
+</head><body class="manager-page"><header class="manager-header"><span>SERVER MANAGER</span><div><span id="overview-account"></span><button class="btn-logout" id="overview-logout">Logout ↗</button></div></header>
+<main class="manager-main"><div class="manager-heading"><div><div class="eyebrow">LOCAL HOST</div><h1>Servers</h1><p class="feature-note">All game servers on this VM.</p></div><a class="btn-save manager-create" id="overview-create" href="/setup" hidden>+ New server</a></div>
+<div class="manager-summary"><div><span>Servers</span><strong id="overview-total">—</strong></div><div><span>Online</span><strong id="overview-online">—</strong></div><div><span>Observed players</span><strong id="overview-players">—</strong></div></div>
+<div class="manager-list-heading"><h2>This VM</h2><button class="btn-logout" id="overview-refresh">Refresh</button></div><p class="feature-note" id="overview-feedback" role="status">Loading servers…</p>
+<div class="manager-table-wrap"><table class="manager-table"><thead><tr><th>Status</th><th>Server</th><th>Players</th><th>CPU</th><th>RAM</th><th>Uptime</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody id="overview-rows"></tbody></table></div>
+<p class="feature-note manager-footnote">Refreshes every 10 seconds. CPU and RAM are per game process. Player totals include only available roster readings.</p>
+<noscript>Enable JavaScript to view live server information.</noscript></main><script src="/static/api.js"></script><script src="/static/servers.js"></script></body></html>

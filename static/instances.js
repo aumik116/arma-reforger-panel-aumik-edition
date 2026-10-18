@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('create-instance');
   const result = document.getElementById('instance-result');
   let admin = false, jobId = '', poll = null, startupId = '';
-  const go = id => { location.href = id ? '/?server=' + encodeURIComponent(id) : '/'; };
+  const go = id => { location.href = id ? '/?server=' + encodeURIComponent(id) : '/?legacy=1'; };
   function option(value, label) { const node = document.createElement('option'); node.value = value; node.textContent = label; return node; }
   async function load() {
     const response = await fetch('/api/servers');
@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
           try {
             const response = await postJson(`/api/servers/${encodeURIComponent(server.id)}/delete`, {confirm_id:confirmation});
             const body = await response.json(); if (!response.ok) throw new Error(body.error);
-            if (selectedServerId === server.id) { go(''); return; }
+            if (selectedServerId === server.id) { location.href = '/servers'; return; }
             if (jobId === server.id) jobId = '';
             if (startupId === server.id) document.getElementById('startup-instance').hidden = true;
             result.textContent = body.archived ? `Server removed. Files retained at ${body.archived}` : 'Server removed.';

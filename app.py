@@ -854,11 +854,16 @@ def index():
     if not session.get("logged_in"):
         return redirect("/login")
     _ensure_csrf()
-    if manager_mode and not request.args.get('server'):
-        ready = [server for server in server_registry.list() if server.state == 'ready']
-        return redirect('/?server='+ready[0].id if ready else '/setup')
+    if not request.args.get('server') and (manager_mode or request.args.get('legacy') != '1'):
+        return redirect('/servers')
     with open(os.path.join(os.path.dirname(__file__), "index.html"), encoding="utf-8") as f:
         return f.read()
+
+@app.get('/servers')
+def servers_page():
+    _ensure_csrf()
+    with open(os.path.join(_BASE_DIR, 'servers.html'), encoding='utf-8') as stream:
+        return stream.read()
 
 @app.get('/setup')
 def setup_page():

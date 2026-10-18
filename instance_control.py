@@ -6,8 +6,11 @@ import sys
 
 
 def service_args(action, server_id):
-    if action not in ('start', 'stop', 'enable', 'disable') or not re.fullmatch(r'[a-z][a-z0-9-]{0,31}', server_id):
+    if action not in ('start', 'stop', 'enable', 'disable', 'diagnostics') or not re.fullmatch(r'[a-z][a-z0-9-]{0,31}', server_id):
         raise ValueError('Invalid instance service command')
+    if action == 'diagnostics':
+        return ['/usr/bin/journalctl', '--unit', f'arma-server@{server_id}.service',
+                '--lines', '80', '--no-pager', '--output', 'short-iso']
     return ['/usr/bin/systemctl', action, f'arma-server@{server_id}.service']
 
 

@@ -61,7 +61,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const job = await response.json();
     if (!response.ok) throw new Error(job.error || 'Could not load provisioning progress');
     result.replaceChildren(document.createTextNode(job.message));
-    const output = document.getElementById('instance-job-output'); output.hidden = false; output.textContent = job.output;
+    const output = document.getElementById('instance-job-output'); output.hidden = false;
+    output.textContent = (job.startup_output ? 'STARTUP DIAGNOSTICS\n' + job.startup_output + '\n\nINSTALLATION OUTPUT\n' : '') + job.output;
     if (job.state === 'failed' || job.state === 'interrupted') {
       const retry = document.createElement('button'); retry.type = 'button'; retry.className = 'btn-logout'; retry.textContent = 'Retry installation';
       retry.onclick = async () => {

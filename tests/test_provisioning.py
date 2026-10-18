@@ -51,6 +51,24 @@ class ProvisionTests(unittest.TestCase):
         self.assertEqual(run.call_args.args[0], ['sudo', '-n', provision.CONTROL, 'stop', 'training'])
         self.assertTrue((Path(__file__).resolve().parents[1] / 'instance_control.py').read_text().startswith('#!/usr/bin/python3\n'))
 
+    def test_diagnostics_only_read_the_selected_instance_journal(self):
+        args = service_args('diagnostics', 'training')
+        self.assertEqual(args[:3], ['/usr/bin/journalctl', '--unit', 'arma-server@training.service'])
+        with self.assertRaises(ValueError):
+            service_args('diagnostics', '*')
+
+    def test_failed_start_shows_journal_and_caches_successful_read(self):
+        self.registry.set_state('training', 'failed')
+        (self.server.directory / '.provision.json').write_text(json.dumps({
+            'state':'failed', 'message':'Server exited during startup.'}))
+        (self.server.directory / 'provision.log').write_text('\x1b[0mSuccess!\n')
+        with patch.object(provision.subprocess, 'run', return_value=Mock(returncode=0, stdout='Missing library', stderr='')) as run:
+            state = provision.status(self.registry, 'training')
+            self.assertEqual(state['startup_output'], 'Missing library')
+            self.assertEqual(state['output'].splitlines(), ['Success!'])
+            provision.status(self.registry, 'training')
+            run.assert_called_once()
+
     def test_occupied_ports_are_skipped_or_rejected(self):
         other = self.registry.register('other', 'Other', port_available=lambda port: port not in (2002, 2003))
         self.assertEqual(other.game_port, 2004)

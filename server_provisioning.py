@@ -2,6 +2,7 @@
 import copy
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import socket
@@ -76,11 +77,23 @@ def status(registry, server_id):
         state.update(state='failed', message='Provisioning could not launch. Retry to resume.')
     if server.state == 'ready':
         state.update(state='ready', message='Installation complete. Instance is ready to manage.')
+    if state.get('state') == 'failed' and 'startup_output' not in state and (
+            state.get('startup_attempted') or 'startup' in state.get('message', '').lower()):
+        try:
+            result = subprocess.run(['sudo', '-n', CONTROL, 'diagnostics', server_id],
+                                    capture_output=True, text=True, timeout=15)
+            if result.returncode == 0:
+                state['startup_output'] = result.stdout[-65536:]
+                write_state(path, state)
+            else:
+                state['startup_output'] = 'Could not read startup journal: ' + result.stderr.strip()
+        except (OSError, subprocess.SubprocessError) as exc:
+            state['startup_output'] = 'Could not read startup journal: ' + str(exc)
     log = server.directory / 'provision.log'
     try:
         with log.open('rb') as stream:
             stream.seek(max(0, log.stat().st_size - 32768))
-            state['output'] = stream.read(32768).decode('utf-8', errors='replace')
+            state['output'] = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', stream.read(32768).decode('utf-8', errors='replace'))
     except OSError:
         state['output'] = ''
     if server.state == 'provisioning':
@@ -120,7 +133,8 @@ def worker(database, root, server_id, executable, lock_fd):
     state_path = server.directory / '.provision.json'
     def progress(state, message):
         registry.set_state(server_id, state)
-        write_state(state_path, {'state':state, 'message':message, 'updated':time.time()})
+        write_state(state_path, {'state':state, 'message':message, 'updated':time.time(),
+                                 'startup_attempted':started})
     started = False
     try:
         progress('provisioning', 'Downloading and validating the game server…')

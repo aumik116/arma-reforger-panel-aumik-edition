@@ -48,7 +48,7 @@ GROUPS = [
     dict(title='Remote console', description='RCON uses UDP. Restrict its interface and firewall access to trusted administrators.', fields=[
         field('rcon.address', 'RCON bind address', 'address'),
         field('rcon.port', 'RCON port · UDP', 'int', minimum=1, maximum=65535, default=19999),
-        field('rcon.password', 'RCON password', 'password', no_spaces=True, minimum=3, help='At least 3 characters, without spaces. Required when configuring RCON.'),
+        field('rcon.password', 'RCON password', 'password', no_spaces=True, minimum=3, maximum=32, help='3–32 characters, without spaces. Required when configuring RCON.'),
         field('rcon.permission', 'RCON permission', 'choice', choices=['monitor', 'admin']),
         field('rcon.maxClients', 'Maximum RCON clients', 'int', minimum=1, maximum=16, default=16),
         field('rcon.whitelist', 'Command whitelist', 'lines', help='One command per line. A nonempty list allows only listed commands.'),

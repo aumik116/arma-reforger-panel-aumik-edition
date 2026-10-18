@@ -12,6 +12,7 @@ import server_provisioning as provision
 from instance_control import service_args
 from server_registry import ServerRegistry
 from runtime_ops import launch_server
+from config_editor import FIELDS, validate_value
 
 
 class ProvisionTests(unittest.TestCase):
@@ -34,9 +35,25 @@ class ProvisionTests(unittest.TestCase):
         self.assertEqual(config['game']['gameProperties']['persistence']['hiveId'], 0)
         self.assertEqual(source['game']['gameProperties']['persistence']['hiveId'], 99)
         self.assertNotEqual(config['rcon']['password'], 'secret')
+        self.assertEqual(len(config['rcon']['password']), 32)
+        validate_value(FIELDS['rcon.password'], config['rcon']['password'])
         self.assertEqual(config['bindPort'], self.server.game_port)
         self.assertEqual(config['rcon']['address'], '127.0.0.1')
         self.assertEqual(config['game']['maxPlayers'], 32)
+
+    def test_retry_repairs_overlong_password_without_changing_other_settings(self):
+        config = provision.instance_config(self.server)
+        config['rcon']['password'] = 'x' * 43
+        path = self.server.paths['config']
+        path.write_text(json.dumps(config))
+        self.assertTrue(provision.repair_rcon_password(self.server))
+        repaired = json.loads(path.read_text())
+        self.assertEqual(len(repaired['rcon']['password']), 32)
+        config['rcon']['password'] = repaired['rcon']['password']
+        self.assertEqual(repaired, config)
+        self.assertFalse(provision.repair_rcon_password(self.server))
+        with self.assertRaises(ValueError):
+            validate_value(FIELDS['rcon.password'], 'x' * 33)
 
     def test_helper_rejects_arbitrary_units_actions_and_arguments(self):
         self.assertEqual(service_args('start', 'training')[-1], 'arma-server@training.service')

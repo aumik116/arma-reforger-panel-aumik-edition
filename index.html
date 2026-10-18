@@ -634,7 +634,7 @@
   <div class="card-label">Servers on this VM</div><button type="button" class="btn-logout" id="close-instances">Close</button>
   <div id="instance-list" class="instance-list" role="status"></div>
   <form id="create-instance" hidden>
-    <h3>Create Server</h3><p class="feature-note">Installs a separate game server, then starts it automatically. Copies settings and mod selections only; passwords and saves are not copied.</p>
+    <h3>Create Server</h3><p class="feature-note">Reuses existing game files when available, then validates them with Steam and starts the new server. Configuration copying includes settings and mod selections; passwords and saves are not copied.</p>
     <div class="field"><label for="instance-name">Name</label><input id="instance-name" name="name" required maxlength="80"></div>
     <div class="field"><label for="instance-id">Server ID</label><input id="instance-id" name="server_id" required pattern="[a-z][a-z0-9-]{0,31}" maxlength="32" placeholder="training"><p class="feature-note">Lowercase letters, digits and hyphens. Cannot be changed later.</p></div>
     <div class="field"><label for="instance-copy">Starting configuration</label><select id="instance-copy" name="copy_from"><option value="">Defaults</option></select></div>

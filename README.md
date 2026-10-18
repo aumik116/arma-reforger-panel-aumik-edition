@@ -101,6 +101,13 @@ output through **Progress / retry**, which can resume interrupted downloads.
 Verified installations are enabled at boot and started automatically. A running
 process does not prove the mission has loaded or players can connect.
 
+Creation seeds the new installation from local game files when available. It
+prefers the selected copy source, otherwise the existing installation or another
+ready instance. Files are copied independently, not hard-linked; configuration,
+saves, logs, and Workshop downloads are excluded from this game-file copy.
+SteamCMD still validates the installation and retrieves missing or updated
+files. A missing or busy source falls back to normal installation.
+
 The selector at the top of the sidebar reloads the page to clear the previous instance's forms and
 console cursor. **Existing server** targets the original installation. Creation
 and installation output require administrator permission. Existing roles apply

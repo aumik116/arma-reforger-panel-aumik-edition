@@ -92,6 +92,24 @@ class ProvisionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.registry.register('busy', 'Busy', game_port=2400, port_available=lambda port: False)
 
+    def test_game_copy_is_independent_and_excludes_instance_data(self):
+        source = self.base / 'source'
+        source.mkdir()
+        (source / 'ArmaReforgerServer').write_text('binary')
+        (source / 'libsteam_api.so').write_text('library')
+        (source / 'addons').mkdir()
+        (source / 'addons' / 'data.pak').write_text('game assets')
+        (source / 'config.json').write_text('secret config')
+        (source / 'profile').mkdir()
+        (source / 'profile' / 'save.conf').write_text('save')
+        self.assertGreater(provision.seed_installation(source, self.server.paths['server']), 0)
+        destination = self.server.paths['server']
+        self.assertEqual((destination / 'addons' / 'data.pak').read_text(), 'game assets')
+        self.assertFalse((destination / 'config.json').exists())
+        self.assertFalse((destination / 'profile').exists())
+        (destination / 'ArmaReforgerServer').write_text('updated destination')
+        self.assertEqual((source / 'ArmaReforgerServer').read_text(), 'binary')
+
     def test_failed_download_does_not_start_service(self):
         with patch.object(provision.subprocess, 'run', return_value=Mock(returncode=1)), \
              patch.object(provision, 'service_command') as control, patch.object(provision.os, 'close'):

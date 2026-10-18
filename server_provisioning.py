@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 import tempfile
+import shutil
 from contextlib import ExitStack
 
 from server_registry import ServerRegistry
@@ -17,6 +18,30 @@ from server_software import APP_ID, installed_build, steam_command, write_state
 
 CONTROL = '/etc/arma-panel/instance-control.py'
 DEFAULT_SCENARIO = '{ECC61978EDCC2B5A}Missions/23_Campaign.conf'
+
+
+def seed_installation(source, destination):
+    """Copy game assets into independent files; Steam verifies the result."""
+    source, destination = Path(source), Path(destination)
+    if not (source / 'ArmaReforgerServer').is_file():
+        return 0
+    def ignore_links(directory, names):
+        return [name for name in names if (Path(directory) / name).is_symlink()]
+    copied = 0
+    for item in source.iterdir():
+        if item.is_symlink():
+            continue
+        if item.is_dir() and item.name.lower() in ('addons', 'battleye', 'lib', 'bin'):
+            shutil.copytree(item, destination / item.name, dirs_exist_ok=True, ignore=ignore_links)
+            copied += 1
+        elif item.is_file() and (item.name == 'ArmaReforgerServer' or re.fullmatch(r'.+\.so(?:\.[0-9]+)*', item.name)):
+            shutil.copy2(item, destination / item.name)
+            copied += 1
+    manifest = source / 'steamapps' / f'appmanifest_{APP_ID}.acf'
+    if manifest.is_file() and not manifest.is_symlink() and not manifest.parent.is_symlink():
+        (destination / 'steamapps').mkdir(exist_ok=True)
+        shutil.copy2(manifest, destination / 'steamapps' / manifest.name)
+    return copied
 
 
 def available(port):
@@ -163,6 +188,20 @@ def worker(database, root, server_id, executable, lock_fd):
                                  'startup_attempted':started})
     started = False
     try:
+        options_path = server.directory / '.provision-options.json'
+        if not (server.paths['server'] / 'ArmaReforgerServer').is_file():
+            try:
+                options = json.loads(options_path.read_text())
+            except (OSError, ValueError):
+                options = {}
+            if options.get('seed_directory'):
+                progress('provisioning', 'Copying existing game files before Steam validation…')
+                try:
+                    with lock_job(Path(options['seed_state_directory']), '.software-job.lock'):
+                        seed_installation(options['seed_directory'], server.paths['server'])
+                except (OSError, ValueError, shutil.Error):
+                    # Missing/busy source: Steam fills any incomplete local copy.
+                    pass
         progress('provisioning', 'Downloading and validating the game server…')
         with (server.directory / 'provision.log').open('w') as log:
             result = subprocess.run(steam_command(executable, str(server.paths['server']), 'update')[:-1]
@@ -223,6 +262,8 @@ def install(api):
             if data.get('copy_from') is not None and not isinstance(data['copy_from'], str):
                 raise ValueError('Source server must be a server ID')
             source = None
+            seed_directory = str(api.SERVER_DIR)
+            seed_state_directory = api._BASE_DIR
             if data.get('copy_from'):
                 if data['copy_from'] == '__existing__':
                     source = api.read_config()
@@ -231,6 +272,13 @@ def install(api):
                     if origin.state != 'ready':
                         raise ValueError('Source server must be provisioned')
                     source = json.loads(origin.paths['config'].read_text())
+                    seed_directory = str(origin.paths['server'])
+                    seed_state_directory = str(origin.directory)
+            if not (Path(seed_directory) / 'ArmaReforgerServer').is_file():
+                for origin in registry.list():
+                    if origin.state == 'ready' and (origin.paths['server'] / 'ArmaReforgerServer').is_file():
+                        seed_directory, seed_state_directory = str(origin.paths['server']), str(origin.directory)
+                        break
             limit = data.get('max_players', 64)
             if type(limit) is not int or not 1 <= limit <= 128:
                 raise ValueError('Player limit must be between 1 and 128')
@@ -244,6 +292,10 @@ def install(api):
                 config = server.paths['config']
                 config.write_text(json.dumps(instance_config(server, source, limit), indent=2))
                 config.chmod(0o600)
+                options = server.directory / '.provision-options.json'
+                options.write_text(json.dumps({'seed_directory':seed_directory,
+                                                'seed_state_directory':seed_state_directory}))
+                options.chmod(0o600)
                 launch(registry, server.id, steamcmd)
             except Exception:
                 registry.set_state(server.id, 'failed')

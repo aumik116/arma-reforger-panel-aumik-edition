@@ -9,12 +9,13 @@
 #   sudo bash install.sh              — install panel and prepare SteamCMD
 #   sudo bash install.sh --panel-only — alias for panel installation
 #   sudo bash install.sh --update     — update panel files only
+#   sudo bash install.sh --reset-owner-password — recover Owner access
 # ============================================================
 
 set -e
 
 # Keep both fresh installs and updates on the same file-copy path.
-PANEL_PY_FILES=(app.py storage_usage.py notifications.py workshop.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py config_backups.py mod_metadata.py server_software.py persistence_saves.py armahq_compare.py mod_validation.py legacy_api.py server_registry.py instance_runtime.py server_provisioning.py instance_control.py update_recovery.py scheduler.py operator_tools.py)
+PANEL_PY_FILES=(app.py account_recovery.py storage_usage.py notifications.py workshop.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py config_backups.py mod_metadata.py server_software.py persistence_saves.py armahq_compare.py mod_validation.py legacy_api.py server_registry.py instance_runtime.py server_provisioning.py instance_control.py update_recovery.py scheduler.py operator_tools.py)
 
 copy_panel_files() {
     local destination="$1" file
@@ -209,10 +210,22 @@ MODE=manager
 case "${1:-}" in
     ""|--panel-only) ;;
     --update) MODE=update ;;
-    *) echo "Usage: sudo bash install.sh [--update]" >&2; exit 1 ;;
+    --reset-owner-password) MODE=recover ;;
+    *) echo "Usage: sudo bash install.sh [--update | --reset-owner-password]" >&2; exit 1 ;;
 esac
 [[ "$EUID" == 0 ]] || { echo "Run with sudo bash install.sh" >&2; exit 1; }
 [[ "$(uname -m)" == x86_64 ]] || { echo "Requires x86_64 Linux." >&2; exit 1; }
+if [[ "$MODE" == "recover" ]]; then
+    EXISTING_USER=$(systemctl show arma-panel.service --property=User --value)
+    PANEL_DIR_EXISTING=$(systemctl show arma-panel.service --property=WorkingDirectory --value)
+    if [[ -z "$EXISTING_USER" || "$PANEL_DIR_EXISTING" != /* || ! -f "$PANEL_DIR_EXISTING/config.env" ]]; then
+        echo "ERROR: Cannot locate installed panel service and config.env." >&2
+        exit 1
+    fi
+    # Run as the panel user so SQLite journal files keep the correct ownership.
+    cd "$PANEL_DIR_EXISTING"
+    exec sudo -H -u "$EXISTING_USER" python3 "$SCRIPT_DIR/account_recovery.py" --panel-dir "$PANEL_DIR_EXISTING"
+fi
 if [[ "$MODE" == "update" ]]; then
     echo -e "${YELLOW}Updating panel files...${NC}"
     EXISTING_USER=$(systemctl show arma-panel.service --property=User --value)

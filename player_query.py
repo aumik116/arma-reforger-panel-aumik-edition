@@ -51,7 +51,7 @@ def query_command(host, port, password, command):
         sock.settimeout(2)
         sock.connect((host, port))
 
-        def receive(kind, sequence=None, players_reply=False):
+        def receive(kind, sequence=None, players_reply=False, moderation_reply=False):
             deadline = time.monotonic() + 3
             chunks, total = {}, None
             interim_response = None
@@ -65,6 +65,10 @@ def query_command(host, port, password, command):
                     sock.send(packet(payload[:2]))
                     if players_reply and b'players on server' in payload[2:].lower():
                         return payload[2:]
+                    if moderation_reply:
+                        text=payload[2:].lower()
+                        if b'processing command:' not in text and any(word in text for word in (b'ban',b'kick',b'error',b'denied',b'invalid')):
+                            return payload[2:]
                     continue
                 if payload[0] != kind:
                     continue
@@ -74,7 +78,7 @@ def query_command(host, port, password, command):
                     continue
                 content = payload[2:]
                 if content[:1] != b'\x00':
-                    if players_reply and (not content or b'processing command:' in content.lower()):
+                    if (players_reply or moderation_reply) and (not content or b'processing command:' in content.lower()):
                         interim_response = content
                         continue
                     return content
@@ -95,10 +99,28 @@ def query_command(host, port, password, command):
             raise ValueError('RCON authentication failed')
         try:
             sock.send(packet(b'\x01\x00' + command.encode('utf-8')))
-            return receive(1, 0, players_reply=command.lower() == '#players').decode('utf-8', errors='replace')
+            return receive(1, 0, players_reply=command.lower() == '#players', moderation_reply=command.lower().startswith(('#ban ', '#kick '))).decode('utf-8', errors='replace')
         finally:
             # Reforger 1.2.1+: release the connection slot after each query.
             sock.send(packet(b'\x01\x01@logout'))
+
+
+def admin_command(api, command):
+    if not api.get_server_pid():
+        raise ValueError('The game server is offline')
+    config = api.read_config().get('rcon') or {}
+    settings = api._cfg
+    if config.get('permission', 'monitor') != 'admin':
+        raise ValueError('Set RCON permission to admin and restart the game server')
+    password = settings.get('RCON_PASSWORD') or config.get('password')
+    if not password: raise ValueError('Configure an RCON password first')
+    host = settings.get('RCON_HOST') or config.get('address') or '127.0.0.1'
+    port = int(settings.get('RCON_PORT') or config.get('port', 19999))
+    if not 1 <= port <= 65535: raise ValueError('Invalid RCON port')
+    output = query_command('127.0.0.1' if host == '0.0.0.0' else host, port, password, command)
+    if any(word in output.lower() for word in ('unknown command', 'permission denied', 'invalid command', 'command failed', 'not found', 'unsupported')):
+        raise ValueError('Game server rejected the command: ' + output[:200])
+    return output
 
 
 def query_players(host, port, password):

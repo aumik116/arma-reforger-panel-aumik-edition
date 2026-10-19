@@ -21,8 +21,8 @@ function selectPanelTab(tab) {
     'tab-dashboard': 'Monitor your server and manage the action.',
     'tab-console': 'Inspect live output, player events and RCON responses.',
     'tab-startup':'Manage launch settings and inspect startup health.',
-    'tab-players':'Connected players and searchable history for this server.',
-    'tab-scheduler':'Schedule restarts, game updates and configuration backups.',
+    'tab-players':'Connected players, moderation and searchable history for this server.',
+    'tab-scheduler':'Schedule server controls, broadcasts, updates and configuration backups.',
     'tab-configuration': 'Manage server identity, gameplay, connections and security.',
     'tab-network': 'Watch node traffic, tune view distances and check UDP listeners.',
     'tab-files': 'Browse server files, upload profile files and restore deleted items.',
@@ -292,6 +292,7 @@ async function saveUser() {
 }
 
 const actionNames = {
+  players_moderate:'Moderate player', scheduled_start:'Scheduled start', scheduled_stop:'Scheduled stop', scheduled_broadcast:'Scheduled broadcast',
   startup_save:'Save startup settings', players_admin_save:'Change in-game administrator access',
   schedules_save:'Create schedule', schedules_change:'Change schedule',
   scheduled_restart:'Scheduled restart', scheduled_update:'Scheduled game update', scheduled_backup:'Scheduled configuration backup',

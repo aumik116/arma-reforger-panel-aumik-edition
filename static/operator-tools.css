@@ -16,3 +16,5 @@
 @media(max-width:600px){.operator-cards .config-grid{grid-template-columns:minmax(0,1fr)}.operator-table :is(th,td){padding:12px}.operator-pagination{justify-content:space-between}.operator-facts{grid-template-columns:minmax(0,1fr)}}
 
 .operator-toolbar select{padding:10px 12px;border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit}
+
+.operator-advanced>label{display:block;margin:12px 0}.diagnostic-error{border-left:3px solid var(--offline)}.diagnostic-warn{border-left:3px solid var(--warn)}.diagnostic-ok{border-left:3px solid var(--online)}#moderation-dialog .field{display:grid;gap:8px;margin:16px 0}#moderation-dialog input,#moderation-dialog select{padding:10px;background:var(--surface);color:var(--text);border:1px solid var(--border)}

@@ -13,7 +13,8 @@ from flask import g, jsonify, request
 import config_backups
 from config_editor import apply_changes, revision
 import player_query
-from scheduler import ScheduleStore
+import startup_settings
+from scheduler import ScheduleStore, WARNED_ACTIONS
 
 
 class OperatorTools:
@@ -89,9 +90,19 @@ class OperatorTools:
                     if api.software_manager.busy():
                         raise ValueError('Server software is already being updated')
                     pid = api.get_server_pid()
-                    if row['action'] in {'restart', 'update'} and pid and (row['warning5'] != pid or row['warning1'] != pid):
+                    if row['action'] in WARNED_ACTIONS and pid and (row['warning5'] != pid or row['warning1'] != pid):
                         raise ValueError('Required 5-minute and 1-minute warnings were not delivered to this server process')
-                    if row['action'] == 'restart':
+                    if row['action'] == 'start':
+                        if pid: message='Server is already running; no second start sent.'
+                        else: api.start_server();message='Server started; process health checked.'
+                    elif row['action'] == 'stop':
+                        if pid: api.stop_server();message='Server stopped after advance warnings.'
+                        else: message='Server is already stopped.'
+                    elif row['action'] == 'broadcast':
+                        if not pid: raise ValueError('Server is offline; broadcast skipped')
+                        self.broadcast(row['broadcast'])
+                        message='Broadcast sent through admin RCON. Verify in-game delivery.'
+                    elif row['action'] == 'restart':
                         if not pid:
                             raise ValueError('Server is offline; scheduled restart does not start stopped servers')
                         api.stop_server()
@@ -134,7 +145,7 @@ class OperatorTools:
         now = time.time() if now is None else now
         for row in self.store.pending(now):
             if row['run_at'] > now:
-                if row['action'] != 'backup':
+                if row['action'] in WARNED_ACTIONS:
                     self.warn(row, now)
                 continue
             with self.active_lock:
@@ -245,7 +256,7 @@ def install(api):
             output = read_console(log,None,initial_lines=30)['lines'] if log else []
         except OSError:
             output = ['The recent log rotated or is unavailable. Refresh diagnostics to try again.']
-        return jsonify(resources=api.server_registry.resources(server_id() or '__existing__'),resource_supported=sys.platform=='linux',cpu_count=os.cpu_count(),max_fps=value,service=instance.service_name if instance else 'arma-server.service',
+        return jsonify(launch_options=startup_settings.load(api.server_registry,server_id() or '__existing__'),diagnostics=startup_settings.diagnostics(api),resources=api.server_registry.resources(server_id() or '__existing__'),resource_supported=sys.platform=='linux',cpu_count=os.cpu_count(),max_fps=value,service=instance.service_name if instance else 'arma-server.service',
                        running=bool(api.get_server_pid()),binary_exists=(Path(str(api.SERVER_DIR))/api.SERVER_BINARY).is_file(),
                        config_path=str(api.SERVER_CONFIG),server_path=str(api.SERVER_DIR),profile_path=str(api.PROFILE_DIR),
                        logs_path=str(api.LOG_DIR),output=output,software=api.software_manager.status())
@@ -258,13 +269,15 @@ def install(api):
             from instance_control import normalize_limits
             current=api.server_registry.resources(server_id() or '__existing__')
             resources=normalize_limits(data.get('cpus',current['cpus']),data.get('memory_high_mb',current['memory_high_mb']),data.get('memory_max_mb',current['memory_max_mb']))
+            options=startup_settings.validate(data.get('launch_options',startup_settings.load(api.server_registry,server_id() or '__existing__')))
             api.server_registry.validate_max_fps(value)
             if api.selected_instance():
                 api.server_registry.set_max_fps(server_id(),value)
             else:
                 api.server_registry.set_existing_max_fps(value)
             api.server_registry.set_resources(server_id() or '__existing__',resources)
-            g.audit_details={'max_fps':value,**resources}
+            startup_settings.save(api.server_registry,server_id() or '__existing__',options)
+            g.audit_details={'max_fps':value,**resources,'launch_options':options}
             return jsonify(ok=True,restart_required=bool(api.get_server_pid()))
         except ValueError as exc:
             return jsonify(ok=False,error=str(exc)),400
@@ -297,6 +310,12 @@ def install(api):
     def schedules_change(schedule_id):
         try:
             data=request.get_json()
+            if data.get('run_now') is True:
+                if sys.platform!='linux' or not tools.store.heartbeat():
+                    return jsonify(ok=False,error='Run now requires an active Linux scheduler'),409
+                identity,warned=tools.store.queue_now(server_id(),schedule_id,g.user['id'])
+                g.audit_details={'schedule_id':schedule_id,'queued_id':identity}
+                return jsonify(ok=True,message='Queued with 5-minute and 1-minute warnings; runs in 6 minutes.' if warned else 'Queued for the next scheduler tick.',id=identity)
             if data.get('edit') is True:
                 tools.store.update(server_id(),schedule_id,g.user['id'],data)
             else:

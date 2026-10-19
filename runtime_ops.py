@@ -336,7 +336,9 @@ def launch_server(config_path, server_id=None):
     directory = settings.get('SERVER_DIR', '/home/arma/server')
     binary = os.path.join(directory, 'ArmaReforgerServer')
     server_config = settings.get('SERVER_CONFIG', directory + '/config.json')
-    args = [binary, '-config', server_config, '-logStats', '1000']
+    import startup_settings
+    options = startup_settings.load(registry, server_id or '__existing__') if os.path.isfile(database) else startup_settings.DEFAULTS
+    args = [binary, '-config', server_config] + startup_settings.arguments(options)
     if instance:
         args += ['-profile', str(instance.directory), '-logsDir', str(instance.paths['logs']),
                  '-addonDownloadDir', str(instance.paths['workshop']), '-addonsDir', str(instance.paths['workshop'])]

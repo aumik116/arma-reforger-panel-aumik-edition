@@ -20,6 +20,7 @@ ROLES = {
     "admin": {"view", "control", "logs", "configure", "mods", "activity", "users", "admin_config"},
 }
 MUTATIONS = {
+    "players_moderate": "admin_config",
     "notifications_save": "admin_config", "notifications_test": "admin_config",
     'workshop_apply': 'mods',
     'files_create': 'admin_config', 'files_upload': 'admin_config', 'files_rename': 'admin_config',
@@ -196,7 +197,7 @@ def install(api):
             'server_provision_status': 'admin_config',
             "notifications_settings": "admin_config",
             "software_status": "admin_config",
-            'startup_get':'admin_config', 'players_admins':'admin_config',
+            'players_bans':'admin_config', 'startup_get':'admin_config', 'players_admins':'admin_config',
             'schedules_list':'admin_config', 'schedules_runs':'admin_config',
             "api_logs": "logs", "users_list": "users", "activity_list": "activity",
             "api_persistence_get": "configure",

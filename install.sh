@@ -15,7 +15,7 @@
 set -e
 
 # Keep both fresh installs and updates on the same file-copy path.
-PANEL_PY_FILES=(app.py account_recovery.py storage_usage.py notifications.py workshop.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py config_backups.py mod_metadata.py server_software.py persistence_saves.py armahq_compare.py mod_validation.py legacy_api.py server_registry.py instance_runtime.py server_provisioning.py instance_control.py update_recovery.py scheduler.py operator_tools.py)
+PANEL_PY_FILES=(app.py startup_settings.py moderation.py account_recovery.py storage_usage.py notifications.py workshop.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py config_backups.py mod_metadata.py server_software.py persistence_saves.py armahq_compare.py mod_validation.py legacy_api.py server_registry.py instance_runtime.py server_provisioning.py instance_control.py update_recovery.py scheduler.py operator_tools.py)
 
 copy_panel_files() {
     local destination="$1" file

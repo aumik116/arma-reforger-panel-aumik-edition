@@ -247,6 +247,8 @@ class ServerRegistry:
                 conn.execute('UPDATE schedules SET enabled=0,deleted=1 WHERE server_id=?',(server_id,))
             if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='server_resources'").fetchone():
                 conn.execute('DELETE FROM server_resources WHERE server_id=?',(server_id,))
+            if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='server_launch_options'").fetchone():
+                conn.execute('DELETE FROM server_launch_options WHERE server_id=?',(server_id,))
             conn.execute('DELETE FROM server_startup WHERE server_id=?', (server_id,))
             conn.execute('DELETE FROM server_ports WHERE server_id=?', (server_id,))
             conn.execute('DELETE FROM server_instances WHERE id=?', (server_id,))

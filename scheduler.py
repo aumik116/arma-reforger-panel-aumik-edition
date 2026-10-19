@@ -6,7 +6,8 @@ from datetime import datetime, timedelta, time as daytime
 
 from contextlib import contextmanager
 
-ACTIONS = {'restart', 'update', 'backup'}
+ACTIONS = {'restart', 'update', 'backup', 'start', 'stop', 'broadcast'}
+WARNED_ACTIONS = {'restart', 'update', 'stop'}
 
 
 def calendar_next(row, now):
@@ -41,18 +42,21 @@ def schedule_values(data,now):
     if not isinstance(name,str) or not 1<=len(name.strip())<=80 or any(ord(c)<32 for c in name):
         raise ValueError('Enter a schedule name of 1–80 printable characters')
     if not isinstance(action,str) or action not in ACTIONS:
-        raise ValueError('Choose restart, update or backup')
+        raise ValueError('Choose restart, update, backup, start, stop or broadcast')
     if type(repeat) is not int or repeat<0 or repeat>30*86400 or repeat and (repeat<3600 or repeat%3600):
         raise ValueError('Repeat every 1–720 whole hours, or choose once')
     if recurrence not in ('interval','daily','weekly'):
         raise ValueError('Choose once, interval, daily or weekly')
-    lead=360 if action in {'restart','update'} else 60
+    message=data.get('broadcast','')
+    if not isinstance(message,str) or len(message)>220 or any(ord(c)<32 for c in message) or action=='broadcast' and not message.strip():
+        raise ValueError('Broadcast needs 1–220 printable characters')
+    lead=360 if action in WARNED_ACTIONS else 60
     if type(run_at) not in (int,float) or not math.isfinite(run_at) or not now+lead<=run_at<=now+366*86400:
         raise ValueError(f'First run must be at least {lead//60} minutes ahead and within a year')
     local=datetime.fromtimestamp(run_at)
     if recurrence!='interval': repeat=0
     return dict(name=name.strip(),action=action,run_at=run_at,interval_seconds=repeat,recurrence=recurrence,
-                local_time=local.strftime('%H:%M'),weekday=local.weekday())
+                local_time=local.strftime('%H:%M'),weekday=local.weekday(),broadcast=message.strip() if action=='broadcast' else '')
 
 
 class ScheduleStore:
@@ -78,7 +82,7 @@ class ScheduleStore:
                     singleton INTEGER PRIMARY KEY CHECK(singleton=1), heartbeat REAL NOT NULL);
             ''')
             columns={row[1] for row in conn.execute('PRAGMA table_info(schedules)')}
-            for name,definition in [('recurrence',"TEXT NOT NULL DEFAULT 'interval'"),('local_time',"TEXT NOT NULL DEFAULT '00:00'"),('weekday','INTEGER NOT NULL DEFAULT 0')]:
+            for name,definition in [('recurrence',"TEXT NOT NULL DEFAULT 'interval'"),('local_time',"TEXT NOT NULL DEFAULT '00:00'"),('weekday','INTEGER NOT NULL DEFAULT 0'),('broadcast',"TEXT NOT NULL DEFAULT ''")]:
                 if name not in columns: conn.execute(f'ALTER TABLE schedules ADD COLUMN {name} {definition}')
             run_columns={row[1] for row in conn.execute('PRAGMA table_info(schedule_runs)')}
             for name in ('schedule_name','schedule_action'):
@@ -103,15 +107,27 @@ class ScheduleStore:
             conn.execute('BEGIN IMMEDIATE')
             if conn.execute('SELECT count(*) FROM schedules WHERE server_id=? AND deleted=0', (server_id,)).fetchone()[0] >= 100:
                 raise ValueError('Keep at most 100 schedules per server')
-            return conn.execute('INSERT INTO schedules(server_id,owner_id,name,action,run_at,interval_seconds,recurrence,local_time,weekday) VALUES(?,?,?,?,?,?,?,?,?)',
+            return conn.execute('INSERT INTO schedules(server_id,owner_id,name,action,run_at,interval_seconds,recurrence,local_time,weekday,broadcast) VALUES(?,?,?,?,?,?,?,?,?,?)',
                                 (server_id,owner_id,*values.values())).lastrowid
 
     def update(self,server_id,schedule_id,owner_id,data,now=None):
         values=schedule_values(data,time.time() if now is None else now)
         with self.connect() as conn:
-            result=conn.execute('UPDATE schedules SET owner_id=?,name=?,action=?,run_at=?,interval_seconds=?,recurrence=?,local_time=?,weekday=?,enabled=1,warning5=0,warning1=0,warning_error=? WHERE id=? AND server_id=? AND deleted=0',
+            result=conn.execute('UPDATE schedules SET owner_id=?,name=?,action=?,run_at=?,interval_seconds=?,recurrence=?,local_time=?,weekday=?,broadcast=?,enabled=1,warning5=0,warning1=0,warning_error=? WHERE id=? AND server_id=? AND deleted=0',
                 (owner_id,*values.values(),'',schedule_id,server_id))
             if not result.rowcount: raise ValueError('Schedule not found on this server')
+
+    def queue_now(self, server_id, schedule_id, owner_id, now=None):
+        now=time.time() if now is None else now
+        with self.connect() as conn:
+            row=conn.execute('SELECT * FROM schedules WHERE id=? AND server_id=? AND deleted=0',(schedule_id,server_id)).fetchone()
+        if row is None: raise ValueError('Schedule not found on this server')
+        warned=row['action'] in WARNED_ACTIONS
+        data=dict(name=('Run now: '+row['name'])[:80],action=row['action'],run_at=now+(360 if warned else 60),broadcast=row['broadcast'])
+        identity=self.create(server_id,owner_id,data,now=now)
+        if not warned:
+            with self.connect() as conn: conn.execute('UPDATE schedules SET run_at=? WHERE id=?',(now,identity))
+        return identity, warned
 
     def runs(self,server_id,before=0,state='',search=''):
         if type(before) is not int or before<0 or state not in ('','success','failed','interrupted','running') or not isinstance(search,str) or len(search)>120:
@@ -141,8 +157,8 @@ class ScheduleStore:
             if row is None:
                 raise ValueError('Schedule not found on this server')
             # Pausing/removing affects future runs, never interrupts a running update.
-            if enabled and row['run_at'] < now + (360 if row['action'] != 'backup' else 60):
-                threshold=now+(360 if row['action']!='backup' else 60)
+            if enabled and row['run_at'] < now + (360 if row['action'] in WARNED_ACTIONS else 60):
+                threshold=now+(360 if row['action'] in WARNED_ACTIONS else 60)
                 if row['recurrence']!='interval': next_run=calendar_next(row,threshold)
                 elif row['interval_seconds']:
                     repeat=row['interval_seconds'];next_run=row['run_at']+(int((threshold-row['run_at'])//repeat)+1)*repeat

@@ -223,8 +223,15 @@ if [[ "$MODE" == "recover" ]]; then
         exit 1
     fi
     # Run as the panel user so SQLite journal files keep the correct ownership.
+    # The checkout may be inside a private home the service user cannot enter.
+    RECOVERY_DIR=$(mktemp -d /tmp/arma-panel-recovery-XXXXXXXX)
+    trap 'rm -f "$RECOVERY_DIR/account_recovery.py"; rmdir "$RECOVERY_DIR"' EXIT
+    chmod 711 "$RECOVERY_DIR"
+    cp "$SCRIPT_DIR/account_recovery.py" "$RECOVERY_DIR/account_recovery.py"
+    chmod 644 "$RECOVERY_DIR/account_recovery.py"
     cd "$PANEL_DIR_EXISTING"
-    exec sudo -H -u "$EXISTING_USER" python3 "$SCRIPT_DIR/account_recovery.py" --panel-dir "$PANEL_DIR_EXISTING"
+    sudo -H -u "$EXISTING_USER" python3 "$RECOVERY_DIR/account_recovery.py" --panel-dir "$PANEL_DIR_EXISTING"
+    exit 0
 fi
 if [[ "$MODE" == "update" ]]; then
     echo -e "${YELLOW}Updating panel files...${NC}"

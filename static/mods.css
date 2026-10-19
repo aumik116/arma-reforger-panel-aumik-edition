@@ -53,6 +53,7 @@
 .mod-art .mod-size { position:absolute; z-index:2; right:8px; bottom:8px; padding:4px 6px; border-radius:4px; background:#090c0de8; color:#f2eee6; font:10px 'Roboto Mono',monospace; }
 .mods-notice { display:flex; justify-content:space-between; flex-wrap:wrap; gap:10px; }
 #mods-total { color:var(--accent2); }
+.mods-psn-warning { padding:12px 16px; border:1px solid var(--warn); color:var(--warn); background:var(--surface); font-size:12px; line-height:1.5; }
 .mods-size-note { margin-top:18px; color:var(--muted); font-size:12px; line-height:1.5; }
 .mod-body { padding:14px; }
 .mod-body h3 { color:#eee9df; font-size:15px; font-weight:600; margin:0 0 10px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }

@@ -107,6 +107,7 @@ function drawModTotal() {
   for(const mod of modLibrary.mods){const key=String(mod.modId).toUpperCase();if(seen.has(key))continue;seen.add(key);count++;const size=modSize(mod);if(size!==null){total+=size;known++;}}
   modEl('mods-total').textContent=count===0?'Estimated mod download: 0 B':known===count?`Estimated mod download: ${formatModSize(total)}`:`Known size: ${formatModSize(total)} · ${count-known} unknown`;
   modEl('mods-total').title='Total across all configured mods, using the selected version. Excludes dependencies not in this list. Cached Workshop sizes; actual download varies with files a player already has.';
+  modEl('mods-psn-warning').hidden = total <= 25_000_000_000;
 }
 let modMetadataLoading=false;
 async function refreshModMetadata() {

@@ -132,3 +132,27 @@ console.log('Frontend refresh and configuration-layout regressions passed');
   assert.equal(vm.runInContext('storageBytes(2500)',context),'2.5 KB');
 }
 console.log('Storage displays decimal GB and MB');
+
+// PlayStation warning uses the unrounded decimal total across all configured mods.
+{
+  const nodes = new Map();
+  const library = {mods:[],metadata:new Map()};
+  const context = vm.createContext({modLibrary:library,modEl:id=>{if(!nodes.has(id))nodes.set(id,{});return nodes.get(id);}});
+  vm.runInContext(between(source('mods.js'),'function modSize(', 'function applyModMetadata('),context);
+  vm.runInContext(between(source('mods.js'),'function formatModSize(', 'let modMetadataLoading='),context);
+  function size(bytes) {
+    library.mods=[{modId:'A'},{modId:'B',version:'pinned'},{modId:'a'}];
+    library.metadata.set('A',{current_version:'latest',sizes:{latest:bytes}});
+    library.metadata.set('B',{current_version:'latest',sizes:{pinned:1,latest:100000000000}});
+    context.drawModTotal();
+    return nodes.get('mods-psn-warning').hidden;
+  }
+  assert.equal(size(24999999998),true);
+  assert.equal(size(24999999999),true); // Exactly 25 GB, including pinned mod.
+  assert.equal(size(25000000000),false); // One byte above, even when display rounds to 25 GB.
+  library.mods.push({modId:'unknown'});context.drawModTotal();
+  assert.equal(nodes.get('mods-psn-warning').hidden,false);
+  library.mods=[];context.drawModTotal();
+  assert.equal(nodes.get('mods-psn-warning').hidden,true);
+}
+console.log('PSN warning respects 25 GB boundary, pinned versions, deduplication and removal');

@@ -141,10 +141,20 @@ def _fingerprint(target):
     return f'{info.st_ino}:{info.st_size}:{info.st_mtime_ns}'
 
 
-def _destination(api, key, relative):
+def _destination(api, key, relative, create_parents=False):
     parts = _parts(relative)
     if key != 'profile' or not parts:
         raise FileAccessError('Only game profile files can be changed here')
+    if create_parents:
+        for depth in range(1, len(parts)):
+            parent = _target(api, key, '/'.join(parts[:depth - 1]))
+            try:
+                (parent / parts[depth - 1]).mkdir(mode=0o750)
+            except FileExistsError:
+                pass
+            # Check existing directories too: never follow a symlink.
+            if not _target(api, key, '/'.join(parts[:depth])).is_dir():
+                raise FileAccessError('Upload path contains a file instead of a folder')
     parent = _target(api, key, '/'.join(parts[:-1]))
     if not parent.is_dir():
         raise FileAccessError('Select a destination folder')
@@ -324,7 +334,8 @@ def install(api):
             upload = request.files.get('file')
             if upload is None:
                 raise FileAccessError('Select a file to upload')
-            target = _destination(api, data.get('root'), data.get('path'))
+            target = _destination(api, data.get('root'), data.get('path'),
+                                  create_parents=data.get('create_parents') == 'true')
             fd, temporary = tempfile.mkstemp(prefix='.panel-upload-', dir=target.parent)
             total = 0
             with os.fdopen(fd, 'wb') as stream:

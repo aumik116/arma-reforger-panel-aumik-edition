@@ -19,10 +19,10 @@ class FileManagerTests(unittest.TestCase):
     def entry(self,name):
         return next(item for item in self.admin.get('/api/files').json['entries'] if item['name']==name)
 
-    def upload(self,name,content,root='profile',client=None):
+    def upload(self,name,content,root='profile',client=None,parents=False):
         client=client or self.admin
         csrf=client.get('/api/csrf').json['csrf']
-        return client.post('/api/files/upload',data={'root':root,'path':name,'file':(io.BytesIO(content),name)},headers={'X-CSRF-Token':csrf})
+        return client.post('/api/files/upload',data={'root':root,'path':name,'create_parents':'true' if parents else 'false','file':(io.BytesIO(content),name)},headers={'X-CSRF-Token':csrf})
 
     def test_large_binary_upload_download_and_no_overwrite(self):
         folder=self.profile();content=b'abc\0'*(750*1024)
@@ -35,6 +35,30 @@ class FileManagerTests(unittest.TestCase):
         self.assertEqual(self.upload('sample.bin',b'replacement').status_code,400)
         self.assertEqual((folder/'sample.bin').read_bytes(),content)
         self.assertEqual(list(folder.glob('.panel-upload-*')),[])
+
+    def test_folder_upload_preserves_paths_merges_and_refuses_unsafe_parents(self):
+        folder=self.profile()
+        for name in ('Configs/AI/settings.json','Configs/AI/other.txt','Configs/logs/settings.json'):
+            response=self.upload(name,b'original',parents=True)
+            self.assertEqual(response.status_code,200,response.json)
+            self.assertEqual((folder/name).read_bytes(),b'original')
+        self.assertEqual(self.upload('Configs/AI/settings.json',b'new',parents=True).status_code,400)
+        self.assertEqual((folder/'Configs/AI/settings.json').read_bytes(),b'original')
+        self.assertEqual(self.upload('missing/test.txt',b'new').status_code,400)
+        self.assertEqual(self.upload('Configs/AI/other.txt/child',b'new',parents=True).status_code,400)
+        for name in ('new/../escape','new/.panel-trash/escape','/absolute/file','bad\\path/file'):
+            self.assertEqual(self.upload(name,b'bad',parents=True).status_code,400,name)
+        self.assertFalse((folder/'new').exists())
+        outside=self.root/'outside';outside.mkdir()
+        (folder/'linked').symlink_to(outside,target_is_directory=True)
+        self.assertEqual(self.upload('linked/child/test.txt',b'bad',parents=True).status_code,400)
+        self.assertEqual(list(outside.iterdir()),[])
+        self.assertEqual(self.upload('read-only/test.txt',b'bad',root='logs',parents=True).status_code,400)
+        self.create('folder-operator','operator')
+        self.assertEqual(self.upload('denied/test.txt',b'bad',client=self.login('folder-operator'),parents=True).status_code,403)
+        self.assertFalse((folder/'denied').exists())
+        self.assertEqual(self.admin.post('/api/files/upload',data={'root':'profile','path':'csrf/test.txt','create_parents':'true','file':(io.BytesIO(b'bad'),'test.txt')}).status_code,403)
+        self.assertFalse((folder/'csrf').exists())
 
     def test_create_rename_trash_restore_and_conflicts(self):
         folder=self.profile()
@@ -104,7 +128,11 @@ class FileScopeTests(unittest.TestCase):
         self.assertTrue(created.json['ok'],created.json)
         self.assertTrue((first.paths['profile']/'test.json').exists())
         self.assertFalse((second.paths['profile']/'test.json').exists())
-        row=self.admin.get('/api/files',headers=headers).json['entries'][0]
+        uploaded=self.admin.post('/api/files/upload',data=dict(root='profile',path='folder/nested/test.txt',create_parents='true',file=(io.BytesIO(b'first only'),'test.txt')),headers=headers)
+        self.assertEqual(uploaded.status_code,200,uploaded.json)
+        self.assertTrue((first.paths['profile']/'folder/nested/test.txt').exists())
+        self.assertFalse((second.paths['profile']/'folder').exists())
+        row=next(item for item in self.admin.get('/api/files',headers=headers).json['entries'] if item['name']=='test.json')
         deleted=self.admin.post('/api/files/delete',json=dict(root='profile',path='test.json',revision=row['revision']),headers=headers)
         token=deleted.json['token']
         wrong={'X-CSRF-Token':csrf,'X-Server-ID':second.id}

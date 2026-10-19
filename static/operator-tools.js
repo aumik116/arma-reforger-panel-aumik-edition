@@ -72,12 +72,74 @@ function playerHistoryPage(direction){playerHistoryOffset=Math.max(0,playerHisto
 byId('operator-player-search').addEventListener('input',()=>{clearTimeout(operatorPlayerSearchTimer);playerHistoryOffset=0;operatorPlayerSearchTimer=setTimeout(()=>loadOperatorPlayers(true),250);});
 
 function startupFacts(id, values){const list=byId(id);list.replaceChildren();for(const[label,value]of values){list.append(operationElement('dt',label),operationElement('dd',String(value)));}}
+let startupCpuCount=0;
+function startupChanged(){
+  startupDirty=true;
+  byId('operator-startup-save').disabled=false;
+  byId('startup-resource-preset').value='';
+}
+function selectedStartupCpus(value,count){
+  if(!value)return Array.from({length:count},(_,index)=>index);
+  const selected=new Set();
+  for(const part of value.split(',')){
+    if(!/^\d{1,4}(?:-\d{1,4})?$/.test(part))return null;
+    const bounds=part.split('-').map(Number),first=bounds[0],last=bounds.at(-1);
+    if(first>last||last>=count)return null;
+    for(let cpu=first;cpu<=last;cpu++)selected.add(cpu);
+  }
+  return [...selected].sort((a,b)=>a-b);
+}
+function startupCpuRanges(cpus){
+  const ranges=[];
+  for(let i=0;i<cpus.length;i++){
+    const first=cpus[i];let last=first;
+    while(cpus[i+1]===last+1)last=cpus[++i];
+    ranges.push(first===last?String(first):first+'-'+last);
+  }
+  return ranges.join(',');
+}
+function renderStartupCpus(){
+  const input=byId('operator-startup-cpus'),selected=selectedStartupCpus(input.value.trim(),startupCpuCount);
+  const all=!input.value.trim(),holder=byId('startup-cpu-options'),checked=new Set(selected||[]);
+  byId('startup-cpu-all').checked=all;
+  byId('startup-cpu-all').disabled=!startupCpuCount;
+  byId('startup-resource-preset').disabled=!startupCpuCount;
+  if(holder.children.length!==startupCpuCount){
+    holder.replaceChildren();
+    for(let cpu=0;cpu<startupCpuCount;cpu++){
+      const label=operationElement('label',''),box=document.createElement('input');box.type='checkbox';box.value=cpu;box.checked=checked.has(cpu);
+      box.onchange=()=>{
+        const cpus=[...holder.querySelectorAll('input:checked')].map(box=>Number(box.value));
+        if(!cpus.length){box.checked=true;byId('startup-cpu-summary').textContent='Select at least one CPU, or choose Use all CPUs.';return;}
+        input.value=startupCpuRanges(cpus);startupChanged();renderStartupCpus();
+      };
+      label.append(box,document.createTextNode('CPU '+cpu));holder.append(label);
+    }
+  }
+  for(const box of holder.querySelectorAll('input'))box.checked=checked.has(Number(box.value));
+  byId('startup-cpu-summary').textContent=!startupCpuCount?'CPU count unavailable. Enter CPU numbers manually.':selected===null?'Invalid CPU range. Correct it below.':all?'All '+startupCpuCount+' logical CPUs available to the game.':selected.length+' of '+startupCpuCount+' logical CPUs selected. These CPUs remain shared with other processes.';
+}
+byId('startup-cpu-all').onchange=()=>{
+  const input=byId('operator-startup-cpus');
+  input.value=byId('startup-cpu-all').checked?'':'0';startupChanged();renderStartupCpus();
+};
+byId('startup-resource-preset').onchange=event=>{
+  const preset=event.target.value;if(!preset)return;
+  const values={unrestricted:[startupCpuCount,0],small:[2,4000],standard:[4,8000],large:[8,16000]}[preset];
+  const count=Math.min(values[0],startupCpuCount);
+  byId('operator-startup-cpus').value=count===startupCpuCount?'':startupCpuRanges(Array.from({length:count},(_,index)=>index));
+  byId('operator-startup-memory-high').value=values[1];byId('operator-startup-memory-max').value=0;
+  startupChanged();event.target.value=preset;renderStartupCpus();
+  byId('operator-startup-feedback').textContent='Preset filled in. Review CPU and memory settings, then save. Applies on the next start.';
+};
 async function loadStartup(){
   if(startupPending||!can('admin_config'))return;
   startupPending=true;
   try{
     const data=await getFeature('/api/startup');
-    if(!startupDirty){byId('operator-startup-fps').value=data.max_fps;byId('operator-startup-cpus').value=data.resources.cpus;byId('operator-startup-memory-high').value=data.resources.memory_high_mb;byId('operator-startup-memory-max').value=data.resources.memory_max_mb;readStartupOptions(data.launch_options);}
+    startupCpuCount=Math.min(Math.max(data.cpu_count||0,0),4096);
+    if(!startupDirty){byId('operator-startup-fps').value=data.max_fps;byId('operator-startup-cpus').value=data.resources.cpus;byId('operator-startup-memory-high').value=data.resources.memory_high_mb;byId('operator-startup-memory-max').value=data.resources.memory_max_mb;readStartupOptions(data.launch_options);byId('startup-resource-preset').value='';}
+    renderStartupCpus();
     startupFacts('operator-startup-health',[
       ['Game process',data.running?'Running':'Stopped'],['Service',data.service],
       ['Game executable',data.binary_exists?'Present':'Missing'],['Steam build',data.software.installed_build||'Unavailable'],
@@ -89,7 +151,7 @@ async function loadStartup(){
   }catch(error){byId('operator-startup-feedback').textContent=error.message;}
   finally{startupPending=false;}
 }
-for(const id of ['operator-startup-fps','operator-startup-cpus','operator-startup-memory-high','operator-startup-memory-max','startup-no-sound','startup-force-update','startup-ai-limit','startup-ai-partial','startup-log-stats','startup-no-throw','startup-single-threaded'])byId(id).addEventListener('input',()=>{startupDirty=true;byId('operator-startup-save').disabled=false;});
+for(const id of ['operator-startup-fps','operator-startup-cpus','operator-startup-memory-high','operator-startup-memory-max','startup-no-sound','startup-force-update','startup-ai-limit','startup-ai-partial','startup-log-stats','startup-no-throw','startup-single-threaded'])byId(id).addEventListener('input',()=>{startupChanged();if(id==='operator-startup-cpus')renderStartupCpus();});
 byId('operator-startup-form').addEventListener('submit',async event=>{
   event.preventDefault();const button=byId('operator-startup-save');button.disabled=true;
   try{await changeFeature('/api/startup',{max_fps:Number(byId('operator-startup-fps').value),cpus:byId('operator-startup-cpus').value.trim(),memory_high_mb:Number(byId('operator-startup-memory-high').value),memory_max_mb:Number(byId('operator-startup-memory-max').value),launch_options:startupOptions()});startupDirty=false;byId('operator-startup-feedback').textContent='Saved. Applies on the next game-server start.';await loadStartup();}

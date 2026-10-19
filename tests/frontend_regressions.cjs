@@ -156,3 +156,80 @@ console.log('Storage displays decimal GB and MB');
   assert.equal(nodes.get('mods-psn-warning').hidden,true);
 }
 console.log('PSN warning respects 25 GB boundary, pinned versions, deduplication and removal');
+
+// CPU ranges and presets use the existing startup draft without changing FPS/options.
+{
+  const nodes=new Map();
+  const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'',disabled:false});return nodes.get(id);};
+  const context=vm.createContext({byId:node,document:{},startupDirty:false,Array,Set,Number,String});
+  vm.runInContext(between(source('operator-tools.js'),'let startupCpuCount=', 'async function loadStartup('),context);
+  vm.runInContext('startupCpuCount=6; renderStartupCpus=()=>{};',context);
+  assert.equal(JSON.stringify(context.selectedStartupCpus('0-2,2,5',6)),'[0,1,2,5]');
+  assert.equal(JSON.stringify(context.selectedStartupCpus('',2)),'[0,1]');
+  for(const invalid of ['6','2-1','0,,1','-1','0-9999','0;1'])assert.equal(context.selectedStartupCpus(invalid,6),null);
+  assert.equal(context.startupCpuRanges([0,1,2,4,6,7]),'0-2,4,6-7');
+  assert.equal(context.startupCpuRanges(Array.from({length:4096},(_,i)=>i)),'0-4095');
+  node('operator-startup-fps').value=60;
+  for(const [preset,cpus,high] of [['small','0-1',4000],['standard','0-3',8000],['large','',16000],['unrestricted','',0]]){
+    node('operator-startup-memory-max').value=32000;
+    node('startup-resource-preset').value=preset;
+    node('startup-resource-preset').onchange({target:node('startup-resource-preset')});
+    assert.equal(node('operator-startup-cpus').value,cpus);
+    assert.equal(node('operator-startup-memory-high').value,high);
+    assert.equal(node('operator-startup-memory-max').value,0);
+    assert.equal(node('operator-startup-fps').value,60);
+    assert.equal(node('operator-startup-save').disabled,false);
+  }
+  vm.runInContext('startupCpuCount=1;',context);
+  node('startup-resource-preset').value='standard';
+  node('startup-resource-preset').onchange({target:node('startup-resource-preset')});
+  assert.equal(node('operator-startup-cpus').value,'');
+  context.startupChanged();assert.equal(node('startup-resource-preset').value,'');
+}
+console.log('CPU range selection and editable presets preserve other launch settings');
+
+// Folder uploads retain relative paths and continue after conflicts.
+(async()=>{
+  const nodes=new Map();const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'selected',webkitdirectory:true});return nodes.get(id);};
+  const sent=[],messages=[];
+  class Form {constructor(){this.values={};}append(key,value){this.values[key]=value;}}
+  const context=vm.createContext({byId:node,filesBusy:false,filesRoot:'profile',filesPath:'destination',
+    confirmLeaveFile:()=>true,confirm:()=>true,updateFileActions:()=>{},filesFeedback:message=>messages.push(message),
+    filesChildPath:name=>'destination/'+name,resetFileEditor:()=>{},refreshFiles:async()=>{},FormData:Form,
+    postForm:async(url,form)=>{sent.push({url,...form.values});const ok=sent.length!==1;return {ok,json:async()=>({ok,error:'Already exists'})};}});
+  vm.runInContext(between(source('files.js'),'async function uploadFiles(', 'async function openFilesTrash('),context);
+  await context.uploadFiles([{name:'a.txt',webkitRelativePath:'Folder/sub/a.txt',size:1},{name:'a.txt',webkitRelativePath:'Folder/other/a.txt',size:1}],true);
+  assert.deepEqual(sent.map(row=>row.path),['destination/Folder/sub/a.txt','destination/Folder/other/a.txt']);
+  assert.ok(sent.every(row=>row.url==='/api/files/upload'&&row.create_parents==='true'&&row.root==='profile'));
+  assert.match(messages.at(-1),/Folder\/sub\/a.txt: Already exists/);
+  assert.match(messages.at(-1),/Folder\/other\/a.txt: uploaded/);
+  assert.equal(node('files-folder-input').value,'');
+  assert.equal(context.filesBusy,false);
+  console.log('Folder uploads preserve nested names and report partial failures');
+})().catch(error=>{console.error(error);process.exitCode=1;});
+
+// Checkbox selection, manual ranges and Use all stay synchronized without losing focus.
+{
+  class CpuNode {
+    constructor(){this.children=[];this.value='';}
+    append(...children){this.children.push(...children);}
+    replaceChildren(){this.children=[];}
+    querySelectorAll(selector){return this.children.flatMap(label=>label.children).filter(box=>box.type==='checkbox'&&(selector!=='input:checked'||box.checked));}
+  }
+  const nodes=new Map(),node=id=>{if(!nodes.has(id))nodes.set(id,new CpuNode());return nodes.get(id);};
+  const context=vm.createContext({byId:node,operationElement:()=>new CpuNode(),document:{createElement:()=>new CpuNode(),createTextNode:text=>({text})},startupDirty:false});
+  vm.runInContext(between(source('operator-tools.js'),'let startupCpuCount=', 'async function loadStartup('),context);
+  vm.runInContext('startupCpuCount=4;renderStartupCpus();',context);
+  const holder=node('startup-cpu-options'),boxes=holder.querySelectorAll('input');
+  assert.equal(boxes.length,4);assert.ok(boxes.every(box=>box.checked));
+  boxes[1].checked=false;boxes[1].onchange();
+  assert.equal(node('operator-startup-cpus').value,'0,2-3');
+  assert.equal(node('startup-cpu-all').checked,false);
+  assert.equal(holder.querySelectorAll('input')[1],boxes[1]);
+  node('operator-startup-cpus').value='3';context.renderStartupCpus();
+  assert.deepEqual(holder.querySelectorAll('input:checked').map(box=>box.value),[3]);
+  boxes[3].checked=false;boxes[3].onchange();assert.equal(boxes[3].checked,true);
+  node('startup-cpu-all').checked=true;node('startup-cpu-all').onchange();
+  assert.equal(node('operator-startup-cpus').value,'');assert.ok(boxes.every(box=>box.checked));
+}
+console.log('Visual CPU controls preserve selection, manual ranges and focused elements');

@@ -275,21 +275,26 @@ async function trashFilesEntry(entry){
   try{await filesMutation('/api/files/delete',{root:filesRoot,path:entry.path,revision:entry.revision});resetFileEditor();filesFeedback('Moved to Trash. Use Trash / restore deleted files to undo.');}
   catch(error){filesFeedback(error.message,true);}finally{filesBusy=false;updateFileActions();await refreshFiles();}
 }
-async function uploadFiles(files){
+async function uploadFiles(files, folder=false){
   if(filesBusy||filesRoot!=='profile'||!confirmLeaveFile())return;
+  if(!files.length)return;
   filesBusy=true;updateFileActions();const messages=[];
   try{
     for(const file of files){
-      if(file.size>50*1024*1024){messages.push(file.name+': exceeds 50 MiB');continue;}
-      filesFeedback('Uploading '+file.name+'…');
-      const form=new FormData();form.append('root',filesRoot);form.append('path',filesChildPath(file.name));form.append('file',file);
-      try{const response=await postForm('/api/files/upload',form);const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'Upload failed');messages.push(file.name+': uploaded');}
-      catch(error){messages.push(file.name+': '+error.message);}
+      const name=folder?file.webkitRelativePath:file.name;
+      if(!name){messages.push(file.name+': folder path unavailable');continue;}
+      if(file.size>50*1024*1024){messages.push(name+': exceeds 50 MiB');continue;}
+      filesFeedback('Uploading '+name+'…');
+      const form=new FormData();form.append('root',filesRoot);form.append('path',filesChildPath(name));form.append('file',file);if(folder)form.append('create_parents','true');
+      try{const response=await postForm('/api/files/upload',form);const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'Upload failed');messages.push(name+': uploaded');}
+      catch(error){messages.push(name+': '+error.message);}
     }
     resetFileEditor();filesFeedback(messages.join(' · '));
-  }finally{filesBusy=false;byId('files-upload-input').value='';updateFileActions();await refreshFiles();}
+  }finally{filesBusy=false;byId('files-upload-input').value='';byId('files-folder-input').value='';updateFileActions();await refreshFiles();}
 }
 byId('files-upload-input').onchange=event=>uploadFiles([...event.target.files]);
+byId('files-folder-input').onchange=event=>uploadFiles([...event.target.files],true);
+if(!('webkitdirectory' in byId('files-folder-input'))){byId('files-upload-folder').hidden=true;}
 async function openFilesTrash(){
   const dialog=byId('files-trash-dialog');if(!dialog.open)dialog.showModal();
   const status=byId('files-trash-status'),holder=byId('files-trash-items');status.textContent='Loading Trash…';holder.replaceChildren();

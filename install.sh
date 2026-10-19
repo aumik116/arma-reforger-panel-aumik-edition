@@ -18,7 +18,7 @@ PANEL_PY_FILES=(app.py storage_usage.py notifications.py workshop.py panel_featu
 
 copy_panel_files() {
     local destination="$1" file
-    for file in "${PANEL_PY_FILES[@]}" index.html login.html setup.html servers.html; do
+    for file in "${PANEL_PY_FILES[@]}" index.html login.html setup.html servers.html account.html; do
         if [[ ! -f "$SCRIPT_DIR/$file" ]]; then
             echo "ERROR: Required panel file $file is missing from the checkout." >&2
             return 1
@@ -29,7 +29,7 @@ copy_panel_files() {
         return 1
     fi
     mkdir -p "$destination/static"
-    for file in "${PANEL_PY_FILES[@]}" index.html login.html setup.html servers.html; do
+    for file in "${PANEL_PY_FILES[@]}" index.html login.html setup.html servers.html account.html; do
         cp "$SCRIPT_DIR/$file" "$destination/"
     done
     cp "$SCRIPT_DIR/static/"* "$destination/static/"
@@ -184,7 +184,7 @@ update_panel_with_recovery() (
     copy_panel_files "$panel_dir"
     rm -f "$panel_dir/save_library.py" "$panel_dir/static/saves.js"
     local file
-    for file in "${PANEL_PY_FILES[@]}" index.html login.html setup.html servers.html; do
+    for file in "${PANEL_PY_FILES[@]}" index.html login.html setup.html servers.html account.html; do
         chown "$panel_user:$panel_user" "$panel_dir/$file"
     done
     chown "$panel_user:$panel_user" "$panel_dir/static" "$panel_dir/static/"*

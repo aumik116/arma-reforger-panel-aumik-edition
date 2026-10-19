@@ -20,7 +20,7 @@ class InstallerManifestTests(unittest.TestCase):
     def test_referenced_static_assets_exist_and_are_copied(self):
         installer = (ROOT / 'install.sh').read_text(encoding='utf-8')
         self.assertIn('cp "$SCRIPT_DIR/static/"* "$destination/static/"', installer)
-        for page in ('index.html', 'login.html', 'setup.html', 'servers.html'):
+        for page in ('index.html', 'login.html', 'setup.html', 'servers.html', 'account.html'):
             html = (ROOT / page).read_text(encoding='utf-8')
             for asset in re.findall(r'/static/([\w.-]+)', html):
                 self.assertTrue((ROOT / 'static' / asset).is_file(), f'{page} references missing {asset}')

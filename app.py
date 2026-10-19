@@ -865,6 +865,12 @@ def servers_page():
     with open(os.path.join(_BASE_DIR, 'servers.html'), encoding='utf-8') as stream:
         return stream.read()
 
+@app.get('/account')
+def account_page():
+    _ensure_csrf()
+    with open(os.path.join(_BASE_DIR, 'account.html'), encoding='utf-8') as stream:
+        return stream.read()
+
 @app.get('/setup')
 def setup_page():
     _ensure_csrf()

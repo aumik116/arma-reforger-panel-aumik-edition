@@ -291,13 +291,6 @@ async function saveUser() {
   } catch (e) { setLog(e.message, 'error'); }
 }
 
-async function changePassword() {
-  try {
-    await changeFeature('/api/account/password', {current_password:byId('current-password').value, password:byId('new-password').value});
-    byId('current-password').value = ''; byId('new-password').value = '';
-  } catch (e) { setLog(e.message, 'error'); }
-}
-
 const actionNames = {
   startup_save:'Save startup settings', players_admin_save:'Change in-game administrator access',
   schedules_save:'Create schedule', schedules_change:'Change schedule',

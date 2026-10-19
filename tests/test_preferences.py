@@ -1,4 +1,6 @@
 import unittest
+from pathlib import Path
+import shutil
 import test_panel
 
 
@@ -24,3 +26,19 @@ class PreferenceTests(unittest.TestCase):
         self.config.unlink()
         self.assertEqual(self.post(self.admin, '/api/preferences', {'theme':'light'}).status_code, 200)
         self.assertEqual(self.admin.get('/api/preferences', headers={'X-Server-ID':'missing'}).json['theme'], 'light')
+
+    def test_account_page_is_private_and_independent_of_server_access(self):
+        shutil.copy(Path(__file__).resolve().parents[1] / 'account.html', self.root / 'account.html')
+        self.create('viewer', 'viewer')
+        viewer = self.login('viewer')
+        other_session = self.login('viewer')
+        self.config.unlink()
+        response = viewer.get('/account', headers={'X-Server-ID':'missing'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Confirm new password', response.data)
+        self.assertEqual(self.module.app.test_client().get('/account').status_code, 302)
+        self.assertEqual(self.post(viewer, '/api/account/password', {'current_password':'wrong', 'password':'replacement-password'}).status_code, 400)
+        self.assertEqual(self.post(viewer, '/api/account/password', {'current_password':'test-password', 'password':'replacement-password'}).status_code, 200)
+        self.assertEqual(viewer.get('/api/me').status_code, 200)
+        self.assertEqual(other_session.get('/api/me').status_code, 401)
+        self.assertEqual(self.login('viewer', 'replacement-password').get('/account').status_code, 200)

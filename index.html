@@ -57,7 +57,7 @@
     <button class="panel-tab" id="tab-files" role="tab" aria-selected="false" aria-controls="panel-files" tabindex="-1" data-permission="admin_config" hidden>Files</button>
     <button class="panel-tab" id="tab-network" role="tab" aria-selected="false" aria-controls="panel-network" tabindex="-1">Network</button><span class="nav-label">ADMINISTRATION</span>
     <button class="panel-tab" id="tab-administration" role="tab" aria-selected="false" aria-controls="panel-administration" tabindex="-1">Administration</button></nav>
-  <div class="sidebar-bottom"><span class="brand-icon">AR</span><div>Arma Reforger<small>Dedicated server</small></div><button class="btn-logout appearance-link" onclick="selectPageSection('admin','accounts');openPanelSection('administration','appearance-card')">Appearance</button></div>
+  <div class="sidebar-bottom"><span class="brand-icon">AR</span><div>Arma Reforger<small>Dedicated server</small></div><a class="btn-logout appearance-link" href="/account">Account settings</a></div>
   </aside>
   <div class="page-heading"><div><div class="eyebrow">SERVER WORKSPACE</div><h2 id="page-title">Dashboard</h2><p id="page-description">Monitor your server and manage the action.</p></div></div>
 
@@ -572,18 +572,10 @@
     <button type="button" role="tab" id="section-tab-admin-maintenance" aria-controls="section-admin-maintenance" aria-selected="false" tabindex="-1" data-section-group="admin" data-section-key="maintenance" data-permission="admin_config" hidden>Maintenance</button></div>
     <div id="section-admin-accounts" role="tabpanel" aria-labelledby="section-tab-admin-accounts" data-section-content="admin">
   <!-- Accounts and activity -->
-  <div class="card" id="appearance-card" tabindex="-1"><div class="card-label">Appearance</div><div class="field"><label for="theme-choice">Theme</label><select id="theme-choice"><option value="original">Original · Amber</option><option value="ocean">Ocean · Blue</option><option value="forest">Forest · Green</option><option value="light">Light · Amber</option></select></div><p class="feature-note">Saved to your account. Applies across all servers without changing anyone else’s theme.</p><p class="feature-note" id="theme-feedback" role="status"></p></div>
-  <div class="card clip">
-    <div class="card-label">My account · <span id="account-label"></span></div>
-    <div class="config-grid">
-      <div class="field"><label for="current-password">Current password</label><input id="current-password" type="password" autocomplete="current-password"></div>
-      <div class="field"><label for="new-password">New password (10+ characters)</label><input id="new-password" type="password" autocomplete="new-password"></div>
-    </div>
-    <button class="btn-save" onclick="changePassword()">Change my password</button>
-  </div>
+  <div class="card"><div class="card-label">Signed in as <span id="account-label"></span></div><p class="feature-note">Your password and theme are managed separately from server settings.</p><a class="manager-link" href="/account">Account settings →</a></div>
   <div class="card clip">
     <div class="card-label">User accounts</div>
-    <p class="feature-note" id="users-restricted">Administrator access required. You can change your own password above.</p>
+    <p class="feature-note" id="users-restricted">Panel administrator access required. Personal settings are available on the Account settings page.</p>
     <p class="feature-note">Server roles control actions on an assigned server: Viewer can check status and players; Operator can also start/stop/restart and read logs; Manager can also edit configuration and mods; Server administrator can also manage startup, scheduling, files and RCON. Panel administrators manage accounts and access across the panel. The Owner always has full access.</p>
     <fieldset class="account-controls" id="users-controls" aria-describedby="users-restricted" disabled>
     <div id="users-list"></div>

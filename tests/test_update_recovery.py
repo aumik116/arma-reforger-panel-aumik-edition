@@ -8,6 +8,29 @@ from update_recovery import backup, restore
 
 
 class RecoveryTests(unittest.TestCase):
+    def test_restore_all_pages_and_remove_new_pages(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            panel, source = root / 'panel', root / 'source'
+            panel.mkdir()
+            source.mkdir()
+            (panel / 'config.env').write_text('PANEL_PORT=8888')
+            pages = [path.name for path in Path(__file__).resolve().parents[1].glob('*.html')]
+            for name in pages:
+                (panel / name).write_text('old ' + name)
+                (source / name).write_text('new ' + name)
+            (panel / 'retired.html').write_text('old page')
+            (source / 'new-page.html').write_text('new page')
+            saved = backup(panel, source, root / 'etc', root / 'backups')
+            for page in source.glob('*.html'):
+                (panel / page.name).write_text(page.read_text())
+            (panel / 'retired.html').unlink()
+            restore(saved)
+            for name in pages:
+                self.assertEqual((panel / name).read_text(), 'old ' + name)
+            self.assertEqual((panel / 'retired.html').read_text(), 'old page')
+            self.assertFalse((panel / 'new-page.html').exists())
+
     def test_restore_files_services_and_keep_live_database_and_saves(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

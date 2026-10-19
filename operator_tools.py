@@ -315,7 +315,7 @@ def install(api):
                     return jsonify(ok=False,error='Run now requires an active Linux scheduler'),409
                 identity,warned=tools.store.queue_now(server_id(),schedule_id,g.user['id'])
                 g.audit_details={'schedule_id':schedule_id,'queued_id':identity}
-                return jsonify(ok=True,message='Queued with 5-minute and 1-minute warnings; runs in 6 minutes.' if warned else 'Queued for the next scheduler tick.',id=identity)
+                return jsonify(ok=True,message='Queued with 5-minute and 1-minute warnings; runs in 6 minutes.' if warned else 'Queued for the next scheduler tick.',id=identity,local_run_at=next(row['local_run_at'] for row in tools.store.list(server_id())[0] if row['id']==identity))
             if data.get('edit') is True:
                 tools.store.update(server_id(),schedule_id,g.user['id'],data)
             else:

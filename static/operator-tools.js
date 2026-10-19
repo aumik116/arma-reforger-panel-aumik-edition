@@ -75,6 +75,7 @@ function startupFacts(id, values){const list=byId(id);list.replaceChildren();for
 let startupCpuCount=0;
 function startupChanged(){
   startupDirty=true;
+  byId('startup-draft-state').textContent='Unsaved startup changes';byId('startup-discard').disabled=false;
   byId('operator-startup-save').disabled=false;
   byId('startup-resource-preset').value='';
 }
@@ -139,27 +140,39 @@ async function loadStartup(){
     const data=await getFeature('/api/startup');
     startupCpuCount=Math.min(Math.max(data.cpu_count||0,0),4096);
     if(!startupDirty){byId('operator-startup-fps').value=data.max_fps;byId('operator-startup-cpus').value=data.resources.cpus;byId('operator-startup-memory-high').value=data.resources.memory_high_mb;byId('operator-startup-memory-max').value=data.resources.memory_max_mb;readStartupOptions(data.launch_options);byId('startup-resource-preset').value='';}
+    if(!startupDirty){byId('startup-draft-state').textContent='No unsaved changes';byId('startup-discard').disabled=true;byId('operator-startup-save').disabled=true;}
     renderStartupCpus();
+    const checks=byId('startup-diagnostics'),healthy=byId('startup-diagnostics-healthy');checks.replaceChildren();healthy.replaceChildren();
+    const problems=data.diagnostics.filter(check=>['error','warn'].includes(check.state));
+    byId('startup-diagnostic-summary').textContent=problems.length?problems.length+' checks need attention.':'No problems found by panel checks.';
+    for(const check of [...data.diagnostics].sort((a,b)=>({error:0,warn:1,ok:2,info:3}[a.state]-{error:0,warn:1,ok:2,info:3}[b.state]))){const row=operationElement('div','','operator-row diagnostic-'+check.state),info=document.createElement('div');info.append(operationElement('strong',check.label),operationElement('small',check.message));row.append(info);(['error','warn'].includes(check.state)?checks:healthy).append(row);}
+    const helper=data.diagnostics.find(check=>check.label==='Resource helper');
     startupFacts('operator-startup-health',[
-      ['Game process',data.running?'Running':'Stopped'],['Service',data.service],
-      ['Game executable',data.binary_exists?'Present':'Missing'],['Steam build',data.software.installed_build||'Unavailable'],
-      ['VM logical CPUs',data.cpu_count||'Unavailable'],['Resource enforcement',data.resource_supported?'Linux helper · applies on next start':'Preview only; requires Linux'],['Saved FPS cap',data.max_fps||'Uncapped'],['Native performance log','Every '+data.launch_options.log_stats_ms+' ms']
+      ['Game process',data.running?'Running':'Stopped'],['Service',data.service],['Steam build',data.software.installed_build||'Unavailable'],
+      ['Resource controls',!data.resource_supported?'Unavailable on this platform':helper?.state==='ok'?'Helper installed · enforcement requires cgroup v2; applies on next start':'Helper missing · update the panel before using limits']
     ]);
-    const checks=byId('startup-diagnostics');checks.replaceChildren();for(const check of data.diagnostics){const row=operationElement('div','','operator-row diagnostic-'+check.state);const info=document.createElement('div');info.append(operationElement('strong',check.state.toUpperCase()+' · '+check.label),operationElement('small',check.message));row.append(info);checks.append(row);}
     startupFacts('operator-startup-paths',[['Game directory',data.server_path],['Configuration',data.config_path],['Profile',data.profile_path],['Logs',data.logs_path]]);
     byId('operator-startup-output').textContent=data.output.length?data.output.join('\n'):'No recent game log output. Open Console after starting the server.';
+    return true;
   }catch(error){byId('operator-startup-feedback').textContent=error.message;}
   finally{startupPending=false;}
 }
 for(const id of ['operator-startup-fps','operator-startup-cpus','operator-startup-memory-high','operator-startup-memory-max','startup-no-sound','startup-force-update','startup-ai-limit','startup-ai-partial','startup-log-stats','startup-no-throw','startup-single-threaded'])byId(id).addEventListener('input',()=>{startupChanged();if(id==='operator-startup-cpus')renderStartupCpus();});
+window.addEventListener('beforeunload',event=>{if(startupDirty){event.preventDefault();event.returnValue='';}});
+byId('startup-discard').onclick=async()=>{
+  if(!confirm('Discard unsaved startup changes?'))return;
+  startupDirty=false;
+  if(!await loadStartup()){startupDirty=true;byId('startup-draft-state').textContent='Unsaved startup changes';}
+
+};
 byId('operator-startup-form').addEventListener('submit',async event=>{
   event.preventDefault();const button=byId('operator-startup-save');button.disabled=true;
-  try{await changeFeature('/api/startup',{max_fps:Number(byId('operator-startup-fps').value),cpus:byId('operator-startup-cpus').value.trim(),memory_high_mb:Number(byId('operator-startup-memory-high').value),memory_max_mb:Number(byId('operator-startup-memory-max').value),launch_options:startupOptions()});startupDirty=false;byId('operator-startup-feedback').textContent='Saved. Applies on the next game-server start.';await loadStartup();}
+  try{await changeFeature('/api/startup',{max_fps:Number(byId('operator-startup-fps').value),cpus:byId('operator-startup-cpus').value.trim(),memory_high_mb:Number(byId('operator-startup-memory-high').value),memory_max_mb:Number(byId('operator-startup-memory-max').value),launch_options:startupOptions()});startupDirty=false;byId('startup-draft-state').textContent='No unsaved changes';byId('startup-discard').disabled=true;byId('operator-startup-feedback').textContent='Saved. Applies on the next game-server start.';await loadStartup();}
   catch(error){byId('operator-startup-feedback').textContent=error.message;button.disabled=false;}
 });
 
 async function changeSchedule(id,changes){
-  try{const result=await changeFeature(`/api/schedules/${id}`,changes);if(changes.run_now)byId('schedule-feedback').textContent=result.message;await loadSchedules();}
+  try{const result=await changeFeature(`/api/schedules/${id}`,changes);if(changes.run_now)byId('schedule-feedback').textContent=result.message+(result.local_run_at?' Scheduled for '+result.local_run_at.replace('T',' ')+' server time.':'');await loadSchedules();}
   catch(error){byId('schedule-feedback').textContent=error.message;}
 }
 async function loadSchedules(){
@@ -179,11 +192,12 @@ async function loadSchedules(){
     for(const job of data.schedules){
       const row=operationElement('div','','operator-row'),info=document.createElement('div');
       info.append(operationElement('strong',job.name),operationElement('small',`${job.action} · ${job.local_run_at.replace('T',' ')} server time · ${job.recurrence&&job.recurrence!=='interval'?job.recurrence+' '+job.local_time+' server time':job.interval_seconds?'Every '+job.interval_seconds/3600+' hours':'Once'} · ${job.enabled?'Enabled':'Paused / completed'}`));
+      if(job.enabled){const countdown=operationElement('small','','schedule-countdown');countdown.dataset.runAt=job.run_at;row.append(countdown);}
       if(job.warning_error)info.append(operationElement('small','Warning: '+job.warning_error));row.append(info);
       const toggle=operationElement('button',job.enabled?'Pause':'Enable','config-button');toggle.onclick=()=>{toggle.blur();changeSchedule(job.id,{enabled:!job.enabled});};
       const remove=operationElement('button','Remove','config-button');remove.onclick=()=>{if(confirm(`Remove schedule "${job.name}"? This does not interrupt an already running operation.`)){remove.blur();changeSchedule(job.id,{remove:true});}};
       const edit=operationElement('button','Edit','config-button');edit.onclick=()=>editSchedule(job);
-      const run=operationElement('button','Run now','config-button');run.disabled=!scheduleReady;run.onclick=()=>{if(confirm(`Run "${job.name}" on this server? Restart, stop and update jobs run in 6 minutes after player warnings; other actions run on the next scheduler tick. The original schedule stays unchanged.`)){run.blur();run.disabled=true;changeSchedule(job.id,{run_now:true});}};
+      const warned=['restart','stop','update'].includes(job.action);const run=operationElement('button',warned?'Queue with warnings':'Run on next tick','config-button');run.disabled=!scheduleReady;run.onclick=()=>{if(confirm(`Queue "${job.name}" on this server? ${warned?'Runs in six minutes with player warnings.':'Runs on the next scheduler tick.'} The original schedule stays unchanged.`)){run.blur();run.disabled=true;changeSchedule(job.id,{run_now:true});}};
       row.append(run,edit,toggle,remove);list.append(row);
     }
     if(!data.schedules.length)list.append(operationElement('p','No schedules for this server.','feature-note'));
@@ -230,3 +244,9 @@ byId('schedule-action').onchange=scheduleActionChanged;
 const startupOptionFields={no_sound:'startup-no-sound',force_update:'startup-force-update',no_throw:'startup-no-throw',single_threaded:'startup-single-threaded',ai_limit:'startup-ai-limit',ai_partial_sim:'startup-ai-partial',log_stats_ms:'startup-log-stats'};
 function readStartupOptions(options){for(const[key,id]of Object.entries(startupOptionFields)){const field=byId(id);if(field.type==='checkbox')field.checked=options[key];else field.value=options[key]??'';}}
 function startupOptions(){const result={};for(const[key,id]of Object.entries(startupOptionFields)){const field=byId(id);result[key]=field.type==='checkbox'?field.checked:field.value===''?null:Number(field.value);}return result;}
+
+setInterval(()=>{document.querySelectorAll('.schedule-countdown').forEach(label=>{const seconds=Math.max(0,Math.ceil((Number(label.dataset.runAt)*1000-Date.now())/1000));label.textContent=seconds?'Runs in '+Math.floor(seconds/3600)+'h '+Math.floor(seconds%3600/60)+'m '+seconds%60+'s':'Due · awaiting scheduler';});},1000);
+// Deep links from the fleet always open the full startup form.
+function openStartupLink(){if(location.hash==='#startup'&&can('admin_config'))selectPanelTab(byId('tab-startup'));}
+document.addEventListener('panel-ready',openStartupLink);
+openStartupLink();

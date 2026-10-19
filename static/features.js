@@ -30,6 +30,10 @@ function selectPanelTab(tab) {
     'tab-mods': 'Manage Workshop mods, imports and saved presets.',
     'tab-administration': 'Manage your account, permissions and activity.'
   }[tab.id];
+  document.body.classList.remove('navigation-open');
+  byId('mobile-nav-toggle').setAttribute('aria-expanded','false');
+  byId('mobile-nav-current').textContent=tab.textContent;
+  if(mobileNavigation.matches)byId('mobile-nav-toggle').focus({preventScroll:true});
   window.scrollTo({top:0});
   if(tab.id==='tab-startup'&&typeof loadStartup==='function')loadStartup();
   if(tab.id==='tab-players'&&typeof loadOperatorPlayers==='function')loadOperatorPlayers(true);
@@ -53,6 +57,7 @@ function selectPanelTab(tab) {
 function openPanelSection(panel, target) {
   selectPanelTab(byId('tab-' + panel));
   requestAnimationFrame(() => {
+    if(!target||!byId(target))return;
     byId(target).focus({preventScroll:true});
     byId(target).scrollIntoView({block:'center'});
   });
@@ -62,6 +67,8 @@ const mobileNavigation = window.matchMedia('(max-width: 700px)');
 function updateNavigationOrientation() {
   document.querySelector('.panel-tabs').setAttribute('aria-orientation', mobileNavigation.matches ? 'horizontal' : 'vertical');
 }
+byId('mobile-nav-toggle').onclick=()=>{const open=document.body.classList.toggle('navigation-open');byId('mobile-nav-toggle').setAttribute('aria-expanded',String(open));};
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.body.classList.contains('navigation-open')){document.body.classList.remove('navigation-open');byId('mobile-nav-toggle').setAttribute('aria-expanded','false');byId('mobile-nav-toggle').focus();}});
 mobileNavigation.addEventListener('change', updateNavigationOrientation);
 updateNavigationOrientation();
 
@@ -330,6 +337,7 @@ async function initFeatures() {
     currentAccount = await getFeature('/api/me');
     byId('account-label').textContent = `${currentAccount.username} · ${currentAccount.is_owner ? 'Owner' : currentAccount.role}`;
     applyPermissions();
+    document.dispatchEvent(new Event('panel-ready'));
     await Promise.all([loadPlayers(), loadPresets(), can('users') ? loadUsers() : Promise.resolve(), can('activity') ? loadActivity() : Promise.resolve()]);
     setInterval(loadPlayers, 10000);
   } catch(e) { setLog(e.message, 'error'); }

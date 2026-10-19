@@ -275,22 +275,39 @@ async function trashFilesEntry(entry){
   try{await filesMutation('/api/files/delete',{root:filesRoot,path:entry.path,revision:entry.revision});resetFileEditor();filesFeedback('Moved to Trash. Use Trash / restore deleted files to undo.');}
   catch(error){filesFeedback(error.message,true);}finally{filesBusy=false;updateFileActions();await refreshFiles();}
 }
+let filesUploadController=null;
+byId('files-upload-cancel').onclick=()=>filesUploadController?.abort();
 async function uploadFiles(files, folder=false){
-  if(filesBusy||filesRoot!=='profile'||!confirmLeaveFile())return;
-  if(!files.length)return;
-  filesBusy=true;updateFileActions();const messages=[];
+  if(filesBusy||filesRoot!=='profile'||!files.length||!confirmLeaveFile())return;
+  filesBusy=true;updateFileActions();filesUploadController=new AbortController();
+  const signal=filesUploadController.signal,results=byId('files-upload-results');results.replaceChildren();
+  byId('files-upload-progress').hidden=false;byId('files-upload-cancel').disabled=false;
+  let uploaded=0,failed=0,processed=0;
+  const report=()=>{byId('files-upload-summary').textContent=processed+' / '+files.length+' processed · '+uploaded+' uploaded · '+failed+' skipped or failed';byId('files-upload-meter').max=files.length;byId('files-upload-meter').value=processed;};report();
   try{
     for(const file of files){
+      if(signal.aborted)break;
       const name=folder?file.webkitRelativePath:file.name;
-      if(!name){messages.push(file.name+': folder path unavailable');continue;}
-      if(file.size>50*1024*1024){messages.push(name+': exceeds 50 MiB');continue;}
-      filesFeedback('Uploading '+name+'…');
-      const form=new FormData();form.append('root',filesRoot);form.append('path',filesChildPath(name));form.append('file',file);if(folder)form.append('create_parents','true');
-      try{const response=await postForm('/api/files/upload',form);const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'Upload failed');messages.push(name+': uploaded');}
-      catch(error){messages.push(name+': '+error.message);}
+      let message='';
+      try{
+        if(!name)throw new Error('Folder path unavailable');
+        if(file.size>50*1024*1024)throw new Error('Exceeds 50 MiB');
+        filesFeedback('Uploading '+name+'…');
+        const form=new FormData();form.append('root',filesRoot);form.append('path',filesChildPath(name));form.append('file',file);if(folder)form.append('create_parents','true');
+        const response=await postForm('/api/files/upload',form,{signal});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'Upload failed');
+        uploaded++;message=name+': uploaded';
+      }catch(error){
+        if(signal.aborted)break;
+        failed++;message=name+': '+error.message;
+      }
+      processed++;report();
+      if(results.children.length<500){const row=document.createElement('li');row.textContent=message;results.append(row);}
     }
-    resetFileEditor();filesFeedback(messages.join(' · '));
-  }finally{filesBusy=false;byId('files-upload-input').value='';byId('files-folder-input').value='';updateFileActions();await refreshFiles();}
+    resetFileEditor();filesFeedback(signal.aborted?'Upload cancelled. Completed files are kept. The active file may have reached the server; refresh before retrying.':uploaded+' uploaded · '+failed+' skipped or failed.',failed>0);
+    report();
+    if(signal.aborted)byId('files-upload-summary').textContent+=' · Cancelled';
+    if(processed>500){const row=document.createElement('li');row.textContent='First 500 file results shown.';results.append(row);}
+  }finally{filesUploadController=null;filesBusy=false;byId('files-upload-cancel').disabled=true;byId('files-upload-input').value='';byId('files-folder-input').value='';updateFileActions();await refreshFiles();}
 }
 byId('files-upload-input').onchange=event=>uploadFiles([...event.target.files]);
 byId('files-folder-input').onchange=event=>uploadFiles([...event.target.files],true);

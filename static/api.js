@@ -33,7 +33,7 @@ async function postJson(url, body) {
   return r;
 }
 
-async function postForm(url, formData) {
+async function postForm(url, formData, options = {}) {
   if (!CSRF) {
     try { const r = await fetch('/api/csrf'); if (r.ok) CSRF = (await r.json()).csrf || ''; }
     catch(e) {}
@@ -43,6 +43,7 @@ async function postForm(url, formData) {
     method: 'POST',
     headers: { 'X-CSRF-Token': CSRF },
     body: formData,
+    signal: options.signal,
   });
   if (r.status === 401) { window.location.href = '/login'; throw new Error('unauthorized'); }
   document.dispatchEvent(new CustomEvent('panel-change', {detail: url}));

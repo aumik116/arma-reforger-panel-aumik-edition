@@ -29,11 +29,6 @@ document.addEventListener('DOMContentLoaded', () => {
       row.append(title, detail);
       if (server.state === 'ready') { const manage = document.createElement('button'); manage.textContent = 'Manage'; manage.onclick = () => go(server.id); row.append(manage); }
       else if (admin) { const progress = document.createElement('button'); progress.textContent = 'Progress / retry'; progress.onclick = () => { jobId = server.id; showJob().catch(error => result.textContent = error.message); }; row.append(progress); }
-      if (admin && server.state === 'ready') {
-        const startup = document.createElement('button'); startup.textContent = 'Startup';
-        startup.onclick = () => { startupId = server.id; document.getElementById('startup-instance').hidden = false; document.getElementById('startup-instance-name').textContent = server.name; document.getElementById('startup-fps').value = server.max_fps; document.getElementById('startup-fps').focus(); };
-        row.append(startup);
-      }
       if (admin) {
         const remove = document.createElement('button'); remove.textContent = 'Remove';
         remove.onclick = async () => {
@@ -45,7 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const body = await response.json(); if (!response.ok) throw new Error(body.error);
             if (selectedServerId === server.id) { location.href = '/servers'; return; }
             if (jobId === server.id) jobId = '';
-            if (startupId === server.id) document.getElementById('startup-instance').hidden = true;
+
             result.textContent = body.archived ? `Server removed. Files retained at ${body.archived}` : 'Server removed.';
             await load();
           } catch (error) { result.textContent = error.message; remove.disabled = false; }
@@ -90,18 +85,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) { result.textContent = error.message; await load().catch(() => {}); }
     finally { submit.disabled = false; }
   };
-  document.getElementById('startup-instance').onsubmit = async event => {
-    event.preventDefault(); const button = event.target.querySelector('button'); button.disabled = true;
-    try {
-      const response = await postJson(`/api/servers/${encodeURIComponent(startupId)}/startup`, {max_fps:Number(document.getElementById('startup-fps').value)});
-      const body = await response.json(); if (!response.ok) throw new Error(body.error);
-      result.textContent = body.restart_required ? 'Startup settings saved. Restart this server to apply them.' : 'Startup settings saved for the next start.';
-      await load();
-    } catch (error) { result.textContent = error.message; }
-    finally { button.disabled = false; }
-  };
   fetch('/api/me').then(response => response.json()).then(async account => {
     admin = (account.panel_permissions || account.permissions || []).includes('admin_config'); form.hidden = !admin; await load();
+    jobId=new URLSearchParams(location.search).get('server')||'';if(jobId)await showJob();
   }).catch(error => result.textContent = error.message);
   poll = setInterval(() => { if (dialog.open && jobId) showJob().catch(error => result.textContent = error.message); }, 2500);
   window.addEventListener('pagehide', () => clearInterval(poll));

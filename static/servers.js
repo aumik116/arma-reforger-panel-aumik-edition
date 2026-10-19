@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     finally { busy.delete(server.id); button.disabled = false; await refresh(false); }
   }
   function render(servers) {
+    if(rows.contains(document.activeElement)&&document.activeElement!==document.body)return;
     rows.replaceChildren();
     const query = document.getElementById('overview-search').value.trim().toLowerCase();
     const filter = document.getElementById('overview-filter').value;
@@ -59,13 +60,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (server.running) { const restart = element('button','Restart','btn-logout'); restart.disabled = busy.has(server.id); restart.onclick = () => action(server,'restart',restart); actions.append(restart); }
       }
       if (server.state === 'ready') { const manage = element('a','Manage →','manager-link'); manage.href = workspace(server); actions.append(manage); }
-      else if (permissions.includes('admin_config')) { const progress = element('a','Progress / retry','manager-link'); progress.href = '/setup'; actions.append(progress); }
+      else if (permissions.includes('admin_config')) { const progress = element('a','Progress / retry','manager-link'); progress.href = '/setup?server='+encodeURIComponent(server.id); actions.append(progress); }
+      if(server.state==='ready'&&(server.permissions||[]).includes('admin_config')){const startup=element('a','Startup','manager-link');startup.href=workspace(server)+'#startup';actions.append(startup);}
+      if(server.id&&permissions.includes('admin_config')){const remove=element('button','Remove','btn-logout');remove.disabled=busy.has(server.id);remove.onclick=async()=>{
+        const confirmId=prompt('Remove '+server.name+'? Files are retained on the VM. Type its ID: '+server.id);if(confirmId===null)return;
+        busy.add(server.id);remove.disabled=true;
+        try{const response=await postJson('/api/servers/'+encodeURIComponent(server.id)+'/delete',{confirm_id:confirmId});const body=await response.json();if(!response.ok)throw new Error(body.error);feedback.textContent=server.name+': removed. Files retained on the VM.';}catch(error){feedback.textContent=error.message;}finally{busy.delete(server.id);await refresh(false);}
+      };actions.append(remove);}
       row.append(actions); rows.append(row);
     }
     if (!visible.length) { const empty = element('td',servers.length ? 'No servers match these filters.' : 'No servers are assigned to your account.'); empty.colSpan = 8; const row = element('tr',''); row.append(empty); rows.append(row); }
     const alerts = document.getElementById('overview-alerts'); alerts.replaceChildren();
     const problems = servers.filter(attention); alerts.hidden = !problems.length;
-    for (const server of problems) { const link = element('a',server.name + ': ' + (server.error || 'Installation failed. Open progress to review and retry.')); link.href = server.state === 'ready' ? workspace(server) : '/setup'; alerts.append(link); }
+    for (const server of problems) { const link = element('a',server.name + ': ' + (server.error || 'Installation failed. Open progress to review and retry.')); link.href = server.state === 'ready' ? workspace(server) : '/setup?server='+encodeURIComponent(server.id); alerts.append(link); }
     document.getElementById('overview-alert-count').textContent = problems.length;
     const measured = servers.filter(server => Number.isFinite(server.cpu));
     document.getElementById('overview-cpu').textContent = measured.length ? measured.reduce((sum,server)=>sum+server.cpu,0).toFixed(1)+'%' + (measured.length < servers.length ? '+' : '') : '—';

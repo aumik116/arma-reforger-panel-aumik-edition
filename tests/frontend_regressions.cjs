@@ -190,10 +190,10 @@ console.log('CPU range selection and editable presets preserve other launch sett
 
 // Folder uploads retain relative paths and continue after conflicts.
 (async()=>{
-  const nodes=new Map();const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'selected',webkitdirectory:true});return nodes.get(id);};
+  const nodes=new Map();const node=id=>{if(!nodes.has(id))nodes.set(id,{value:'selected',webkitdirectory:true,children:[],replaceChildren(){this.children=[];},append(item){this.children.push(item);}});return nodes.get(id);};
   const sent=[],messages=[];
   class Form {constructor(){this.values={};}append(key,value){this.values[key]=value;}}
-  const context=vm.createContext({byId:node,filesBusy:false,filesRoot:'profile',filesPath:'destination',
+  const context=vm.createContext({byId:node,AbortController,document:{createElement:()=>({})},filesUploadController:null,filesBusy:false,filesRoot:'profile',filesPath:'destination',
     confirmLeaveFile:()=>true,confirm:()=>true,updateFileActions:()=>{},filesFeedback:message=>messages.push(message),
     filesChildPath:name=>'destination/'+name,resetFileEditor:()=>{},refreshFiles:async()=>{},FormData:Form,
     postForm:async(url,form)=>{sent.push({url,...form.values});const ok=sent.length!==1;return {ok,json:async()=>({ok,error:'Already exists'})};}});
@@ -201,8 +201,9 @@ console.log('CPU range selection and editable presets preserve other launch sett
   await context.uploadFiles([{name:'a.txt',webkitRelativePath:'Folder/sub/a.txt',size:1},{name:'a.txt',webkitRelativePath:'Folder/other/a.txt',size:1}],true);
   assert.deepEqual(sent.map(row=>row.path),['destination/Folder/sub/a.txt','destination/Folder/other/a.txt']);
   assert.ok(sent.every(row=>row.url==='/api/files/upload'&&row.create_parents==='true'&&row.root==='profile'));
-  assert.match(messages.at(-1),/Folder\/sub\/a.txt: Already exists/);
-  assert.match(messages.at(-1),/Folder\/other\/a.txt: uploaded/);
+  assert.match(nodes.get('files-upload-results').children[0].textContent,/Already exists/);
+  assert.match(nodes.get('files-upload-results').children[1].textContent,/uploaded/);
+  assert.match(nodes.get('files-upload-summary').textContent,/2 \/ 2 processed/);
   assert.equal(node('files-folder-input').value,'');
   assert.equal(context.filesBusy,false);
   console.log('Folder uploads preserve nested names and report partial failures');
@@ -233,3 +234,15 @@ console.log('CPU range selection and editable presets preserve other launch sett
   assert.equal(node('operator-startup-cpus').value,'');assert.ok(boxes.every(box=>box.checked));
 }
 console.log('Visual CPU controls preserve selection, manual ranges and focused elements');
+
+// A missing chart asset leaves a usable numeric dashboard.
+{
+  const warning={hidden:true},canvas={hidden:false};
+  const context=vm.createContext({document:{getElementById:()=>warning}});
+  vm.runInContext(between(source('dashboard.js'),'function createPanelChart(', 'function makeChartData('),context);
+  const data={datasets:[{data:[1,2,3]}]};
+  const fallback=context.createPanelChart(canvas,{data,options:{}});
+  assert.equal(fallback.data,data);fallback.update();fallback.resize();
+  assert.equal(warning.hidden,false);assert.equal(canvas.hidden,true);
+}
+console.log('Missing charts preserve numeric telemetry with visible feedback');

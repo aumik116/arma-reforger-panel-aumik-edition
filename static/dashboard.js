@@ -1,5 +1,12 @@
 // Dashboard chart creation and metric polling.
 const MAX_POINTS = 60;
+function createPanelChart(canvas,options){
+  if(typeof Chart!=='undefined')return new Chart(canvas,options);
+  // Keep numeric telemetry working when chart assets cannot load.
+  document.getElementById('charts-feedback').hidden=false;
+  canvas.hidden=true;
+  return {data:options.data,options:options.options,update(){},resize(){}};
+}
 
 function makeChartData(color) {
   return {
@@ -35,13 +42,13 @@ const chartOpts = (max) => ({
   }
 });
 
-const cpuChart = new Chart(document.getElementById('chart-cpu'), {
+const cpuChart = createPanelChart(document.getElementById('chart-cpu'), {
   type: 'line',
   data: makeChartData('#4c9fd6'),
   options: chartOpts(100)
 });
 
-const ramChart = new Chart(document.getElementById('chart-ram'), {
+const ramChart = createPanelChart(document.getElementById('chart-ram'), {
   type: 'line',
   data: makeChartData('#c8a84b'),
   options: chartOpts(100)
@@ -52,7 +59,7 @@ function trafficChart(id, unit) {
   data.datasets.push(makeChartData('#4caf7d').datasets[0]);
   const options = chartOpts(undefined);
   options.scales.y.ticks.callback = value => value + ' ' + unit;
-  return new Chart(document.getElementById(id), {type:'line', data, options});
+  return createPanelChart(document.getElementById(id), {type:'line', data, options});
 }
 const networkChart = trafficChart('chart-network', 'Mbps');
 const diskChart = trafficChart('chart-disk', 'MiB/s');
@@ -83,6 +90,7 @@ const metricDefinitions = [
 const extraCharts = {};
 
 function applyChartTheme() {
+  if(typeof Chart==='undefined')return;
   const style = getComputedStyle(document.documentElement);
   const color = name => style.getPropertyValue(name).trim();
   for (const chart of Object.values(Chart.instances)) {
@@ -117,7 +125,7 @@ const eventMarkers = {
     ctx.restore();
   }
 };
-Chart.register(eventMarkers);
+if(typeof Chart!=='undefined')Chart.register(eventMarkers);
 for (const [id, title, series, unit, description] of metricDefinitions) {
   const card = document.createElement('div'); card.className = 'chart-card';
   card.innerHTML = `${id === 'ping' ? '<div class="wip-banner" id="latency-wip"><strong>WIP</strong><span>Player latency needs a working game telemetry source.</span></div>' : ''}<div class="chart-header"><div><div class="chart-title">${title}</div>
@@ -131,7 +139,7 @@ for (const [id, title, series, unit, description] of metricDefinitions) {
   options.plugins.tooltip = {enabled:true};
   const data = makeChartData('#4c9fd6');
   data.datasets = series.map((label, i) => ({...makeChartData(i ? '#78b88b' : '#c8a84b').datasets[0], label, tension:0, fill:false}));
-  extraCharts[id] = new Chart(card.querySelector('canvas'), {type:'line', data, options});
+  extraCharts[id] = createPanelChart(card.querySelector('canvas'), {type:'line', data, options});
 }
 document.querySelector('.dashboard-diagnostics').addEventListener('toggle', event => {
   if (event.target.open) { ramChart.resize(); diskChart.resize(); extraCharts.ping.resize(); }
@@ -192,6 +200,7 @@ async function fetchMetrics() {
     if (r.status === 401) { window.location.href = '/login'; return; }
     if (!r.ok) throw new Error('Metrics request failed');
     const d = await r.json();
+    document.getElementById('dashboard-feedback').hidden=true;
     updateExtraMetrics(d);
 
     const ramPct = d.ram_total > 0 ? Math.round(d.ram_used / d.ram_total * 100) : 0;
@@ -208,6 +217,8 @@ async function fetchMetrics() {
     renderTraffic(d.network, networkChart, ['net-rx','net-tx'], 'net-state', 8 / 1000000, 'Mbps', 'All non-loopback interfaces; includes other host traffic');
     renderTraffic(d.disk, diskChart, ['disk-read','disk-write'], 'disk-state', 1 / 1048576, 'MiB/s', 'Storage reads/writes attributed to the game process');
   } catch(e) {
+    document.getElementById('dashboard-feedback').hidden=false;
+    document.getElementById('dashboard-feedback').textContent='Live metrics unavailable. Retrying automatically…';
     document.getElementById('summary-cpu').textContent = '—';
     document.getElementById('summary-ram').textContent = '—';
     updateExtraMetrics(null);

@@ -12,6 +12,18 @@ Server rows show the Workshop preview image for the configured scenario when its
 
 Charts keep up to 30 minutes of readings while this page is open and reset on reload. Alerts show current failures, status changes observed while the page is open, and the latest permitted administrative activity. An online-to-offline change records a stop or exit; it does not establish whether the process crashed. Player joins and leaves are not listed. If a refresh fails, the page marks the retained server readings as potentially out of date.
 
+
+### Check for updates and Master update
+
+**Check for updates** queries the public Steam build without updating game files or stopping servers. The overview shows installed Steam build IDs for servers you administer; these are not Arma version numbers.
+
+**Master update** opens a server-selection dialog. Confirming downloads and validates a shared copy under `INSTANCE_ROOT/.software-cache` before stopping any selected server. Each selected server is then stopped, copied and validated in turn. Servers that were running when you confirmed are restarted with a process-health check; previously stopped servers stay stopped. Mission loading and player connectivity are separate from that process-health check.
+
+This updates the public Arma dedicated-server software only. It does not change Workshop mod pins, configuration, profiles or saves. Steam validation can fetch missing/different files, so the shared download reduces repeated bulk transfers rather than guaranteeing zero additional downloads. Budget space for an additional game installation in the shared cache plus temporary replacement files. Custom beta installations are rejected.
+
+The batch continues independently of the browser, with per-server stages and results. Selected servers are locked against conflicting panel changes and scheduled operations during the batch. A failed copy, validation or restart leaves that server stopped where service control succeeds; review the result and retry using Master update. An interrupted worker is reported as interrupted rather than completed. A shared-download failure does not stop the selected servers. Each target requires server-administrator permission; permissions are checked again before applying its update.
+
+
 ## Servers and configuration
 
 Each managed server has its own game installation, JSON configuration, profile, Workshop directory, logs, backups, reserved ports and `arma-server@ID.service` unit. The default instance root is `instances/` inside the panel directory. Set `INSTANCE_ROOT` before creating servers; do not move registered directories manually.

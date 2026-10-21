@@ -31,6 +31,7 @@ MUTATIONS = {
     'servers_create': 'users', 'server_provision_retry': 'admin_config',
     'server_delete': 'admin_config', 'server_startup_save': 'admin_config',
     "rcon_command": "admin_config",
+    'fleet_software_check': 'view', 'fleet_software_update': 'view',
     "software_check": "admin_config", "software_update": "admin_config",
     "api_start": "control", "api_stop": "control", "api_restart": "control",
     "api_config": "configure", "api_persistence_set": "admin_config",
@@ -234,6 +235,12 @@ def install(api):
             g.mutation_lock = held_lock
             if request.endpoint in {"api_start", "api_restart"} and api.software_manager.busy():
                 return jsonify(ok=False, error="Wait for the server software job to finish before starting or restarting."), 409
+            fleet = getattr(api, 'fleet_software', None)
+            if fleet and request.endpoint not in api.PANEL_WIDE_ENDPOINTS:
+                selected_id = api.selected_instance().id if api.selected_instance() else ''
+                job = fleet.state()
+                if job['busy'] and job.get('action') == 'update' and any(row['id'] == selected_id for row in job.get('servers', [])):
+                    return jsonify(ok=False, error='This server is part of a Master update. Wait for the batch to finish.'), 409
             # Stopping a broken server must not require readable configuration.
             g.audit_server_config = (request.endpoint not in api.PANEL_WIDE_ENDPOINTS
                 and request.endpoint not in getattr(api, 'PROVISIONING_ENDPOINTS', set())

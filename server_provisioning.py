@@ -26,22 +26,41 @@ def seed_installation(source, destination):
     source, destination = Path(source), Path(destination)
     if not (source / 'ArmaReforgerServer').is_file():
         return 0
-    def ignore_links(directory, names):
-        return [name for name in names if (Path(directory) / name).is_symlink()]
+    def copy_asset(item, target):
+        if item.is_symlink():
+            return
+        if target.is_symlink():
+            raise ValueError('Game asset destination must not be a symlink: ' + target.name)
+        if item.is_dir():
+            target.mkdir(exist_ok=True)
+            for child in item.iterdir():
+                copy_asset(child, target / child.name)
+        elif item.is_file():
+            # Replace each inode, rather than overwriting a hard-linked installation.
+            fd, temporary = tempfile.mkstemp(prefix='.game-copy-', dir=target.parent)
+            os.close(fd)
+            try:
+                shutil.copy2(item, temporary)
+                os.replace(temporary, target)
+            finally:
+                if os.path.exists(temporary):
+                    os.unlink(temporary)
     copied = 0
     for item in source.iterdir():
         if item.is_symlink():
             continue
         if item.is_dir() and item.name.lower() in ('addons', 'battleye', 'lib', 'bin'):
-            shutil.copytree(item, destination / item.name, dirs_exist_ok=True, ignore=ignore_links)
+            copy_asset(item, destination / item.name)
             copied += 1
         elif item.is_file() and (item.name == 'ArmaReforgerServer' or re.fullmatch(r'.+\.so(?:\.[0-9]+)*', item.name)):
-            shutil.copy2(item, destination / item.name)
+            copy_asset(item, destination / item.name)
             copied += 1
     manifest = source / 'steamapps' / f'appmanifest_{APP_ID}.acf'
     if manifest.is_file() and not manifest.is_symlink() and not manifest.parent.is_symlink():
+        if (destination / 'steamapps').is_symlink():
+            raise ValueError('Steam manifest directory must not be a symlink')
         (destination / 'steamapps').mkdir(exist_ok=True)
-        shutil.copy2(manifest, destination / 'steamapps' / manifest.name)
+        copy_asset(manifest, destination / 'steamapps' / manifest.name)
     return copied
 
 

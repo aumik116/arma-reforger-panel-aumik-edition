@@ -121,6 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
       heading.append(element('span',server.status,'server-state state-' + server.status));
       row.append(heading);
       row.append(element('span',server.uptime && server.running ? server.uptime : '—', 'fleet-uptime'));
+      const build = element('span', '', 'fleet-build'); build.dataset.softwareServer = server.id; heading.append(build);
       const title = element('h3','');
       const link = element('a',server.name,'fleet-server-title');
       link.href = server.state === 'ready' ? workspace(server) : '/setup?server='+encodeURIComponent(server.id);
@@ -163,6 +164,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const card = Array.from(rows.children).find(node => node.dataset.serverId === focusedServer);
       Array.from(card?.querySelectorAll('[data-action]') || []).find(node => node.dataset.action === focusedAction)?.focus({preventScroll:true});
     }
+    document.dispatchEvent(new Event('fleet-rows-rendered'));
     const alerts = document.getElementById('overview-alerts'); alerts.replaceChildren();
     const problems = servers.filter(attention); alerts.hidden = !problems.length;
     for (const server of problems) { const link = element('a',server.name + ': ' + (server.error || 'Installation failed. Open progress to review and retry.')); link.href = server.state === 'ready' ? workspace(server) : '/setup?server='+encodeURIComponent(server.id); alerts.append(link); }

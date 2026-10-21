@@ -1478,6 +1478,9 @@ install_server_provisioning(sys.modules[__name__])
 from operator_tools import install as install_operator_tools
 install_operator_tools(sys.modules[__name__])
 
+from fleet_software import install as install_fleet_software
+install_fleet_software(sys.modules[__name__])
+
 from workshop import install as install_workshop
 install_workshop(sys.modules[__name__])
 

@@ -25,6 +25,23 @@ class InstanceTests(unittest.TestCase):
             conn.execute("UPDATE server_instances SET state='ready' WHERE id=?", (server_id,))
         return registry.get(server_id)
 
+    def test_scenario_preview_uses_only_the_selected_servers_configured_mods(self):
+        first, second = self.instance('first'), self.instance('second')
+        first.paths['config'].write_text(json.dumps({'game':{'scenarioId':'custom', 'mods':[{'modId':'ABC'}]}}))
+        second.paths['config'].write_text(json.dumps({'game':{'scenarioId':'custom', 'mods':[{'modId':'DEF'}]}}))
+        def metadata(mod_id):
+            return dict(status='available', scenario_ids=['custom'] if mod_id=='ABC' else ['other'],
+                        thumbnail='https://ar-gcp-cdn.bistudio.com/image/abc/map.jpg')
+        with patch('mod_metadata.ModMetadata.get', side_effect=metadata):
+            self.assertEqual(self.admin.get('/api/scenario-preview', headers={'X-Server-ID':'first'}).json['mod_id'],'ABC')
+            self.assertIsNone(self.admin.get('/api/scenario-preview', headers={'X-Server-ID':'second'}).json['thumbnail'])
+        first.paths['config'].write_text(json.dumps({'game':{'scenarioId':self.module.AVAILABLE_MISSIONS[0]['id'], 'mods':[{'modId':'ABC'}]}}))
+        with patch('mod_metadata.ModMetadata.get') as fetch:
+            self.assertIsNone(self.admin.get('/api/scenario-preview', headers={'X-Server-ID':'first'}).json['thumbnail'])
+            fetch.assert_not_called()
+        self.assertEqual(self.module.app.test_client().get('/api/scenario-preview').status_code,401)
+        self.assertEqual(self.admin.get('/api/scenario-preview',headers={'X-Server-ID':'missing'}).status_code,404)
+
     def test_admin_label_does_not_require_missing_legacy_config(self):
         server = self.instance('training')
         self.config.unlink()

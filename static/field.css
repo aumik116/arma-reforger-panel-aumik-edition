@@ -160,3 +160,23 @@ html[data-theme] #fleet-sidebar [data-fleet-panel="network"]:before{content:'⇄
 html[data-theme] #fleet-sidebar [data-fleet-panel="administration"]:before{content:'◈'}
 @media(max-width:900px){html[data-theme] .field-resource-charts{grid-template-columns:minmax(0,1fr)}}
 html[data-theme] #panel-dashboard>.field-resource-charts{margin-bottom:18px}
+/* Workshop artwork belongs to the configured scenario, with a stable fallback. */
+html[data-theme] .fleet-server-card{grid-template-columns:112px minmax(150px,1.3fr) minmax(210px,1fr) minmax(230px,1fr)}
+html[data-theme] .fleet-server-art{grid-column:1;grid-row:1/4;position:relative;align-self:stretch;min-height:84px;overflow:hidden;border-radius:4px;background:var(--surface2);border:1px solid var(--border);display:grid;place-items:center}
+html[data-theme] .fleet-server-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+html[data-theme] .fleet-art-fallback{padding:12px;text-align:center;font-size:11px;color:var(--muted)}
+html[data-theme] .fleet-server-card>:is(.fleet-card-heading,h3,.fleet-map){grid-column:2}
+html[data-theme] .fleet-server-card>.fleet-address,html[data-theme] .fleet-card-stats{grid-column:3}
+html[data-theme] .fleet-server-card .manager-actions{grid-column:4}
+@media(max-width:1250px){
+ html[data-theme] .fleet-server-card{grid-template-columns:96px minmax(0,1fr) minmax(0,1fr)}
+ html[data-theme] .fleet-server-card .manager-actions{grid-column:2/-1;grid-row:auto;justify-content:flex-start}
+}
+@media(max-width:700px){
+ html[data-theme] .fleet-server-card{grid-template-columns:88px minmax(0,1fr);gap:8px 12px}
+ html[data-theme] .fleet-server-art{grid-column:1;grid-row:1/4;min-height:84px}
+ html[data-theme] .fleet-server-card>.fleet-card-heading{grid-column:2;grid-row:1;flex-wrap:wrap;gap:4px}
+ html[data-theme] .fleet-server-card>h3{grid-column:2;grid-row:2}
+ html[data-theme] .fleet-server-card>.fleet-map{grid-column:2;grid-row:3}
+ html[data-theme] .fleet-server-card>:is(.fleet-address,.fleet-card-stats,.manager-actions){grid-column:1/-1;grid-row:auto}
+}

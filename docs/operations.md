@@ -8,6 +8,8 @@ The totals and rows cover servers your account can access. Search and status fil
 
 Player activity is the combined count from available rosters. A `+` on the total means some readings are missing; the chart leaves a gap rather than treating those servers as empty. Host CPU and memory cover the whole VM, while rows show individual game-process usage. Host CPU needs two samples after the panel starts.
 
+Server rows show the Workshop preview image for the configured scenario when its configured Workshop item publishes a matching scenario ID. Metadata is cached and loads in the background. Vanilla scenarios, missing Workshop metadata and image failures display a neutral placeholder. These are Workshop item previews, not live map screenshots.
+
 Charts keep up to 30 minutes of readings while this page is open and reset on reload. Alerts show current failures, status changes observed while the page is open, and the latest permitted administrative activity. An online-to-offline change records a stop or exit; it does not establish whether the process crashed. Player joins and leaves are not listed. If a refresh fails, the page marks the retained server readings as potentially out of date.
 
 ## Servers and configuration

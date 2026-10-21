@@ -1310,8 +1310,17 @@ def api_mods_compare_json():
     except ValueError as exc:
         return jsonify(ok=False, error=str(exc)), 400
 
-from mod_metadata import ModMetadata
+from mod_metadata import ModMetadata, scenario_preview
 _mod_metadata = ModMetadata()
+
+
+@app.get('/api/scenario-preview')
+def api_scenario_preview():
+    game = read_config().get('game', {})
+    scenario_id = game.get('scenarioId', '')
+    if not scenario_id or any(row['id'] == scenario_id for row in AVAILABLE_MISSIONS):
+        return jsonify(status='unavailable', scenario_id=scenario_id, thumbnail=None)
+    return jsonify(scenario_preview(_mod_metadata, scenario_id, game.get('mods', [])))
 
 
 @app.get("/api/mods/metadata")

@@ -17,7 +17,8 @@ def parse_workshop_page(page, mod_id):
     match = re.search(r'<script\b[^>]*\bid="__NEXT_DATA__"[^>]*>(.*?)</script>', page, re.S)
     if not match:
         raise ValueError('Workshop metadata unavailable')
-    asset = json.loads(match.group(1))['props']['pageProps']['asset']
+    props = json.loads(match.group(1))['props']['pageProps']
+    asset = props['asset']
     if asset.get('id', '').upper() != mod_id:
         raise ValueError('Workshop ID mismatch')
     sizes = {}
@@ -36,7 +37,27 @@ def parse_workshop_page(page, mod_id):
         if parsed.scheme == 'https' and parsed.netloc == 'ar-gcp-cdn.bistudio.com' and parsed.path.startswith('/image/'):
             image = candidate
             break
-    return {'status': 'available', 'current_version': current, 'sizes': sizes, 'thumbnail': image}
+    scenarios = (props.get('assetVersionDetail') or {}).get('scenarios') or []
+    for version in asset.get('versions', []):
+        scenarios = scenarios + (version.get('scenarios') or [])
+    scenario_ids = sorted({row['gameId'] for row in scenarios
+                           if isinstance(row, dict) and isinstance(row.get('gameId'), str)})
+    return {'status': 'available', 'current_version': current, 'sizes': sizes,
+            'thumbnail': image, 'scenario_ids': scenario_ids}
+
+
+def scenario_preview(metadata, scenario_id, mods):
+    """Use only a configured item's exact published scenario match; reads never block."""
+    pending = False
+    for mod in mods:
+        mod_id = str(mod.get('modId', '')).upper()
+        item = metadata.get(mod_id)
+        if scenario_id in item.get('scenario_ids', []) and item.get('thumbnail'):
+            return dict(status='available', scenario_id=scenario_id,
+                        mod_id=mod_id, thumbnail=item['thumbnail'])
+        pending |= item.get('status') == 'pending'
+    return dict(status='pending' if pending else 'unavailable',
+                scenario_id=scenario_id, thumbnail=None)
 
 
 class ModMetadata:

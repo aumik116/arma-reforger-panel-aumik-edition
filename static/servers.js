@@ -73,9 +73,14 @@ document.addEventListener('DOMContentLoaded', () => {
       let players = null;
       if (!status.running) players = 0;
       else { try { const roster = await read('/api/players', server.id); if (roster.available) players = roster.players.length; } catch (_) {} }
+      let preview = null;
+      try {
+        const image = await read('/api/scenario-preview', server.id);
+        if (image.scenario_id === status.scenario_id) preview = image;
+      } catch (_) {} // Workshop failures must not hide server status or controls.
       let storage = null;
       if (measureStorage) { try { storage = await read('/api/storage', server.id); } catch (_) {} }
-      return {...server, storage, ...status, name:status.server_name || server.name, status:status.running ? 'online' : 'offline', players};
+      return {...server, storage, preview, ...status, name:status.server_name || server.name, status:status.running ? 'online' : 'offline', players};
     } catch (error) { return {...server, status:'unavailable', error:error.message}; }
   }
   async function action(server, command, button) {
@@ -100,6 +105,17 @@ document.addEventListener('DOMContentLoaded', () => {
       (filter === 'all' || filter === server.status || filter === 'attention' && attention(server) || filter === 'installing' && ['provisioning','registered','installing'].includes(server.status)));
     for (const server of visible) {
       const row = element('article', '', 'fleet-server-card'); row.dataset.serverId = server.id;
+      const art = element('div', '', 'fleet-server-art');
+      const fallback = element('span', server.preview?.status === 'pending' ? 'Loading preview…' : 'No preview', 'fleet-art-fallback');
+      art.append(fallback);
+      if (server.preview?.thumbnail) {
+        const image = element('img', ''); image.alt = '';
+        image.loading = 'lazy'; image.decoding = 'async'; image.referrerPolicy = 'no-referrer';
+        image.onload = () => { fallback.hidden = true; };
+        image.onerror = () => { image.remove(); fallback.hidden = false; fallback.textContent = 'No preview'; };
+        image.src = server.preview.thumbnail; art.append(image);
+      }
+      row.append(art);
       const heading = element('div','', 'fleet-card-heading');
       heading.append(element('span',server.status,'server-state state-' + server.status));
       heading.append(element('span',server.uptime && server.running ? 'Up ' + server.uptime : '', 'fleet-uptime')); row.append(heading);

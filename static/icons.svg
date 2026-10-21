@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+<symbol id="servers" viewBox="0 0 24 24"><path d="M4 3h16v7H4z M4 14h16v7H4z M7 6h.01 M7 17h.01 M10 6h7 M10 17h7"/></symbol>
+<symbol id="dashboard" viewBox="0 0 24 24"><path d="M3 3h7v8H3z M14 3h7v5h-7z M3 15h7v6H3z M14 12h7v9h-7z"/></symbol>
+<symbol id="console" viewBox="0 0 24 24"><path d="M3 4h18v16H3z M6 8l3 3-3 3 M12 15h5"/></symbol>
+<symbol id="startup" viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></symbol>
+<symbol id="players" viewBox="0 0 24 24"><path d="M16 21v-3a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v3 M16 3a4 4 0 0 1 0 8 M22 21v-3a4 4 0 0 0-3-3.87 M13 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0"/></symbol>
+<symbol id="scheduler" viewBox="0 0 24 24"><path d="M12 8v5l3 2 M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0"/></symbol>
+<symbol id="persistence" viewBox="0 0 24 24"><path d="M3 3h15l3 3v15H3z M7 3v6h10V3 M7 21v-7h10v7"/></symbol>
+<symbol id="configuration" viewBox="0 0 24 24"><path d="M4 5h16 M4 12h16 M4 19h16 M8 2v6 M16 9v6 M9 16v6"/></symbol>
+<symbol id="mods" viewBox="0 0 24 24"><path d="M12 2l9 5v10l-9 5-9-5V7z M3 7l9 5 9-5 M12 12v10 M7 4.8l10 5.5"/></symbol>
+<symbol id="files" viewBox="0 0 24 24"><path d="M3 5h7l2 3h9v12H3z"/></symbol>
+<symbol id="network" viewBox="0 0 24 24"><path d="M8 3h8v6H8z M3 16h6v5H3z M15 16h6v5h-6z M12 9v4 M6 16v-3h12v3"/></symbol>
+<symbol id="administration" viewBox="0 0 24 24"><path d="M12 2l9 4v6c0 5-9 10-9 10S3 17 3 12V6z M8 12l3 3 5-6"/></symbol>
+<symbol id="account" viewBox="0 0 24 24"><path d="M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0 M4 21v-3a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v3z"/></symbol>
+<symbol id="cpu" viewBox="0 0 24 24"><path d="M6 6h12v12H6z M9 9h6v6H9z M9 2v4 M15 2v4 M9 18v4 M15 18v4 M2 9h4 M2 15h4 M18 9h4 M18 15h4"/></symbol>
+<symbol id="memory" viewBox="0 0 24 24"><path d="M2 6h20v12H2z M6 9v5 M10 9v5 M14 9v5 M18 9v5 M6 18v3 M10 18v3 M14 18v3 M18 18v3"/></symbol>
+<symbol id="online" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0 M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/></symbol>
+<symbol id="alert" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0 M12 7v6 M12 17h.01"/></symbol>
+<symbol id="refresh" viewBox="0 0 24 24"><path d="M21 4v6h-6 M3 20v-6h6 M5.5 7a8 8 0 0 1 13-2L21 10 M3 14l2.5 5a8 8 0 0 0 13-2"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 4v16 M4 12h16"/></symbol>
+<symbol id="disk" viewBox="0 0 24 24"><path d="M5 3h14l3 12v6H2v-6z M2 15h20 M6 18h.01 M10 18h.01"/></symbol>
+<symbol id="layers" viewBox="0 0 24 24"><path d="M12 2l10 5-10 5L2 7z M2 12l10 5 10-5 M2 17l10 5 10-5"/></symbol>
+<symbol id="stop" viewBox="0 0 24 24"><path d="M5 5h14v14H5z"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><path d="M16 10a6 6 0 1 1-12 0 6 6 0 0 1 12 0 M15 15l6 6"/></symbol>
+<symbol id="external" viewBox="0 0 24 24"><path d="M14 3h7v7 M21 3 10 14 M10 3H3v18h18v-7"/></symbol>
+</svg>

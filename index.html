@@ -14,8 +14,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Aumik Panel">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="/static/chart.umd.min.js"></script>
 <link rel="stylesheet" href="/static/base.css">
 <link rel="stylesheet" href="/static/workspace.css">
@@ -38,10 +36,10 @@
 
   <header>
     <div class="header-left">
-      <a class="workspace-back" href="/servers">← All servers</a>
+      <a class="workspace-brand" href="/servers">SERVER MANAGER</a>
       <h1 id="workspace-server-name">ARMA REFORGER</h1>
     </div>
-    <button class="btn-logout" onclick="doLogout()">Logout ↗</button>
+    <button class="btn-logout" onclick="doLogout()">Logout</button>
   </header>
 
   <button type="button" class="config-button mobile-nav-toggle" id="mobile-nav-toggle" aria-expanded="false" aria-controls="workspace-sidebar">☰ Menu · <span id="mobile-nav-current">Dashboard</span></button>
@@ -49,18 +47,18 @@
   <div class="brand"><span class="brand-icon">AR</span><div>REFORGER<small>SERVER PANEL</small></div></div>
   <div class="sidebar-instances"><label for="instance-switcher" class="instance-label">Server</label><select id="instance-switcher" aria-label="Select server"><option value="">Existing server</option></select><a class="btn-logout" href="/servers">All servers →</a></div>
 <nav class="panel-tabs" role="tablist" aria-label="Panel sections" aria-orientation="vertical"><span class="nav-label">OVERVIEW</span>
-    <button class="panel-tab" id="tab-dashboard" role="tab" aria-selected="true" aria-controls="panel-dashboard" tabindex="0">Dashboard</button><span class="nav-label">OPERATIONS</span>
-    <button class="panel-tab" id="tab-console" role="tab" aria-selected="false" aria-controls="panel-console" tabindex="-1" data-permission="logs" hidden>Console</button>
-    <button class="panel-tab" id="tab-startup" role="tab" aria-selected="false" aria-controls="panel-startup" tabindex="-1" data-permission="admin_config" hidden>Startup</button>
-    <button class="panel-tab" id="tab-players" role="tab" aria-selected="false" aria-controls="panel-players" tabindex="-1">Players</button>
-    <button class="panel-tab" id="tab-scheduler" role="tab" aria-selected="false" aria-controls="panel-scheduler" tabindex="-1" data-permission="admin_config" hidden>Scheduler</button>
-    <button class="panel-tab" id="tab-persistence" role="tab" aria-selected="false" aria-controls="panel-persistence" tabindex="-1" data-permission="configure" hidden>Persistence</button><span class="nav-label">CONFIGURATION</span>
-    <button class="panel-tab" id="tab-configuration" role="tab" aria-selected="false" aria-controls="panel-configuration" tabindex="-1">Server config</button>
-    <button class="panel-tab" id="tab-mods" role="tab" aria-selected="false" aria-controls="panel-mods" tabindex="-1">Mods</button>
-    <button class="panel-tab" id="tab-files" role="tab" aria-selected="false" aria-controls="panel-files" tabindex="-1" data-permission="admin_config" hidden>Files</button>
-    <button class="panel-tab" id="tab-network" role="tab" aria-selected="false" aria-controls="panel-network" tabindex="-1">Network</button><span class="nav-label">ADMINISTRATION</span>
-    <button class="panel-tab" id="tab-administration" role="tab" aria-selected="false" aria-controls="panel-administration" tabindex="-1">Administration</button></nav>
-  <div class="sidebar-bottom"><span class="brand-icon">AR</span><div>Arma Reforger<small>Dedicated server</small></div><a class="btn-logout appearance-link" href="/account">Account settings</a></div>
+    <button class="panel-tab" id="tab-dashboard" role="tab" aria-selected="true" aria-controls="panel-dashboard" tabindex="0"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#dashboard"></use></svg>Dashboard</button><span class="nav-label">OPERATIONS</span>
+    <button class="panel-tab" id="tab-console" role="tab" aria-selected="false" aria-controls="panel-console" tabindex="-1" data-permission="logs" hidden><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#console"></use></svg>Console</button>
+    <button class="panel-tab" id="tab-startup" role="tab" aria-selected="false" aria-controls="panel-startup" tabindex="-1" data-permission="admin_config" hidden><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#startup"></use></svg>Startup</button>
+    <button class="panel-tab" id="tab-players" role="tab" aria-selected="false" aria-controls="panel-players" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#players"></use></svg>Players</button>
+    <button class="panel-tab" id="tab-scheduler" role="tab" aria-selected="false" aria-controls="panel-scheduler" tabindex="-1" data-permission="admin_config" hidden><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#scheduler"></use></svg>Scheduler</button>
+    <button class="panel-tab" id="tab-persistence" role="tab" aria-selected="false" aria-controls="panel-persistence" tabindex="-1" data-permission="configure" hidden><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#persistence"></use></svg>Persistence</button><span class="nav-label">CONFIGURATION</span>
+    <button class="panel-tab" id="tab-configuration" role="tab" aria-selected="false" aria-controls="panel-configuration" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#configuration"></use></svg>Server config</button>
+    <button class="panel-tab" id="tab-mods" role="tab" aria-selected="false" aria-controls="panel-mods" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#mods"></use></svg>Mods</button>
+    <button class="panel-tab" id="tab-files" role="tab" aria-selected="false" aria-controls="panel-files" tabindex="-1" data-permission="admin_config" hidden><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#files"></use></svg>Files</button>
+    <button class="panel-tab" id="tab-network" role="tab" aria-selected="false" aria-controls="panel-network" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#network"></use></svg>Network</button><span class="nav-label">ADMINISTRATION</span>
+    <button class="panel-tab" id="tab-administration" role="tab" aria-selected="false" aria-controls="panel-administration" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#administration"></use></svg>Administration</button></nav>
+  <div class="sidebar-bottom"><span class="brand-icon">AR</span><div>Arma Reforger<small>Dedicated server</small></div><a class="btn-logout appearance-link" href="/account"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#account"></use></svg>Account settings</a></div>
   </aside>
   <div class="page-heading"><div><div class="eyebrow">SERVER WORKSPACE</div><h2 id="page-title">Dashboard</h2><p id="page-description">Monitor your server and manage the action.</p></div></div>
 
@@ -104,28 +102,29 @@
   <!-- Controls -->
   <div class="controls-grid" data-permission="control" hidden>
     <button class="ctrl-btn start" id="btn-start" onclick="serverAction('start')" disabled>
-      <span class="ctrl-icon">▶</span>START
+      <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#startup"></use></svg>Start
     </button>
     <button class="ctrl-btn stop" id="btn-stop" onclick="serverAction('stop')" disabled>
-      <span class="ctrl-icon">■</span>STOP
+      <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#stop"></use></svg>Stop
     </button>
     <button class="ctrl-btn reset" id="btn-reset" onclick="serverAction('restart')" disabled>
-      <span class="ctrl-icon">↺</span>RESTART
+      <svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#refresh"></use></svg>Restart
     </button>
   </div>
 
 </div>
 <div class="dashboard-summary" aria-label="Server summary">
-  <div class="card"><div class="card-label">Uptime</div><div class="chart-value" id="summary-uptime">—</div><p class="feature-note">Since last start</p></div>
-  <div class="card"><div class="card-label">Server CPU</div><div class="chart-value" id="summary-cpu">—</div><p class="feature-note">Game process usage</p></div>
-  <div class="card"><div class="card-label">Server memory</div><div class="chart-value" id="summary-ram">—</div><p class="feature-note">Game process resident memory</p></div>
+  <div class="card"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#players"></use></svg><div class="card-label">Players</div><div class="chart-value" id="summary-players">—</div><p class="feature-note">Currently connected</p></div>
+  <div class="card"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#scheduler"></use></svg><div class="card-label">Uptime</div><div class="chart-value" id="summary-uptime">—</div><p class="feature-note">Since last start</p></div>
+  <div class="card"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#cpu"></use></svg><div class="card-label">Server CPU</div><div class="chart-value" id="summary-cpu">—</div><p class="feature-note">Game process usage</p></div>
+  <div class="card"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#memory"></use></svg><div class="card-label">Server memory</div><div class="chart-value" id="summary-ram">—</div><p class="feature-note">Game process resident memory</p></div>
 </div>
-<div class="field-resource-charts">  <!-- Charts -->
+<div class="field-resource-charts"><div class="chart-card"><div class="chart-header"><div><div class="chart-title">Players</div><div class="chart-sub">Last 60 roster readings</div></div></div><div class="chart-wrap"><canvas id="chart-players" aria-label="Connected players over time"></canvas></div></div>  <!-- Charts -->
   <div class="charts-row">
     <div class="chart-card">
       <div class="chart-header">
         <div>
-          <div class="chart-title">CPU Usage</div>
+          <div class="chart-title">Process CPU &amp; host memory</div>
           <div class="chart-sub" id="proc-cpu-sub">Arma: —%</div>
         </div>
         <div>
@@ -140,7 +139,8 @@
 
   </div>
 
-<div class="chart-card">
+</div>
+<div class="dashboard-columns"><details class="dashboard-performance-details"><summary>More performance details <span>Memory, network, storage &amp; simulation</span></summary><div class="dashboard-performance"><div class="chart-card">
       <div class="chart-header">
         <div>
           <div class="chart-title">RAM Usage</div>
@@ -154,8 +154,7 @@
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chart-ram"></canvas></div>
-    </div></div>
-<div class="dashboard-columns"><div class="dashboard-performance">
+    </div>
   <div class="charts-row" id="extra-metrics"></div>
   <div class="charts-row">
     <div class="chart-card">
@@ -182,7 +181,7 @@
       <div class="chart-sub" id="disk-state">Waiting for sample</div>
       <div class="chart-wrap"><canvas id="chart-disk" aria-label="Arma disk read and write rates"></canvas></div>
     </div><div id="latency-details"></div></div></details>
-</div><div class="dashboard-live">
+</div></details><div class="dashboard-live">
   <!-- Connected players -->
   <div class="card clip" id="players-card" tabindex="-1">
     <div class="card-label">Players · <span id="player-summary">Loading...</span></div>
@@ -205,7 +204,7 @@
         <div class="log-live-dot off" id="log-live-dot"></div>
         Server console — live
       </div>
-      <button class="btn-clear-log" onclick="openPanelSection('console','console-workspace')">Open console ↗</button>
+      <button class="btn-clear-log" onclick="openPanelSection('console','console-workspace')">Open console</button>
       <details class="dashboard-console-tools"><summary>Preview filters</summary><div class="console-actions"><label class="console-filter"><input type="checkbox" id="show-performance-logs" onchange="togglePerformanceLogs()"> Show performance logs</label><label class="console-filter"><input type="checkbox" id="pause-console-scroll"> Pause scrolling</label><input type="search" id="console-search" aria-label="Search console" placeholder="Search console…" oninput="filterConsole()"><button class="btn-clear-log" onclick="clearLog()">Clear</button></div></details>
     </div>
     <div id="log-output" class="hide-performance"></div>
@@ -470,10 +469,10 @@
         </div></details>
         <div class="mods-actions"><details class="action-menu"><summary>Actions</summary><div><button onclick="exportModLibrary()">Export JSON</button>
     <button onclick="copyModLibrary()">Copy list</button>
-    <button data-permission="mods" onclick="openModDialog('import')">Import mods</button></div></details><button class="mod-primary" data-permission="mods" onclick="openModDialog('add')">＋ Add mod</button></div>
+    <button data-permission="mods" onclick="openModDialog('import')">Import mods</button></div></details><button class="mod-primary" data-permission="mods" onclick="openModDialog('add')"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg>Add mod</button></div>
       </div>
       <p id="mods-reorder-help" class="feature-note" hidden>Use the arrows to move a mod in the configured load order. Each move is saved immediately.</p>
-      <div id="mods-list" class="mods-grid" aria-live="polite"></div>
+      <div class="mods-library-layout"><div id="mods-list" class="mods-grid" aria-live="polite"></div><aside class="mods-presets-rail" aria-label="Saved mod sets"><h3>Saved mod sets</h3><div id="mods-preset-shortcuts"><p class="feature-note">Loading saved sets…</p></div><button type="button" onclick="document.getElementById('section-tab-mods-presets').click()">Manage presets</button><button type="button" class="mod-primary" onclick="document.getElementById('section-tab-mods-updates').click()">Review updates</button></aside></div>
       <div class="mods-footer"><div class="mods-page-size"><label for="mods-per-page">Show</label><select id="mods-per-page"><option value="8">8</option><option value="16">16</option><option value="24">24</option><option value="48">48</option></select><span>items</span><span id="mods-range"></span></div><nav id="mods-pagination" aria-label="Mod pages"></nav></div>
       <p class="mods-size-note">Sizes cover all configured mods at their selected versions. Extra dependencies are excluded; players with cached files may download less.</p>
     </div>
@@ -621,7 +620,7 @@
       <label><input type="checkbox" id="notifications-clear"> Remove the saved webhook</label><div class="feature-row"><button type="submit" class="btn-save" id="notifications-save">Save notification settings</button><button type="button" class="btn-save" id="notifications-test">Send test message</button></div></form><p id="notifications-status" class="feature-note" role="status"></p></div>
     </div>
     <div id="section-admin-maintenance" role="tabpanel" aria-labelledby="section-tab-admin-maintenance" data-section-content="admin" hidden><div class="card" id="software-card" data-permission="admin_config" hidden>
-    <div class="card-label">Server software</div>
+    <div class="card-label"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#servers"></use></svg>Server software</div>
     <p id="software-build">Installed Steam build: loading…</p>
     <p class="feature-note" id="software-latest">Available public build: not checked</p>
     <div class="console-actions"><button class="config-button" id="software-check" disabled onclick="runSoftwareJob('check')">Check for updates</button>
@@ -631,7 +630,7 @@
     <details><summary>Update output</summary><pre id="software-output" style="max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere"></pre></details>
   </div>
     <div class="card" id="config-backups-card" data-permission="admin_config" hidden>
-    <div class="card-label">Configuration backups</div>
+    <div class="card-label"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#layers"></use></svg>Configuration backups</div>
     <p class="feature-note">The panel saves the previous server JSON before every configuration change. Backups include passwords and are available only to panel administrators.</p>
     <div class="field"><label for="config-backup-select">Saved versions</label><select id="config-backup-select" onchange="clearConfigBackupReview()"><option value="">Loading backups…</option></select></div>
     <div class="feature-row"><button class="config-button" type="button" onclick="loadConfigBackups()">Refresh backups</button>

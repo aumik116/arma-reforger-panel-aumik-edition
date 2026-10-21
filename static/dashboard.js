@@ -42,11 +42,23 @@ const chartOpts = (max) => ({
   }
 });
 
+const playersOptions = chartOpts(undefined);
+playersOptions.scales.x = {display:true, ticks:{maxTicksLimit:5, font:{size:9}}, grid:{display:false}};
+playersOptions.scales.y.ticks.callback = value => Number.isInteger(value) ? value : '';
+const playersChart = createPanelChart(document.getElementById('chart-players'), {type:'line', data:makeChartData('#ffc45c'), options:playersOptions});
+
 const cpuChart = createPanelChart(document.getElementById('chart-cpu'), {
   type: 'line',
   data: makeChartData('#4c9fd6'),
   options: chartOpts(100)
 });
+
+cpuChart.data.datasets[0].label = 'Process CPU';
+cpuChart.data.datasets.push({...makeChartData('#85d77a').datasets[0], label:'Host memory', fill:false});
+cpuChart.options.plugins.legend = {display:true, labels:{boxWidth:12, boxHeight:2, font:{size:10}}};
+// Process CPU may exceed 100% when the game uses multiple cores.
+cpuChart.options.scales.y.max = undefined;
+cpuChart.options.scales.x = {display:true, ticks:{maxTicksLimit:5, font:{size:9}}, grid:{display:false}};
 
 const ramChart = createPanelChart(document.getElementById('chart-ram'), {
   type: 'line',
@@ -77,6 +89,8 @@ function renderTraffic(sample, chart, ids, statusId, factor, unit, scope) {
 }
 
 function pushChart(chart, value) {
+  chart.data.labels.push(new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
+  if (chart.data.labels.length > MAX_POINTS) chart.data.labels.shift();
   chart.data.datasets[0].data.push(value);
   if (chart.data.datasets[0].data.length > MAX_POINTS)
     chart.data.datasets[0].data.shift();
@@ -98,6 +112,7 @@ function applyChartTheme() {
       const stroke = color(index ? '--online' : chart.canvas.id === 'chart-cpu' ? '--cpu-color' : '--accent');
       dataset.borderColor = stroke; dataset.backgroundColor = stroke + '18';
     });
+    if (chart.options.scales.x?.ticks) chart.options.scales.x.ticks.color = color('--muted');
     if (chart.options.scales.y) {
       chart.options.scales.y.grid.color = color('--chart-grid');
       chart.options.scales.y.ticks.color = color('--muted');
@@ -212,6 +227,9 @@ async function fetchMetrics() {
     document.getElementById('proc-cpu-sub').textContent = 'Arma: ' + (d.running ? (d.cpu ?? 0).toFixed(1) + '%' : '—%');
     document.getElementById('proc-ram-sub').textContent = 'Arma: ' + (d.running ? (d.ram_process ?? 0) + ' MB / ' + d.ram_total + ' MB' : '— MB');
 
+    const memoryHistory = cpuChart.data.datasets[1].data;
+    memoryHistory.push(d.ram_total > 0 ? ramPct : null);
+    if (memoryHistory.length > MAX_POINTS) memoryHistory.shift();
     pushChart(cpuChart, d.cpu ?? 0);
     pushChart(ramChart, ramPct);
     renderTraffic(d.network, networkChart, ['net-rx','net-tx'], 'net-state', 8 / 1000000, 'Mbps', 'All non-loopback interfaces; includes other host traffic');
@@ -222,6 +240,9 @@ async function fetchMetrics() {
     document.getElementById('summary-cpu').textContent = '—';
     document.getElementById('summary-ram').textContent = '—';
     updateExtraMetrics(null);
+    const memoryHistory = cpuChart.data.datasets[1].data;
+    memoryHistory.push(null); if (memoryHistory.length > MAX_POINTS) memoryHistory.shift();
+    pushChart(cpuChart, null);
     renderTraffic(null, networkChart, ['net-rx','net-tx'], 'net-state', 1, 'Mbps', '');
     renderTraffic(null, diskChart, ['disk-read','disk-write'], 'disk-state', 1, 'MiB/s', '');
   }

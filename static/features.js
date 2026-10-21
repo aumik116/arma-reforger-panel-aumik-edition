@@ -49,7 +49,7 @@ function selectPanelTab(tab) {
   if (tab.id === 'tab-console' && typeof fetchLogs === 'function') fetchLogs(30);
   if (tab.id === 'tab-mods') { renderModUpdates(); refreshModMetadata(); }
   if (tab.id === 'tab-dashboard') {
-    requestAnimationFrame(() => { cpuChart.resize(); ramChart.resize(); networkChart.resize(); diskChart.resize(); Object.values(extraCharts).forEach(chart => chart.resize()); });
+    requestAnimationFrame(() => { playersChart.resize(); cpuChart.resize(); ramChart.resize(); networkChart.resize(); diskChart.resize(); Object.values(extraCharts).forEach(chart => chart.resize()); });
     fetchMetrics();
   }
 }
@@ -120,6 +120,8 @@ async function loadPlayers() {
     const data = await getFeature('/api/players');
     const selected = byId('player-select').value;
     roster = data.players;
+    byId('summary-players').textContent = data.available ? roster.length : '—';
+    pushChart(playersChart, data.available ? roster.length : null);
     byId('player-summary').textContent = data.available ? `${roster.length} connected` : 'Player list unavailable';
     byId('player-message').textContent = data.message;
     byId('player-select').replaceChildren(new Option(roster.length ? 'Select a player' : 'No players to display', ''));
@@ -140,6 +142,8 @@ async function loadPlayers() {
     roster = [];
     byId('dashboard-player-list').replaceChildren();
     byId('player-select').replaceChildren(new Option('Unavailable', ''));
+    byId('summary-players').textContent = '—';
+    pushChart(playersChart, null);
     byId('player-summary').textContent = 'Player list unavailable';
     byId('player-message').textContent = error.message;
     showPlayer();
@@ -161,6 +165,27 @@ function showPlayer() {
 async function loadPresets() {
   const data = await getFeature('/api/presets');
   savedPresets = data.presets;
+  const shortcuts = byId('mods-preset-shortcuts');
+  const focusedPreset = shortcuts.contains(document.activeElement) ? document.activeElement.dataset.presetId : null;
+  shortcuts.replaceChildren();
+  for (const preset of savedPresets) {
+    const button = document.createElement('button'); button.type = 'button';
+    button.className = 'mod-preset-shortcut'; button.dataset.presetId = String(preset.id);
+    button.textContent = preset.name;
+    const detail = document.createElement('small');
+    detail.textContent = `${preset.mods.length} mods${preset.active ? ' · Active' : ''}`;
+    button.append(detail);
+    button.onclick = () => {
+      byId('section-tab-mods-presets').click();
+      byId('preset-select').value = String(preset.id); showPreset(); byId('preset-select').focus();
+    };
+    shortcuts.append(button);
+  }
+  if (focusedPreset) Array.from(shortcuts.children).find(button => button.dataset.presetId === focusedPreset)?.focus({preventScroll:true});
+  if (!savedPresets.length) {
+    const empty = document.createElement('p'); empty.className = 'feature-note';
+    empty.textContent = 'No saved mod sets yet.'; shortcuts.append(empty);
+  }
   const selected = byId('preset-select').value;
   byId('preset-select').replaceChildren(new Option('Select a saved mod preset', ''));
   savedPresets.forEach(p => byId('preset-select').add(new Option(`${p.name} · ${p.scenario_name || 'Mods only'} · ${p.mods.length} mods${p.active ? ' · Active' : ''}`, p.id)));

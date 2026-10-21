@@ -43,7 +43,7 @@ function drawModLibrary() {
   const start = (modLibrary.page - 1) * modLibrary.size;
   const grid = modEl('mods-list'); grid.replaceChildren();
   const heading = document.createElement('div'); heading.className = 'mods-details-heading';
-  ['Name','Mod ID','Version','Size','Actions'].forEach(label => { const cell=document.createElement('span');cell.textContent=label;heading.append(cell); });
+  ['Mod','Version','Size','Actions'].forEach(label => { const cell=document.createElement('span');cell.textContent=label;heading.append(cell); });
   grid.append(heading);
   mods.slice(start, start + modLibrary.size).forEach(mod => {
     const card = document.createElement('article'); card.className='mod-tile';card.dataset.modId=mod.modId;
@@ -60,7 +60,7 @@ function drawModLibrary() {
     const controls = document.createElement('div'); controls.className='mod-controls';
     controls.append(modButton('Details', () => openWorkshopDetails(mod.modId)));
     controls.append(modButton('Edit fields', () => openModDetails(mod)));
-    const link = document.createElement('a'); link.href='https://reforger.armaplatform.com/workshop/'+encodeURIComponent(mod.modId); link.target='_blank'; link.rel='noopener noreferrer'; link.textContent='↗'; link.setAttribute('aria-label',`View ${title.textContent} on Workshop`); controls.append(link);
+    const link = document.createElement('a'); link.href='https://reforger.armaplatform.com/workshop/'+encodeURIComponent(mod.modId); link.target='_blank'; link.rel='noopener noreferrer'; link.innerHTML='<svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#external"></use></svg>'; link.setAttribute('aria-label',`View ${title.textContent} on Workshop`); controls.append(link);
     const remove = modButton('Remove', () => removeMod(mod.modId),'mod-remove'); remove.dataset.permission='mods'; controls.append(remove);
     body.append(title,meta,controls);
     if (modLibrary.reorder && can('mods')) {

@@ -97,6 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const focused = rows.contains(document.activeElement) ? document.activeElement : null;
     const focusedServer = focused?.closest('[data-server-id]')?.dataset.serverId;
     const focusedAction = focused?.dataset.action;
+    const expanded = new Set(Array.from(rows.querySelectorAll('details[open]')).map(menu => menu.closest('[data-server-id]').dataset.serverId));
     rows.replaceChildren();
     const query = document.getElementById('overview-search').value.trim().toLowerCase();
     const filter = document.getElementById('overview-filter').value;
@@ -118,7 +119,8 @@ document.addEventListener('DOMContentLoaded', () => {
       row.append(art);
       const heading = element('div','', 'fleet-card-heading');
       heading.append(element('span',server.status,'server-state state-' + server.status));
-      heading.append(element('span',server.uptime && server.running ? 'Up ' + server.uptime : '', 'fleet-uptime')); row.append(heading);
+      row.append(heading);
+      row.append(element('span',server.uptime && server.running ? server.uptime : '—', 'fleet-uptime'));
       const title = element('h3','');
       const link = element('a',server.name,'fleet-server-title');
       link.href = server.state === 'ready' ? workspace(server) : '/setup?server='+encodeURIComponent(server.id);
@@ -133,23 +135,27 @@ document.addEventListener('DOMContentLoaded', () => {
       row.append(stats);
       if (measureStorage) {
         const storage = server.storage;
-        row.append(element('p','Storage · ' + (storage && Number.isFinite(storage.total_bytes) ? storageSize(storage.total_bytes) + (storage.status === 'partial' ? ' (partial)' : '') : storage?.status === 'pending' ? 'Measuring…' : 'Unavailable'), 'fleet-address'));
+        row.append(element('p','Storage · ' + (storage && Number.isFinite(storage.total_bytes) ? storageSize(storage.total_bytes) + (storage.status === 'partial' ? ' (partial)' : '') : storage?.status === 'pending' ? 'Measuring…' : 'Unavailable'), 'fleet-storage'));
       }
       const actions = element('div','', 'manager-actions');
       if ((server.permissions || []).includes('control') && ['online','offline'].includes(server.status)) {
         const command = server.running ? 'stop' : 'start';
-        const button = element('button',server.running ? '■ Stop' : '▶ Start','btn-logout'); button.disabled = busy.has(server.id); button.onclick = () => action(server,command,button); actions.append(button);
-        if (server.running) { const restart = element('button','Restart','btn-logout'); restart.disabled = busy.has(server.id); restart.onclick = () => action(server,'restart',restart); actions.append(restart); }
+        const button = element('button',server.running ? 'Stop' : 'Start','btn-logout action-' + command); button.disabled = busy.has(server.id); button.onclick = () => action(server,command,button); actions.append(button);
+        if (server.running) { const restart = element('button','Restart','btn-logout action-restart'); restart.disabled = busy.has(server.id); restart.onclick = () => action(server,'restart',restart); actions.append(restart); }
       }
-      if (server.state === 'ready') { const manage = element('a','Manage →','manager-link'); manage.href = workspace(server); actions.append(manage); }
+      if (server.state === 'ready') { const manage = element('a','Open','manager-link'); manage.href = workspace(server); actions.prepend(manage); }
       else if (permissions.includes('admin_config')) { const progress = element('a','Progress / retry','manager-link'); progress.href = '/setup?server='+encodeURIComponent(server.id); actions.append(progress); }
-      if(server.state==='ready'&&(server.permissions||[]).includes('admin_config')){const startup=element('a','Startup','manager-link');startup.href=workspace(server)+'#startup';actions.append(startup);}
+      const more = element('details','','fleet-more'); more.open = expanded.has(server.id);
+      const summary = element('summary','More'); summary.dataset.action = 'more'; more.append(summary);
+      const menu = element('div','','fleet-more-menu'); more.append(menu);
+      if(server.state==='ready'&&(server.permissions||[]).includes('admin_config')){const startup=element('a','Startup','manager-link');startup.href=workspace(server)+'#startup';menu.append(startup);}
       if(server.id&&permissions.includes('admin_config')){const remove=element('button','Remove','btn-logout');remove.disabled=busy.has(server.id);remove.onclick=async()=>{
         const confirmId=prompt('Remove '+server.name+'? Files are retained on the VM. Type its ID: '+server.id);if(confirmId===null)return;
         busy.add(server.id);remove.disabled=true;
         try{const response=await postJson('/api/servers/'+encodeURIComponent(server.id)+'/delete',{confirm_id:confirmId});const body=await response.json();if(!response.ok)throw new Error(body.error);feedback.textContent=server.name+': removed. Files retained on the VM.';}catch(error){feedback.textContent=error.message;}finally{busy.delete(server.id);await refresh(false);}
-      };actions.append(remove);}
-      Array.from(actions.children).forEach(node => { node.dataset.action = node.textContent; });
+      };menu.append(remove);}
+      if (menu.children.length) actions.append(more);
+      actions.querySelectorAll('button,a').forEach(node => { node.dataset.action = node.textContent; });
       row.append(actions); rows.append(row);
     }
     if (!visible.length) rows.append(element('p',servers.length ? 'No servers match these filters.' : permissions.includes('admin_config') ? 'No servers yet. Create your first server to get started.' : 'No servers are assigned to your account.', 'fleet-empty'));

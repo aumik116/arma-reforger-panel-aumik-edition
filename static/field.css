@@ -1,10 +1,14 @@
+@font-face{font-family:Barlow;src:url('/static/fonts/Barlow-Regular.ttf') format('truetype');font-weight:400;font-display:swap}
+@font-face{font-family:Barlow;src:url('/static/fonts/Barlow-Medium.ttf') format('truetype');font-weight:500 900;font-display:swap}
+@font-face{font-family:'Barlow Condensed';src:url('/static/fonts/BarlowCondensed-Regular.ttf') format('truetype');font-weight:400;font-display:swap}
+@font-face{font-family:'Barlow Condensed';src:url('/static/fonts/BarlowCondensed-SemiBold.ttf') format('truetype');font-weight:500 900;font-display:swap}
 /* One shared Field Operations layout. Account preferences change colors only. */
 :root {
   --field-nav:var(--text); --field-nav-muted:var(--muted);
   --nav-border:var(--border); --nav-control:var(--surface2);
   --nav-selected:var(--accent-soft); --nav-selected-text:var(--accent2);
   --nav-hover:var(--surface2); --button-text:var(--bg);
-  --field-contours:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='440' height='170'%3E%3Cg fill='none' stroke='%23809070' stroke-opacity='.12'%3E%3Cpath d='M20 170C140 105 35 75 150 20S310 85 440 0M60 170C170 110 75 80 165 40S330 110 440 28M100 170C195 125 115 90 180 60S350 130 440 54M140 170C220 135 155 100 195 80S365 145 440 80M180 170C245 145 195 110 210 100S380 160 440 106'/%3E%3C/g%3E%3C/svg%3E");
+  --field-contours:url("/static/contours.svg");
 }
 :root[data-theme="light"] {--button-text:#fff}
 :root[data-theme="field"] {
@@ -17,7 +21,7 @@
   --cpu-color:#527e43; --ram-color:#697f83; --chart-grid:#d7dbcf;
   --field-nav:#e9edde; --field-nav-muted:#c0c9b6;
   --nav-border:#657258; --nav-control:#414e39; --nav-selected:#566b47; --nav-selected-text:#fff; --nav-hover:#48583d; --button-text:#fff;
-  --field-contours:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='440' height='170' viewBox='0 0 440 170'%3E%3Cg fill='none' stroke='%23bdc9ac' stroke-opacity='.14'%3E%3Cpath d='M20 170C140 105 35 75 150 20S310 85 440 0M60 170C170 110 75 80 165 40S330 110 440 28M100 170C195 125 115 90 180 60S350 130 440 54M140 170C220 135 155 100 195 80S365 145 440 80M180 170C245 145 195 110 210 100S380 160 440 106M0 35C75 10 95 60 40 90S15 150 65 170M0 56C45 35 65 65 30 82S0 140 25 170'/%3E%3C/g%3E%3C/svg%3E");
+  --field-contours:url("/static/contours.svg");
 }
 html[data-theme] body {font-family:'Barlow',system-ui,sans-serif;line-height:1.45}
 html[data-theme] :is(h1,h2,h3,h4,.mods-heading h2,.config-category-title,.chart-value,.stat-item .value){color:var(--heading)}
@@ -67,15 +71,6 @@ html[data-theme] .manager-summary span{font-size:11px;text-transform:none;letter
 html[data-theme] .manager-list-heading{background:transparent;border:0;padding:4px 0}
 html[data-theme] .manager-list-heading h2{font-size:17px;font-weight:600;color:var(--heading)}
 html[data-theme] .fleet-cards{grid-template-columns:minmax(0,1fr);gap:9px}
-html[data-theme] .fleet-server-card{padding:16px;gap:8px 18px;display:grid;grid-template-columns:minmax(170px,1.3fr) minmax(220px,1fr) minmax(240px,1fr);align-items:center}
-html[data-theme] .fleet-card-heading{grid-column:1;grid-row:1;font-size:11px}
-html[data-theme] .fleet-server-card h3{grid-column:1;grid-row:2;font-size:18px;margin:0}
-html[data-theme] .fleet-server-card .fleet-map{grid-column:1;grid-row:3;font-size:12px}
-html[data-theme] .fleet-server-card>.fleet-address{grid-column:2;font-size:11px}
-html[data-theme] .fleet-card-stats{grid-column:2;grid-row:1/3;margin:0;padding:0;border:0;gap:14px}
-html[data-theme] .fleet-card-stats dt{font-size:10px;text-transform:none;letter-spacing:0}
-html[data-theme] .fleet-card-stats dd{font-size:18px}
-html[data-theme] .fleet-server-card .manager-actions{grid-column:3;grid-row:1/4;min-width:0;margin:0;padding:0;justify-content:flex-end;gap:6px}
 html[data-theme] .fleet-server-card .fleet-event-error{grid-column:1/-1}
 html[data-theme] .manager-link{background:var(--accent-soft);color:var(--accent2);border-color:var(--accent-border)}
 html[data-theme] .fleet-chart-panel .fleet-section-heading,html[data-theme] .fleet-alert-panel .fleet-section-heading{background:transparent}
@@ -110,14 +105,9 @@ html[data-theme] tbody tr:hover{background:var(--accent-soft)}
   html[data-theme] .sidebar-instances{padding:16px 0 8px}
 }
 @media(max-width:1100px){
-  html[data-theme] .fleet-server-card{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
-  html[data-theme] .fleet-server-card .manager-actions{grid-column:1/-1;grid-row:auto;justify-content:flex-start}
   html[data-theme] .dashboard-columns{grid-template-columns:minmax(0,1fr)}
 }
 @media(max-width:700px){
-  html[data-theme] .fleet-server-card{grid-template-columns:minmax(0,1fr);padding:16px}
-  html[data-theme] .fleet-server-card>:is(.fleet-card-heading,h3,.fleet-map,.fleet-address,.fleet-card-stats,.manager-actions){grid-column:1;grid-row:auto}
-  html[data-theme] .fleet-card-stats{border-top:1px solid var(--border);padding-top:12px}
   html[data-theme] .manager-summary>div{padding:12px;border-bottom:1px solid var(--border)}
   html[data-theme] .navigation-open .sidebar{background:var(--chrome);border-color:var(--nav-border)}
   html[data-theme] header{background:var(--chrome);background-image:var(--field-contours)}
@@ -129,7 +119,7 @@ html[data-theme] #fleet-sidebar .panel-tab{display:block}
 html[data-theme] .fleet-page .manager-header{z-index:45}
 @media(max-width:700px){html[data-theme] .fleet-page .manager-main{padding-top:76px}html[data-theme] .sidebar .nav-label{display:block}}
 /* Tactical is the mockup palette. Original retains the base.css colors. */
-:root[data-theme="tactical"]{--bg:#151917;--surface:#1e2420;--surface2:#252d27;--border:#394036;--chrome:#181e19;--console-bg:#131814;--text:#dedfd4;--heading:#f0f1e7;--muted:#a7afa0;--nav-selected:#47583b;--nav-selected-text:#f1f3e9;--nav-hover:#303c2a;--nav-border:#46513e;--chart-grid:#343f32}
+:root[data-theme="tactical"]{color-scheme:dark;--bg:#151c1f;--surface:#1c2428;--surface2:#222c31;--border:#364248;--chrome:#171f23;--console-bg:#121a1e;--text:#d9e0e3;--heading:#f3f5f5;--muted:#aab5bc;--accent:#ffc45c;--accent2:#ffd483;--accent-soft:#3c4532;--accent-border:#756343;--button-text:#191d20;--online:#85d77a;--offline:#f17b66;--warn:#ffc45c;--cpu-color:#ffc45c;--ram-color:#85d77a;--nav-selected:#3d4933;--nav-selected-text:#f2f1d8;--nav-hover:#2b3537;--nav-border:#303c41;--chart-grid:#303c41}
 html[data-theme] .sidebar .sidebar-instances{display:grid;gap:8px}
 html[data-theme] .sidebar .sidebar-instances select{width:100%;min-width:0;background:var(--nav-control);color:var(--field-nav);border:1px solid var(--nav-border);padding:9px;font:12px 'Barlow',sans-serif}
 html[data-theme] .layout>header .header-left h1{color:var(--field-nav)}
@@ -148,35 +138,188 @@ html[data-theme] .field-resource-charts>.charts-row{display:contents}
 html[data-theme] .field-resource-charts .chart-card{margin:0;padding:18px;min-width:0}
 html[data-theme] .field-resource-charts .chart-wrap{height:160px}
 html[data-theme] .field-resource-charts .chart-value{font-size:22px}
-html[data-theme] #fleet-sidebar [data-fleet-panel="console"]:before{content:'⌁'}
-html[data-theme] #fleet-sidebar [data-fleet-panel="startup"]:before{content:'▷'}
-html[data-theme] #fleet-sidebar [data-fleet-panel="players"]:before{content:'♙'}
-html[data-theme] #fleet-sidebar [data-fleet-panel="scheduler"]:before{content:'◷'}
-html[data-theme] #fleet-sidebar [data-fleet-panel="persistence"]:before{content:'▣'}
-html[data-theme] #fleet-sidebar [data-fleet-panel="configuration"]:before{content:'⚙'}
-html[data-theme] #fleet-sidebar [data-fleet-panel="mods"]:before{content:'◇'}
-html[data-theme] #fleet-sidebar [data-fleet-panel="files"]:before{content:'▤'}
-html[data-theme] #fleet-sidebar [data-fleet-panel="network"]:before{content:'⇄'}
-html[data-theme] #fleet-sidebar [data-fleet-panel="administration"]:before{content:'◈'}
 @media(max-width:900px){html[data-theme] .field-resource-charts{grid-template-columns:minmax(0,1fr)}}
 html[data-theme] #panel-dashboard>.field-resource-charts{margin-bottom:18px}
 /* Workshop artwork belongs to the configured scenario, with a stable fallback. */
-html[data-theme] .fleet-server-card{grid-template-columns:112px minmax(150px,1.3fr) minmax(210px,1fr) minmax(230px,1fr)}
-html[data-theme] .fleet-server-art{grid-column:1;grid-row:1/4;position:relative;align-self:stretch;min-height:84px;overflow:hidden;border-radius:4px;background:var(--surface2);border:1px solid var(--border);display:grid;place-items:center}
 html[data-theme] .fleet-server-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 html[data-theme] .fleet-art-fallback{padding:12px;text-align:center;font-size:11px;color:var(--muted)}
-html[data-theme] .fleet-server-card>:is(.fleet-card-heading,h3,.fleet-map){grid-column:2}
-html[data-theme] .fleet-server-card>.fleet-address,html[data-theme] .fleet-card-stats{grid-column:3}
-html[data-theme] .fleet-server-card .manager-actions{grid-column:4}
 @media(max-width:1250px){
- html[data-theme] .fleet-server-card{grid-template-columns:96px minmax(0,1fr) minmax(0,1fr)}
- html[data-theme] .fleet-server-card .manager-actions{grid-column:2/-1;grid-row:auto;justify-content:flex-start}
 }
 @media(max-width:700px){
- html[data-theme] .fleet-server-card{grid-template-columns:88px minmax(0,1fr);gap:8px 12px}
- html[data-theme] .fleet-server-art{grid-column:1;grid-row:1/4;min-height:84px}
- html[data-theme] .fleet-server-card>.fleet-card-heading{grid-column:2;grid-row:1;flex-wrap:wrap;gap:4px}
- html[data-theme] .fleet-server-card>h3{grid-column:2;grid-row:2}
- html[data-theme] .fleet-server-card>.fleet-map{grid-column:2;grid-row:3}
- html[data-theme] .fleet-server-card>:is(.fleet-address,.fleet-card-stats,.manager-actions){grid-column:1/-1;grid-row:auto}
 }
+/* Reference layout: shared geometry, local line icons, colors from the theme. */
+.ui-icon{display:inline-block;width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px;margin-right:8px}
+html[data-theme] .sidebar .panel-tab::before{display:none}
+html[data-theme] .sidebar .panel-tab{display:flex;align-items:center;min-height:32px;padding:6px 9px;gap:0;font-size:13px}
+html[data-theme] .sidebar .panel-tab .ui-icon{width:15px;height:15px;margin-right:11px}
+html[data-theme] .sidebar .nav-label{padding:13px 9px 6px;font-size:10px;font-weight:400;letter-spacing:.07em}
+html[data-theme] .sidebar-instances .instance-label{text-transform:none;letter-spacing:0;font-size:12px}
+html[data-theme] .sidebar .sidebar-instances select{padding:6px 8px;font-size:12px}
+.workspace-brand{font:600 17px 'Barlow Condensed','Arial Narrow',sans-serif;letter-spacing:.09em;text-decoration:none;white-space:nowrap}
+html[data-theme] header{height:44px}
+html[data-theme] header h1{font-size:11px;opacity:.7}
+html[data-theme] :is(.page-heading h2,.manager-heading h1){font:600 28px/1.15 'Barlow Condensed','Arial Narrow',sans-serif}
+html[data-theme] .page-heading{padding-bottom:0;border:0;margin-bottom:16px}
+html[data-theme] .manager-heading{margin-bottom:14px}
+html[data-theme] .manager-create{padding:8px 14px}
+html[data-theme] :is(.manager-summary,.dashboard-summary){background:none;border:0;overflow:visible;gap:12px;margin-bottom:14px}
+html[data-theme] :is(.manager-summary>div,.dashboard-summary>.card){display:grid;grid-template-columns:30px minmax(0,1fr);grid-template-rows:auto auto;gap:0 10px;align-content:center;align-items:center;justify-content:start;padding:13px 16px;min-height:78px;background:var(--surface);border:1px solid var(--border);border-radius:5px}
+html[data-theme] :is(.manager-summary,.dashboard-summary) .ui-icon{grid-column:1;grid-row:1/3;width:23px;height:23px;margin:0;color:var(--text)}
+html[data-theme] :is(.manager-summary strong,.dashboard-summary .chart-value){grid-column:2;grid-row:1;font:600 25px/1.2 'Barlow Condensed','Arial Narrow',sans-serif;margin:0;color:var(--heading)}
+html[data-theme] :is(.manager-summary span,.dashboard-summary .card-label){grid-column:2;grid-row:2;font-size:12px;font-weight:400;letter-spacing:0;text-transform:none;margin:2px 0 0;color:var(--text)}
+html[data-theme] .manager-summary small{grid-column:2;font-size:9px;margin-top:3px}
+html[data-theme] .dashboard-summary .feature-note{display:none}
+html[data-theme] .dashboard-summary{grid-template-columns:repeat(4,minmax(0,1fr))}
+html[data-theme] .fleet-filters{gap:10px;margin:10px 0 2px;align-items:center}
+html[data-theme] .fleet-filters label{font-size:0;gap:0}
+html[data-theme] .fleet-filters label:first-child{flex:0 1 300px}
+html[data-theme] .fleet-filters :is(input,select,button){font-size:12px;min-height:34px;padding:7px 10px}
+html[data-theme] #overview-storage{margin-left:auto}
+html[data-theme] .manager-main>#overview-feedback{min-height:0;padding:4px 0 7px;font-size:10px}
+html[data-theme] .fleet-cards{display:block;border:1px solid var(--border);border-top:0;border-radius:0 0 5px 5px;background:var(--surface)}
+html[data-theme] :is(.fleet-table-heading,.fleet-server-card){display:grid;grid-template-columns:58px minmax(130px,1.3fr) minmax(85px,.8fr) minmax(120px,1fr) 48px 57px 72px 58px 210px;gap:0 10px;align-items:center}
+html[data-theme] .fleet-table-heading{padding:9px 12px;background:var(--surface);border:1px solid var(--border);border-radius:5px 5px 0 0;font-size:11px;color:var(--text)}
+.fleet-table-heading span:first-child{grid-column:1/3}
+html[data-theme] .fleet-server-card{padding:9px 12px;border:0;border-bottom:1px solid var(--border);border-radius:0;min-height:68px;position:relative}
+html[data-theme] .fleet-server-card:last-child{border-bottom:0}
+html[data-theme] .fleet-server-card:hover{background:var(--surface2)}
+html[data-theme] .fleet-server-art{grid-column:1;grid-row:1/3;position:relative;height:44px;min-height:0;overflow:hidden;border-radius:3px;background:var(--console-bg);display:grid;place-items:center;border:1px solid var(--border)}
+html[data-theme] .fleet-art-fallback{font-size:8px;padding:3px}
+html[data-theme] .fleet-server-card h3{grid-column:2;grid-row:1;margin:0;font-size:13px;line-height:1.2}
+html[data-theme] .fleet-card-heading{grid-column:2;grid-row:2;justify-content:start;font-size:10px;margin-top:3px}
+html[data-theme] .fleet-server-card>.fleet-map{grid-column:3;grid-row:1/3;margin:0;font-size:11px}
+html[data-theme] .fleet-server-card>.fleet-address{grid-column:4;grid-row:1/3;font:10px 'Barlow',sans-serif;margin:0}
+html[data-theme] .fleet-card-stats,html[data-theme] .fleet-card-stats>div{display:contents}
+html[data-theme] .fleet-card-stats dt{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+html[data-theme] .fleet-card-stats dd{grid-row:1/3;font:12px 'Barlow',sans-serif;margin:0}
+html[data-theme] .fleet-card-stats>div:nth-child(1) dd{grid-column:5}
+html[data-theme] .fleet-card-stats>div:nth-child(2) dd{grid-column:6}
+html[data-theme] .fleet-card-stats>div:nth-child(3) dd{grid-column:7}
+html[data-theme] .fleet-uptime{grid-column:8;grid-row:1/3;font-size:11px}
+html[data-theme] .fleet-server-card .manager-actions{grid-column:9;grid-row:1/3;flex-wrap:nowrap;gap:5px;justify-content:flex-end;margin:0;padding:0}
+html[data-theme] .fleet-server-card .manager-actions>*{margin:0;min-height:30px}
+html[data-theme] .manager-actions :is(button,.manager-link,summary){font:12px 'Barlow',sans-serif;padding:6px 8px;min-height:30px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--text)}
+html[data-theme] .manager-actions .action-stop{color:var(--offline);border-color:var(--offline)}
+html[data-theme] .manager-actions .action-start{color:var(--online);border-color:var(--online)}
+html[data-theme] .manager-actions .action-restart{color:var(--accent);border-color:var(--accent-border)}
+.fleet-more{position:relative}.fleet-more summary{cursor:pointer;list-style:none}.fleet-more summary::-webkit-details-marker{display:none}
+.fleet-more[open]{z-index:5}.fleet-more-menu{position:absolute;right:0;top:calc(100% + 5px);min-width:145px;padding:7px;display:grid;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:4px;box-shadow:0 8px 24px #0005}
+html[data-theme] .fleet-storage{grid-column:2/-1;grid-row:3;font-size:11px;color:var(--muted);margin:5px 0 0}
+html[data-theme] .fleet-server-card .fleet-event-error{grid-column:2/-1;grid-row:4}
+html[data-theme] .fleet-charts{margin:16px 0 8px;gap:14px}
+html[data-theme] .fleet-section-heading{padding:11px 13px;border:0}
+html[data-theme] .fleet-section-heading h2{font:600 17px 'Barlow Condensed',sans-serif}
+html[data-theme] .fleet-chart{height:180px;padding:0 12px 12px}
+html[data-theme] .fleet-chart-note{margin-bottom:14px}
+html[data-theme] .fleet-alert-panel{margin-bottom:12px}
+.fleet-reading-notes{font-size:11px;color:var(--muted)}.fleet-reading-notes summary{cursor:pointer}
+html[data-theme] .dashboard-heading{border:0;padding:0!important;margin-bottom:14px!important}
+html[data-theme] #server-name-display{font:600 28px 'Barlow Condensed',sans-serif}
+html[data-theme] .field-resource-charts{gap:14px;margin-bottom:14px!important}
+html[data-theme] .field-resource-charts .chart-card{padding:13px}
+html[data-theme] .field-resource-charts .chart-wrap{height:150px}
+html[data-theme] .field-resource-charts .chart-value{font-size:19px}
+html[data-theme] .dashboard-columns{grid-template-columns:minmax(0,1.8fr) minmax(260px,1fr);gap:14px}
+html[data-theme] .dashboard-live{display:contents}
+html[data-theme] #console-card{grid-column:1;grid-row:1;align-self:start}
+html[data-theme] #players-card{grid-column:2;grid-row:1;padding:14px;align-self:start}
+html[data-theme] .dashboard-player-list{max-height:250px;margin:8px 0}
+html[data-theme] .dashboard-player{padding:7px 4px;font-size:12px}
+html[data-theme] .dashboard-player-avatar{width:22px;height:22px;font-size:11px}
+html[data-theme] .dashboard-player small{display:inline;margin-left:10px}
+html[data-theme] #console-card #log-output{height:280px;font-size:11px}
+html[data-theme] .log-viewer-header{padding:12px;gap:8px}
+html[data-theme] .dashboard-performance{grid-column:1/-1;grid-row:3;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+html[data-theme] #extra-metrics{grid-column:1/-1}
+html[data-theme] #notification-history{grid-column:1;grid-row:2;padding:13px}
+html[data-theme] .entity-counters{grid-column:2;grid-row:2;padding:13px}
+html[data-theme] .dashboard-diagnostics{grid-column:1/-1}
+html[data-theme] .section-tabs{background:transparent;border:0;border-bottom:1px solid var(--border);gap:6px;padding:0;margin-bottom:14px}
+html[data-theme] .section-tabs button{background:transparent;border:0;border-bottom:2px solid transparent;border-radius:3px 3px 0 0;padding:10px 18px}
+html[data-theme] .section-tabs button[aria-selected="true"]{border-bottom-color:var(--accent);color:var(--heading)}
+html[data-theme] #section-admin-maintenance:not([hidden]){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+html[data-theme] #section-admin-maintenance>.card{margin:0;padding:18px}
+html[data-theme] #section-admin-maintenance .card-label{font-size:16px;margin-bottom:15px;color:var(--heading)}
+@media(min-width:701px){
+ html[data-theme] .sidebar{width:188px;top:44px;padding:0 10px}
+ html[data-theme] :is(.layout,.fleet-page .manager-main){margin-left:188px;padding:64px 20px 24px}
+ html[data-theme] .layout:has(#panel-console:not([hidden])){padding-top:64px}
+ html[data-theme] .sidebar-instances{padding:12px 0 6px}
+}
+@media(max-width:1300px) and (min-width:701px){
+ html[data-theme] :is(.fleet-server-card,.fleet-table-heading){grid-template-columns:46px minmax(110px,1fr) minmax(70px,.7fr) minmax(100px,1fr) 40px 48px 65px 45px 180px;gap:0 6px}
+ html[data-theme] .manager-actions :is(button,.manager-link,summary){font-size:11px;padding:6px}
+ html[data-theme] .manager-summary{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:1200px){
+ html[data-theme] .fleet-table-heading{display:none}
+ html[data-theme] .fleet-cards{border-top:1px solid var(--border);border-radius:5px}
+ html[data-theme] .fleet-server-card{grid-template-columns:54px minmax(120px,1fr) minmax(90px,1fr) minmax(90px,1fr);gap:6px 12px;padding:12px}
+ html[data-theme] .fleet-card-stats{display:grid;grid-column:2/4;grid-row:3;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+ html[data-theme] .fleet-card-stats>div{display:block}
+ html[data-theme] .fleet-card-stats dt{position:static;width:auto;height:auto;clip-path:none;font-size:10px;margin-bottom:3px}
+ html[data-theme] .fleet-server-card .manager-actions{grid-column:2/-1;grid-row:4;justify-content:start}
+ html[data-theme] .fleet-uptime{grid-column:4;grid-row:3}
+ html[data-theme] .fleet-storage{grid-column:2/-1;grid-row:5}
+ html[data-theme] .fleet-server-card .fleet-event-error{grid-row:6}
+ html[data-theme] .dashboard-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:700px){
+ html[data-theme] .fleet-page .manager-main{padding:72px 14px 20px;margin:0}
+ html[data-theme] .fleet-server-card{grid-template-columns:54px minmax(0,1fr);gap:6px 12px}
+ html[data-theme] .fleet-server-card>.fleet-map{grid-column:1/-1;grid-row:3}
+ html[data-theme] .fleet-server-card>.fleet-address{grid-column:1/-1;grid-row:4}
+ html[data-theme] .fleet-card-stats{grid-column:1/-1;grid-row:5}
+ html[data-theme] .fleet-uptime{grid-column:1/-1;grid-row:6}
+ html[data-theme] .fleet-server-card .manager-actions{grid-column:1/-1;grid-row:7;flex-wrap:wrap}
+ html[data-theme] .fleet-storage{grid-column:1/-1;grid-row:8}
+ html[data-theme] .fleet-server-card .fleet-event-error{grid-column:1/-1;grid-row:9}
+ html[data-theme] .manager-summary{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ html[data-theme] :is(.manager-summary>div,.dashboard-summary>.card){padding:12px;gap:0 6px;grid-template-columns:24px minmax(0,1fr)}
+ html[data-theme] .fleet-filters label:first-child{flex-basis:100%}
+ html[data-theme] .fleet-filters #overview-storage{margin-left:0}
+ html[data-theme] .dashboard-columns,html[data-theme] .dashboard-performance,html[data-theme] #section-admin-maintenance:not([hidden]){grid-template-columns:minmax(0,1fr)}
+ html[data-theme] :is(#console-card,#players-card,#notification-history,.entity-counters,.dashboard-performance){grid-column:1;grid-row:auto}
+ html[data-theme] .dashboard-performance{order:1}
+ html[data-theme] header h1{display:none}
+ html[data-theme] .workspace-brand{font-size:14px}
+}
+html[data-theme] .dashboard-performance-details{grid-column:1/-1;grid-row:3;border:1px solid var(--border);border-radius:5px;background:var(--surface);padding:14px}
+.dashboard-performance-details>summary{font-size:13px;cursor:pointer}.dashboard-performance-details>summary span{font-size:11px;color:var(--muted);margin-left:12px}
+html[data-theme] .dashboard-performance-details .dashboard-performance{margin-top:14px}
+html[data-theme] .field-resource-charts .chart-card{display:flex;flex-direction:column}
+html[data-theme] .field-resource-charts .chart-wrap{margin-top:auto}
+html[data-theme] .mods-heading{margin-bottom:10px}
+html[data-theme] .mods-notice{padding:9px 12px;margin-bottom:12px;font-size:12px}
+html[data-theme] .mods-toolbar{padding:0;border:0;gap:8px;margin-bottom:12px}
+html[data-theme] #panel-mods :is(button,input,select,.mods-display-options>summary){padding:7px 10px;font-size:12px;border-radius:3px}
+.mods-library-layout{display:grid;grid-template-columns:minmax(0,1fr) 210px;gap:14px;align-items:start}
+.mods-presets-rail{padding:13px;border:1px solid var(--border);background:var(--surface);border-radius:5px;display:grid;gap:12px}
+.mods-presets-rail h3{font:600 18px 'Barlow Condensed',sans-serif;margin:0}
+#mods-preset-shortcuts{display:grid;gap:8px;max-height:380px;overflow:auto}
+html[data-theme] #panel-mods .mod-preset-shortcut{text-align:left;border-left:3px solid var(--accent-border);padding:10px;background:var(--surface2);white-space:normal;overflow-wrap:anywhere}
+.mod-preset-shortcut small{display:block;color:var(--muted);margin-top:4px;font-size:11px}
+html[data-theme] .mods-details-view :is(.mods-details-heading,.mod-tile){grid-template-columns:48px minmax(130px,1fr) 100px 90px 190px;gap:0 10px;min-width:620px;padding:9px 12px}
+html[data-theme] .mods-details-view .mods-details-heading span:first-child{grid-column:1/3}
+html[data-theme] .mods-details-view .mod-tile{min-height:66px}
+html[data-theme] .mods-details-view .mod-art img{display:block;position:static;grid-column:1;grid-row:1/3;width:48px;height:40px;object-fit:cover;border-radius:3px}
+html[data-theme] .mods-details-view .mod-art-label{display:block;grid-column:1;grid-row:1/3;font-size:8px;padding:3px;text-align:center;position:static;color:var(--muted);background:var(--surface2)}
+html[data-theme] .mods-details-view .mod-art.has-image .mod-art-label{display:none}
+html[data-theme] .mods-details-view .mod-body h3{grid-column:2;grid-row:1;font-size:13px}
+html[data-theme] .mods-details-view .mod-meta code{grid-column:2;grid-row:2;font:10px 'Barlow',sans-serif;color:var(--muted);margin-top:3px}
+html[data-theme] .mods-details-view .mod-version{grid-column:3;grid-row:1/3;font-size:11px}
+html[data-theme] .mods-details-view .mod-art .mod-size{grid-column:4;grid-row:1/3;font-size:11px}
+html[data-theme] .mods-details-view .mod-controls{grid-column:5;grid-row:1/3;flex-wrap:wrap;gap:4px}
+html[data-theme] #panel-mods .mod-controls :is(button,a){padding:5px 7px;font-size:10px}
+@media(max-width:1100px){.mods-library-layout{grid-template-columns:minmax(0,1fr)}.mods-presets-rail{grid-template-columns:1fr 1fr}.mods-presets-rail h3,.mods-presets-rail #mods-preset-shortcuts{grid-column:1/-1}#mods-preset-shortcuts{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}}
+@media(max-width:700px){html[data-theme] .dashboard-performance-details{grid-column:1;grid-row:auto}.dashboard-performance-details>summary span{display:block;margin:5px 0 0}}
+
+html[data-theme] .fleet-server-card .manager-actions{min-width:0}
+html[data-theme] .sidebar .btn-logout{text-transform:none;letter-spacing:0}
+html[data-theme] .manager-create{text-transform:none;letter-spacing:0}
+html[data-theme] .sidebar-bottom .appearance-link{padding:8px;text-align:left}
+html[data-theme] .fleet-page .manager-header>span{font:600 17px 'Barlow Condensed',sans-serif;letter-spacing:.09em}
+html[data-theme] .fleet-filters input{background-image:none}
+html[data-theme] body :is(header,.manager-header){background-image:var(--field-contours);background-position:center;background-repeat:repeat-x}
+html[data-theme] .fleet-filters input[type="search"]{padding-left:32px;background-image:url('/static/search.svg');background-repeat:no-repeat;background-size:15px;background-position:10px center}
+.mod-controls .ui-icon{width:12px;height:12px;margin:0;vertical-align:-2px}

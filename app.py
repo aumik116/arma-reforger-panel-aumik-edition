@@ -1490,8 +1490,14 @@ install_notifications(sys.modules[__name__])
 from storage_usage import install as install_storage
 install_storage(sys.modules[__name__])
 
+from mod_inventory import install as install_mod_inventory
+install_mod_inventory(sys.modules[__name__])
+
 from moderation import install as install_moderation
 install_moderation(sys.modules[__name__])
+
+from live_metrics import install as install_live_metrics
+install_live_metrics(sys.modules[__name__])
 
 if __name__ == "__main__":
     notifications.start()

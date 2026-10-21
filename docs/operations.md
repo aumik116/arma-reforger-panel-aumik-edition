@@ -176,3 +176,19 @@ Use the test VM before production:
 The panel does not configure firewall/NAT rules. Check the router's current forwarding targets before diagnosing a join failure. Keep RCON private.
 
 For game settings, use [Bohemia's server configuration reference](https://community.bistudio.com/wiki/Arma_Reforger:Server_Config).
+
+## Mod sorting and downloaded files
+
+The configured mod list can be sorted by load order, recently/oldest added, name A–Z/Z–A, and largest/smallest Workshop download estimate. Sorting changes the display only; Reorder remains the explicit operation that changes game load order. The sort choice is remembered in the browser.
+
+Addition dates come from successful panel activity records for that server (up to the latest 10,000 recorded mod-addition events across the panel). Existing mods without a recorded addition are shown with unknown dates and sorted last. Edits made outside the panel do not have reliable addition dates; the displayed date is the last recorded panel addition, not a filesystem timestamp.
+
+**Downloaded files** scans the selected server's configured Workshop directory, with search, usage filters, size sorting and refresh. It shows local metadata versions and logical disk sizes separately from Workshop download estimates. The background scan is bounded and cached for five minutes; partial results are labelled. Links are not followed.
+
+Usage is compared with the saved configuration, not the currently loaded game process. Direct entries are Configured; reachable dependencies from local metadata are Known dependencies. When dependency metadata or the scan is incomplete, other downloads are Usage unverified. A download absent from the configuration must not automatically be treated as safe to delete. This view does not delete files.
+
+### Live metrics
+
+Dashboard, Network and All Servers receive server-sent resource readings about every two seconds while visible. Snapshots are shared across viewers within the panel process; idle pages close their stream. The stream rechecks account and server access on each frame and reconnects automatically. If it stalls, metrics fall back to ten-second requests. Reverse proxies must allow streaming (disable response buffering); the endpoint sends `X-Accel-Buffering: no`.
+
+Player queries retain their ten-second cache and run separately so unavailable RCON cannot block CPU/RAM updates. Configuration, alerts, previews and player rosters retain their slower refreshes. All Servers history remains one sample every ten seconds, with the existing 30-minute in-browser limit; no new database history is written. Each open page uses one streaming connection/thread. Collection is demand-driven, so no metrics are collected for pages nobody is viewing.

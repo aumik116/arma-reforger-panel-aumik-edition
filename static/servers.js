@@ -70,9 +70,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (server.state !== 'ready') return {...server, status:server.state};
     try {
       const status = await read('/api/status', server.id);
-      let players = null;
+      const live = window.liveMetrics?.healthy() ? window.liveMetrics.data?.servers[server.id] : null;
+      let players = live?.players ?? null;
       if (!status.running) players = 0;
-      else { try { const roster = await read('/api/players', server.id); if (roster.available) players = roster.players.length; } catch (_) {} }
+      else if (!live) { try { const roster = await read('/api/players', server.id); if (roster.available) players = roster.players.length; } catch (_) {} }
       let preview = null;
       try {
         const image = await read('/api/scenario-preview', server.id);
@@ -80,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (_) {} // Workshop failures must not hide server status or controls.
       let storage = null;
       if (measureStorage) { try { storage = await read('/api/storage', server.id); } catch (_) {} }
-      return {...server, storage, preview, ...status, name:status.server_name || server.name, status:status.running ? 'online' : 'offline', players};
+      return {...server, storage, preview, ...status, ...(live || {}), name:status.server_name || server.name, status:(live || status).running ? 'online' : 'offline', players};
     } catch (error) { return {...server, status:'unavailable', error:error.message}; }
   }
   async function action(server, command, button) {
@@ -177,6 +178,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const known = servers.filter(s => s.players !== null && s.players !== undefined);
     document.getElementById('overview-players').textContent = !servers.length ? '0' : known.length ? known.reduce((total,s) => total+s.players,0) + (known.length < servers.length ? '+' : '') : '—';
   }
+  document.addEventListener('live-metrics', event => {
+    host = event.detail.host;
+    snapshots = snapshots.map(server => {
+      if (server.state !== 'ready') return server;
+      const data = event.detail.servers[server.id];
+      if (!data) return {...server, status:'unavailable', cpu:null, ram_process:null, players:null};
+      const status = data.running ? 'online' : 'offline';
+      if (server.status !== status) transitions.unshift({ts:Date.now()/1000, text:`${server.name} · ${server.status} → ${status}`, failed:false});
+      return {...server, ...data, status};
+    });
+    transitions.splice(20);
+    // Avoid replacing a focused control or an expanded action menu mid-use.
+    if (!rows.contains(document.activeElement) && !rows.querySelector('details[open]')) render(snapshots);
+    renderEvents();
+  });
   let navigationServers = [];
   const switcher = document.getElementById('fleet-switcher');
   function updateNavigation() {

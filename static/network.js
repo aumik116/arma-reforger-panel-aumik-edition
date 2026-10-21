@@ -127,11 +127,11 @@ async function fetchNetworkConfig() {
   } finally { networkConfigPending = false; }
 }
 
-async function fetchNetworkMetrics() {
+async function fetchNetworkMetrics(supplied) {
   if (!networkActive() || networkMetricsPending) return;
   networkMetricsPending = true;
   try {
-    const data = await getFeature('/api/metrics');
+    const data = supplied || await getFeature('/api/metrics');
     const up = Number.isFinite(data.network_tx) ? data.network_tx : null;
     const down = Number.isFinite(data.network_rx) ? data.network_rx : null;
     const players = Number.isInteger(data.player_count) ? data.player_count : null;
@@ -179,4 +179,4 @@ async function openNetworkPanel() {
   requestAnimationFrame(() => networkChartView?.resize());
 }
 
-setInterval(() => { fetchNetworkMetrics(); fetchNetworkConfig(); }, 1000);
+setInterval(() => { if (!window.liveMetrics?.healthy()) fetchNetworkMetrics(); fetchNetworkConfig(); }, 10000);

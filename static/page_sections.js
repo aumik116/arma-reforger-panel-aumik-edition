@@ -13,6 +13,7 @@ function selectPageSection(group, key) {
     panel.hidden = panel.id !== `section-${group}-${key}`;
   });
   if (group === 'mods' && key === 'workshop') loadWorkshop();
+  if (group === 'mods' && key === 'downloaded') loadDownloadedMods();
   if (group === 'config') { configCategory = key; applyConfigCategory(); }
   if (group === 'player' && typeof loadOperatorPlayers === 'function') { playerHistoryOffset=0; loadOperatorPlayers(true); }
   if (group === 'mods' && key === 'presets') loadPresets().catch(error => setLog(error.message, 'error'));

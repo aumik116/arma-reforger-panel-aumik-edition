@@ -207,14 +207,11 @@ function updateExtraMetrics(d) {
 
 // ─── Metrics polling ─────────────────────────────────────────────────────────
 let metricsPending = false;
-async function fetchMetrics() {
+async function fetchMetrics(supplied) {
   if (metricsPending || document.hidden || document.getElementById('panel-dashboard').hidden) return;
   metricsPending = true;
   try {
-    const r = await fetch('/api/metrics');
-    if (r.status === 401) { window.location.href = '/login'; return; }
-    if (!r.ok) throw new Error('Metrics request failed');
-    const d = await r.json();
+    const d = supplied || await readJson(await fetch('/api/metrics'));
     document.getElementById('dashboard-feedback').hidden=true;
     updateExtraMetrics(d);
 

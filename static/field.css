@@ -344,3 +344,17 @@ html[data-theme] .fleet-card-heading{flex-wrap:wrap;gap:3px 8px}
 .fleet-dialog-footer{border-top:1px solid var(--border);padding-top:16px;flex-wrap:wrap;font-size:12px}
 html[data-theme] .fleet-update-dialog .btn-save{background:var(--accent);color:var(--button-text)}
 @media(max-width:700px){.fleet-heading-actions{justify-content:start}.fleet-software-result{grid-template-columns:1fr auto}.fleet-software-result>span:last-child{grid-column:1/-1}.fleet-update-dialog{padding:16px}}
+html[data-theme] #mods-sort{max-width:190px;min-width:140px}
+#mods-sort-note:empty{display:none}#mods-sort-note{font-size:11px;margin:4px 0 10px}
+.downloaded-toolbar{display:flex;flex-wrap:wrap;margin:16px 0 10px}.downloaded-toolbar input{flex:1;min-width:180px}
+.downloaded-table-wrap{overflow:auto;border:1px solid var(--border);border-radius:5px;margin:14px 0}
+.downloaded-table{width:100%;border-collapse:collapse;font-size:12px;min-width:640px}
+.downloaded-table :is(th,td){padding:11px 14px;text-align:left;border-bottom:1px solid var(--border);vertical-align:top}
+.downloaded-table th{font-weight:500}.downloaded-table tbody tr:last-child td{border-bottom:0}
+.downloaded-table small{display:block;color:var(--muted);font-size:10px;margin-top:4px;overflow-wrap:anywhere}
+.downloaded-table td:first-child{max-width:320px;overflow-wrap:anywhere}
+@media(max-width:700px){html[data-theme] .mods-toolbar{flex-wrap:wrap}html[data-theme] #mods-sort{flex:1;max-width:none}.downloaded-toolbar select{max-width:100%}}
+
+.mod-added{display:block;font-size:10px;color:var(--muted);margin-top:4px}html[data-theme] .mods-details-view .mod-added{grid-column:2;grid-row:3}
+
+#downloaded-search { border:1px solid var(--border); border-radius:4px; }

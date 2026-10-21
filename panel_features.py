@@ -283,6 +283,29 @@ def install(api):
             audit(g.audit_actor, request.endpoint, "success" if ok else "failed", details)
         return response
 
+    @app.get('/api/mods/added')
+    def mods_added_dates():
+        # Reuse recorded additions; existing/untracked mods must not acquire invented dates.
+        server_id = api.selected_instance().id if api.selected_instance() else ''
+        current = {str(mod.get('modId', '')).upper() for mod in api.read_config().get('game', {}).get('mods', [])}
+        added = {}
+        with db() as conn:
+            rows = conn.execute("SELECT ts,details FROM activity WHERE outcome='success' AND details LIKE '%added_mods%' ORDER BY id DESC LIMIT 10000")
+            for row in rows:
+                try:
+                    details = json.loads(row['details'])
+                    if (details.get('server_id') or '') != server_id:
+                        continue
+                    for mod in details.get('added_mods', []):
+                        mod_id = str(mod.get('modId', '')).upper()
+                        if mod_id in current and mod_id not in added:
+                            added[mod_id] = row['ts']
+                except (ValueError, TypeError, AttributeError):
+                    continue
+                if len(added) == len(current):
+                    break
+        return jsonify(ok=True, added=added)
+
     @app.get("/api/me")
     def account_me():
         if not request.headers.get('X-Server-ID') and not api.manager_mode:

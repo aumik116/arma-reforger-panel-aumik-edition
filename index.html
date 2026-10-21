@@ -441,9 +441,17 @@
 <div id="persistence-backup-list" class="feature-note"></div></div>
 </div>
 </section>
-<section class="tab-panel" id="panel-mods" role="tabpanel" aria-labelledby="tab-mods" hidden><div class="section-tabs" role="tablist" aria-label="mods sections"><button type="button" role="tab" id="section-tab-mods-workshop" aria-controls="section-mods-workshop" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="workshop">Workshop</button><button type="button" role="tab" id="section-tab-mods-installed" aria-controls="section-mods-installed" aria-selected="true" tabindex="0" data-section-group="mods" data-section-key="installed">Installed</button>
+<section class="tab-panel" id="panel-mods" role="tabpanel" aria-labelledby="tab-mods" hidden><div class="section-tabs" role="tablist" aria-label="mods sections"><button type="button" role="tab" id="section-tab-mods-workshop" aria-controls="section-mods-workshop" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="workshop">Workshop</button><button type="button" role="tab" id="section-tab-mods-installed" aria-controls="section-mods-installed" aria-selected="true" tabindex="0" data-section-group="mods" data-section-key="installed">Configured</button>
+    <button type="button" role="tab" id="section-tab-mods-downloaded" aria-controls="section-mods-downloaded" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="downloaded">Downloaded files</button>
     <button type="button" role="tab" id="section-tab-mods-updates" aria-controls="section-mods-updates" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="updates">Updates</button><button type="button" role="tab" id="section-tab-mods-compare" aria-controls="section-mods-compare" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="compare">Compare lists</button>
     <button type="button" role="tab" id="section-tab-mods-presets" aria-controls="section-mods-presets" aria-selected="false" tabindex="-1" data-section-group="mods" data-section-key="presets">Presets</button></div>
+    <div id="section-mods-downloaded" role="tabpanel" aria-labelledby="section-tab-mods-downloaded" data-section-content="mods" hidden>
+<p class="feature-note">Files in this server’s configured Workshop directory, compared with its saved mod configuration. This does not confirm which mods the running game has loaded. Dependencies may be needed even when they are not listed directly.</p>
+<div class="mods-toolbar downloaded-toolbar"><input type="search" id="downloaded-search" placeholder="Search downloaded mods…" aria-label="Search downloaded mods"><select id="downloaded-filter" aria-label="Downloaded mod usage"><option value="all">All downloads</option><option value="not-configured">Not in configuration</option><option value="configured">Configured</option><option value="dependency">Dependencies</option><option value="not_required">Not required by known dependencies</option><option value="unverified">Usage unverified</option></select><select id="downloaded-sort" aria-label="Sort downloaded mods"><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="largest">Largest first</option><option value="smallest">Smallest first</option></select><button type="button" id="downloaded-refresh">Refresh files</button></div>
+<p id="downloaded-status" class="feature-note" role="status"></p><p id="downloaded-summary" class="feature-note"></p>
+<div class="downloaded-table-wrap"><table class="downloaded-table"><thead><tr><th scope="col">Mod / folder</th><th scope="col">Local metadata version</th><th scope="col">Disk size</th><th scope="col">Configuration usage</th></tr></thead><tbody id="downloaded-rows"></tbody></table></div>
+<p class="feature-note">“Usage unverified” means local dependency metadata is incomplete or the scan was partial. It is not a safe-to-delete label. Disk sizes are logical file sizes and can differ from allocated disk usage.</p>
+</div>
     <div id="section-mods-workshop" role="tabpanel" aria-labelledby="section-tab-mods-workshop" data-section-content="mods" hidden>
 <p class="feature-note">Browse the official Workshop. Restart the server after saving mod changes.</p>
 <form id="workshop-search-form" class="workshop-toolbar"><input id="workshop-search" aria-label="Search Workshop" maxlength="120" placeholder="Search Workshop mods"><select id="workshop-sort" aria-label="Sort Workshop"><option value="popularity">Popular</option><option value="newest">Newest</option><option value="subscribers">Most subscribed</option><option value="version_size">Largest</option></select><button>Search</button></form>
@@ -458,20 +466,19 @@
     <p class="feature-note" id="mods-readonly" hidden>Your account can view mods and presets. A Manager or Administrator can change them.</p>
     <div id="mods-configured" aria-labelledby="tab-mods">
       <div class="mods-toolbar">
-        <input id="mods-search" type="search" aria-label="Search mods" placeholder="Search mods…">
+        <input id="mods-search" type="search" aria-label="Search mods" placeholder="Search mods…"><select id="mods-sort" aria-label="Sort configured mods" onchange="sortModLibrary(this.value)"><option value="order">Load order</option><option value="recent">Recently added</option><option value="oldest">Oldest added</option><option value="name">Name A–Z</option><option value="name-desc">Name Z–A</option><option value="largest">Largest first</option><option value="smallest">Smallest first</option></select>
         <details class="mods-display-options"><summary>View & order</summary><div>
         <div class="mods-sort" role="group" aria-label="Mod view"><button id="mods-view-cards" aria-pressed="true" onclick="setModView('cards')">Cards</button>
     <button id="mods-view-list" aria-pressed="false" onclick="setModView('list')">List</button>
     <button id="mods-view-details" aria-pressed="false" onclick="setModView('details')">Details</button></div>
-        <div class="mods-sort" aria-label="Sort mods"><button id="mods-sort-order" aria-pressed="true" onclick="sortModLibrary('order')">Load order</button>
-    <button id="mods-sort-name" aria-pressed="false" onclick="sortModLibrary('name')">Name</button>
+        <div class="mods-sort" aria-label="Change load order">
     <button id="mods-reorder" aria-pressed="false" data-permission="mods" onclick="toggleModReorder()">Reorder</button></div>
         </div></details>
         <div class="mods-actions"><details class="action-menu"><summary>Actions</summary><div><button onclick="exportModLibrary()">Export JSON</button>
     <button onclick="copyModLibrary()">Copy list</button>
     <button data-permission="mods" onclick="openModDialog('import')">Import mods</button></div></details><button class="mod-primary" data-permission="mods" onclick="openModDialog('add')"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg>Add mod</button></div>
       </div>
-      <p id="mods-reorder-help" class="feature-note" hidden>Use the arrows to move a mod in the configured load order. Each move is saved immediately.</p>
+      <p id="mods-sort-note" class="feature-note" role="status"></p><p id="mods-reorder-help" class="feature-note" hidden>Use the arrows to move a mod in the configured load order. Each move is saved immediately.</p>
       <div class="mods-library-layout"><div id="mods-list" class="mods-grid" aria-live="polite"></div><aside class="mods-presets-rail" aria-label="Saved mod sets"><h3>Saved mod sets</h3><div id="mods-preset-shortcuts"><p class="feature-note">Loading saved sets…</p></div><button type="button" onclick="document.getElementById('section-tab-mods-presets').click()">Manage presets</button><button type="button" class="mod-primary" onclick="document.getElementById('section-tab-mods-updates').click()">Review updates</button></aside></div>
       <div class="mods-footer"><div class="mods-page-size"><label for="mods-per-page">Show</label><select id="mods-per-page"><option value="8">8</option><option value="16">16</option><option value="24">24</option><option value="48">48</option></select><span>items</span><span id="mods-range"></span></div><nav id="mods-pagination" aria-label="Mod pages"></nav></div>
       <p class="mods-size-note">Sizes cover all configured mods at their selected versions. Extra dependencies are excluded; players with cached files may download less.</p>
@@ -691,6 +698,7 @@
 <script src="/static/server_controls.js"></script>
 <script src="/static/persistence.js"></script>
 <script src="/static/mods.js"></script>
+<script src="/static/mod-inventory.js"></script>
 <script src="/static/features.js"></script>
 <script src="/static/notifications.js"></script>
 <script src="/static/workshop.js"></script>
@@ -706,6 +714,7 @@
 <script src="/static/operator-tools.js"></script>
 <script src="/static/moderation.js"></script>
 <script src="/static/storage.js"></script>
+<script src="/static/live-metrics.js"></script>
 <script src="/static/bootstrap.js"></script>
 <script src="/static/pwa.js"></script>
 

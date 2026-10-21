@@ -1,5 +1,5 @@
 // Configured mod library. Polling preserves local search, pagination and edit drafts.
-const modLibrary = {mods:[], signature:null, page:1, size:8, sort:'order', reorder:false, edit:null, historyCursor:null, metadata:new Map()};
+const modLibrary = {mods:[], signature:null, page:1, size:8, sort:'order', reorder:false, edit:null, historyCursor:null, metadata:new Map(), added:{}};
 const modEl = id => document.getElementById(id);
 const modUpdates = {selected:new Set(), draft:null};
 let modView = 'details';
@@ -21,6 +21,9 @@ modEl('mods-per-page').addEventListener('change', event => {
   drawModLibrary();
 });
 modEl('mods-search').addEventListener('input', () => { modLibrary.page = 1; drawModLibrary(); });
+modEl('mods-list').addEventListener('focusout', () => requestAnimationFrame(() => {
+  if (['recent','oldest','largest','smallest'].includes(modLibrary.sort) && !modEl('mods-list').contains(document.activeElement)) drawModLibrary();
+}));
 function updateModLibrary(mods) {
   const signature = JSON.stringify(mods);
   if (signature === modLibrary.signature) return;
@@ -29,6 +32,7 @@ function updateModLibrary(mods) {
   modEl('mods-count').textContent = `${mods.length} configured`;
   drawModLibrary();
   refreshModMetadata();
+  loadModAddedDates();
   renderModUpdates();
 }
 function modButton(text, action, className='') {
@@ -37,7 +41,19 @@ function modButton(text, action, className='') {
 function drawModLibrary() {
   const search = modEl('mods-search').value.trim().toLowerCase();
   let mods = modLibrary.mods.filter(m => `${m.name || ''} ${m.modId}`.toLowerCase().includes(search));
-  if (modLibrary.sort === 'name') mods = [...mods].sort((a,b) => (a.name || a.modId).localeCompare(b.name || b.modId));
+  const compareName = (a,b) => (a.name || a.modId).localeCompare(b.name || b.modId, undefined, {numeric:true,sensitivity:'base'});
+  const sort = modLibrary.sort;
+  if (sort === 'name' || sort === 'name-desc') mods.sort((a,b) => (sort === 'name' ? 1 : -1) * compareName(a,b));
+  if (['recent','oldest','largest','smallest'].includes(sort)) {
+    const value = mod => ['recent','oldest'].includes(sort) ? modLibrary.added[String(mod.modId).toUpperCase()] : modSize(mod);
+    const direction = ['recent','largest'].includes(sort) ? -1 : 1;
+    mods.sort((a,b) => {
+      const av = value(a), bv = value(b);
+      if (!Number.isFinite(av)) return Number.isFinite(bv) ? 1 : compareName(a,b);
+      if (!Number.isFinite(bv)) return -1;
+      return direction * (av-bv) || compareName(a,b);
+    });
+  }
   const pages = Math.max(1, Math.ceil(mods.length / modLibrary.size));
   modLibrary.page = Math.min(modLibrary.page, pages);
   const start = (modLibrary.page - 1) * modLibrary.size;
@@ -53,6 +69,8 @@ function drawModLibrary() {
     applyModMetadata(art,mod);
     const body = document.createElement('div'); body.className='mod-body';
     const title = document.createElement('h3'); title.textContent=mod.name || mod.modId; title.title=title.textContent;
+    const added = modLibrary.added[String(mod.modId).toUpperCase()];
+    if (Number.isFinite(added)) title.title += ' · Last added: ' + new Date(added * 1000).toLocaleString();
     const meta = document.createElement('div'); meta.className='mod-meta';
     const id = document.createElement('code'); id.textContent=mod.modId; id.title=mod.modId;
     const version = document.createElement('span'); version.className='mod-version'+(mod.version ? ' pinned' : ''); version.textContent=mod.version ? `Pinned · ${mod.version}` : 'Latest';
@@ -63,6 +81,11 @@ function drawModLibrary() {
     const link = document.createElement('a'); link.href='https://reforger.armaplatform.com/workshop/'+encodeURIComponent(mod.modId); link.target='_blank'; link.rel='noopener noreferrer'; link.innerHTML='<svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#external"></use></svg>'; link.setAttribute('aria-label',`View ${title.textContent} on Workshop`); controls.append(link);
     const remove = modButton('Remove', () => removeMod(mod.modId),'mod-remove'); remove.dataset.permission='mods'; controls.append(remove);
     body.append(title,meta,controls);
+    if (['recent','oldest'].includes(modLibrary.sort)) {
+      const date = document.createElement('small'); date.className='mod-added';
+      date.textContent = Number.isFinite(added) ? 'Added ' + new Date(added*1000).toLocaleString() : 'Added date unknown';
+      body.append(date);
+    }
     if (modLibrary.reorder && can('mods')) {
       const index = modLibrary.mods.indexOf(mod), moves=document.createElement('div'); moves.className='mod-move';
       const up=modButton('← Earlier',()=>moveConfiguredMod(mod.modId,-1)); up.disabled=index===0;
@@ -118,16 +141,37 @@ async function refreshModMetadata() {
     await Promise.all(ids.map(async id=>{try {const response=await fetch('/api/mods/metadata?modId='+encodeURIComponent(id));if(!response.ok)throw new Error();const data=await response.json();modLibrary.metadata.set(id,{...data,fetched:Date.now()});}catch(_){modLibrary.metadata.set(id,{status:'unavailable',fetched:Date.now()});}}));
     // Update only metadata nodes so focused controls survive background reads.
     document.querySelectorAll('#mods-list .mod-tile').forEach(card=>{const mod=modLibrary.mods.find(m=>m.modId===card.dataset.modId);if(mod)applyModMetadata(card.querySelector('.mod-art'),mod);});
+    if (['largest','smallest'].includes(modLibrary.sort) && !modEl('mods-list').contains(document.activeElement)) drawModLibrary();
     drawModTotal();
     renderModUpdates();
   }finally{modMetadataLoading=false;}
 }
 setInterval(()=>{if(!document.hidden)refreshModMetadata();},2000);
-function sortModLibrary(sort) {
-  modLibrary.sort=sort; modLibrary.page=1;
-  ['order','name'].forEach(s=>modEl('mods-sort-'+s).setAttribute('aria-pressed',String(s===sort)));
-  drawModLibrary();
+async function loadModAddedDates() {
+  try {
+    const data = await readJson(await fetch('/api/mods/added'));
+    modLibrary.added = data.added;
+    if (['recent','oldest'].includes(modLibrary.sort)) {
+      if (!modEl('mods-list').contains(document.activeElement)) drawModLibrary();
+      modEl('mods-sort-note').textContent = 'Addition dates come from panel history. Unknown dates appear last; hover a mod name for its recorded date.';
+    }
+  } catch (_) {
+    if (['recent','oldest'].includes(modLibrary.sort)) modEl('mods-sort-note').textContent = 'Addition history unavailable. Mods with unknown dates appear last.';
+  }
 }
+function sortModLibrary(sort) {
+  modLibrary.sort = ['order','name','name-desc','recent','oldest','largest','smallest'].includes(sort) ? sort : 'order';
+  modLibrary.page=1;
+  modEl('mods-sort').value=modLibrary.sort;
+  try { localStorage.setItem('mods-sort',modLibrary.sort); } catch (_) {}
+  modEl('mods-sort-note').textContent = ['recent','oldest'].includes(modLibrary.sort) ? 'Addition dates come from panel history. Unknown dates appear last; hover a mod name for its recorded date.' : ['largest','smallest'].includes(modLibrary.sort) ? 'Uses Workshop download estimates for configured versions. Unknown sizes appear last.' : '';
+  if (modLibrary.reorder && sort !== 'order') {
+    modLibrary.reorder=false;modEl('mods-reorder').setAttribute('aria-pressed','false');modEl('mods-reorder-help').hidden=true;
+  }
+  drawModLibrary();
+  if (['recent','oldest'].includes(modLibrary.sort)) loadModAddedDates();
+}
+try { sortModLibrary(localStorage.getItem('mods-sort') || 'order'); } catch (_) {}
 function toggleModReorder() {
   modLibrary.reorder=!modLibrary.reorder;
   modEl('mods-reorder').setAttribute('aria-pressed',String(modLibrary.reorder)); modEl('mods-reorder-help').hidden=!modLibrary.reorder;

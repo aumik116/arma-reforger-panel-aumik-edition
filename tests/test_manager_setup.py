@@ -14,6 +14,14 @@ class ManagerSetupTests(unittest.TestCase):
     login = test_panel.PanelTests.login
     post = test_panel.PanelTests.post
 
+    def test_manager_paths_require_a_selected_server(self):
+        for setting in ('SERVER_DIR', 'SERVER_CONFIG', 'LOG_DIR', 'PROFILE_DIR', 'WORKSHOP_DIR', '_SCAN_CACHE_FILE'):
+            with self.subTest(setting=setting), self.assertRaises(self.module.ConfigReadError):
+                str(getattr(self.module, setting))
+        with patch('server_software.shutil.which', return_value=None), \
+             patch('server_software.os.path.isfile', return_value=False):
+            self.assertIsNone(self.module.software_manager.executable())
+
     def test_empty_manager_does_not_invent_legacy_server(self):
         self.config.unlink()
         response = self.admin.get('/')
@@ -55,6 +63,9 @@ class ManagerSetupTests(unittest.TestCase):
             response = self.post(self.admin, '/api/servers', payload)
             self.assertEqual(response.status_code, 202, response.json)
         server = self.module.server_registry.get('first')
+        options = json.loads((server.directory / '.provision-options.json').read_text())
+        self.assertEqual(options['seed_directory'], '')
+        self.assertEqual(options['seed_state_directory'], '')
         self.assertEqual(json.loads(server.paths['config'].read_text())['publicAddress'], '203.0.113.42')
         self.assertEqual(server.game_port, 2001)
         launch.assert_called_once()

@@ -277,8 +277,8 @@ def install(api):
             if data.get('copy_from') is not None and not isinstance(data['copy_from'], str):
                 raise ValueError('Source server must be a server ID')
             source = None
-            seed_directory = str(api.SERVER_DIR)
-            seed_state_directory = api._BASE_DIR
+            seed_directory = '' if api.manager_mode else str(api.SERVER_DIR)
+            seed_state_directory = '' if api.manager_mode else api._BASE_DIR
             if data.get('copy_from'):
                 if not api.server_permissions(g.user, data['copy_from']):
                     return jsonify(ok=False,error='You do not have access to the source server'),403
@@ -293,7 +293,7 @@ def install(api):
                     source = json.loads(origin.paths['config'].read_text())
                     seed_directory = str(origin.paths['server'])
                     seed_state_directory = str(origin.directory)
-            if not (Path(seed_directory) / 'ArmaReforgerServer').is_file():
+            if not seed_directory or not (Path(seed_directory) / 'ArmaReforgerServer').is_file():
                 for origin in registry.list():
                     if origin.state == 'ready' and (origin.paths['server'] / 'ArmaReforgerServer').is_file():
                         seed_directory, seed_state_directory = str(origin.paths['server']), str(origin.directory)

@@ -1,19 +1,27 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
 
   :root {
     --bg:        #0a0c0f;
     --surface:   #111418;
     --surface2:  #161b22;
-    --border:    #1e2530;
+    --border:    #2d2b25;
     --accent:    #c8a84b;
     --accent2:   #e8c96a;
     --text:      #d4cfc6;
-    --muted:     #5a6070;
+    --muted:     #99958a;
     --online:    #4caf7d;
     --offline:   #d64c4c;
     --warn:      #e0913a;
     --cpu-color: #4c9fd6;
     --ram-color: #c8a84b;
+    --accent-soft: #2b2619;
+    --accent-border: #625535;
+    --chrome: #101216;
+    --heading: #f4f0e5;
+    --console-bg: #0c0e11;
+    --chart-grid: #2d2b25;
+    color-scheme: dark;
   }
 
   body {
@@ -23,17 +31,6 @@
     min-height: 100vh;
   }
 
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(200,168,75,0.02) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(200,168,75,0.02) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
-  }
 
   .layout {
     position: relative;

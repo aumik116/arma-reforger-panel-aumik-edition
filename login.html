@@ -1,102 +1,42 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Arma Reforger — Panel Login</title>
-<link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#c8a84b">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Arma Panel">
-<link rel="apple-touch-icon" href="/static/icon-192.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
-<style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-:root {
-  --bg: #0a0c0f; --surface: #111418; --border: #1e2530;
-  --accent: #c8a84b; --accent2: #e8c96a;
-  --text: #d4cfc6; --muted: #5a6070; --offline: #d64c4c;
-}
-body {
-  background: var(--bg); color: var(--text);
-  font-family: 'Barlow', sans-serif;
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  padding: 20px;
-}
-body::before {
-  content: ''; position: fixed; inset: 0;
-  background-image:
-    linear-gradient(rgba(200,168,75,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(200,168,75,0.03) 1px, transparent 1px);
-  background-size: 40px 40px; pointer-events: none;
-}
-.login-box {
-  position: relative; width: 100%; max-width: 380px;
-  background: var(--surface); border: 1px solid var(--border);
-  padding: 40px 36px;
-  clip-path: polygon(0 0, calc(100% - 28px) 0, 100% 28px, 100% 100%, 0 100%);
-  animation: fadeUp 0.5s ease both;
-}
-.corner { position: absolute; top: 0; right: 0; width: 28px; height: 28px; background: var(--accent); clip-path: polygon(100% 0, 0 0, 100% 100%); }
-.tag { font-size: 10px; font-weight: 600; letter-spacing: 0.35em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
-h1 { font-family: 'Barlow Condensed', sans-serif; font-weight: 900; font-size: 36px; letter-spacing: 0.08em; color: #fff; line-height: 1; margin-bottom: 32px; }
-h1 span { color: var(--accent); }
-.field { margin-bottom: 20px; }
-.field label { display: block; font-size: 10px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
-.field input { width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text); font-family: 'Barlow', sans-serif; font-size: 14px; padding: 11px 14px; outline: none; transition: border-color 0.2s; }
-.field input:focus { border-color: var(--accent); }
-.btn { width: 100%; background: var(--accent); border: none; color: #0a0c0f; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 14px; letter-spacing: 0.25em; text-transform: uppercase; padding: 13px; cursor: pointer; clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%); transition: background 0.2s; }
-.btn:hover { background: var(--accent2); }
-.error { margin-top: 12px; font-size: 12px; color: var(--offline); text-align: center; min-height: 18px; }
-@keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Arma Reforger — Panel Login</title>
+  <script src="/static/theme.js"></script>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#c8a84b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Arma Panel">
+  <link rel="apple-touch-icon" href="/static/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/base.css">
+  <link rel="stylesheet" href="/static/themes.css">
+  <link rel="stylesheet" href="/static/login.css">
 </head>
-<body>
-<div class="login-box">
-  <div class="corner"></div>
-  <div class="tag">&#9632; Server Management Panel</div>
-  <h1>ARMA <span>REFORGER</span></h1>
-  <div class="field">
-    <label for="username">Username</label>
-    <input type="text" id="username" autocomplete="username" placeholder="admin" autofocus
-           onkeydown="if(event.key==='Enter')doLogin()" />
-  </div>
-  <div class="field">
-    <label for="pwd">Password</label>
-    <input type="password" id="pwd" placeholder="Enter password..."
-           onkeydown="if(event.key==='Enter')doLogin()" autocomplete="current-password" />
-  </div>
-  <button class="btn" onclick="doLogin()">Login ↗</button>
-  <div class="error" id="err"></div>
-</div>
-<script>
-async function doLogin() {
-  const pwd = document.getElementById('pwd').value;
-  const err = document.getElementById('err');
-  const btn = document.querySelector('.btn');
-  if (btn) btn.disabled = true;
-  try {
-    const r = await fetch('/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: document.getElementById('username').value.trim(), password: pwd })
-    });
-    if (r.ok) { window.location.href = '/'; return; }
-    let msg = 'Invalid username or password';
-    if (r.status === 429) msg = 'Too many attempts — wait a minute and retry';
-    try { const d = await r.json(); if (d && d.error) msg = d.error; } catch(e) {}
-    err.textContent = msg;
-    document.getElementById('pwd').style.borderColor = '#d64c4c';
-    setTimeout(() => { err.textContent = ''; document.getElementById('pwd').style.borderColor = ''; }, 2500);
-  } catch(e) {
-    err.textContent = 'Could not connect. Please try again.';
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/service-worker.js').catch(() => {});
-</script>
+<body class="login-page" data-login-page>
+  <main class="login-box" aria-labelledby="login-title">
+    <div class="login-corner" aria-hidden="true"></div>
+    <p class="login-tag">&#9632; Server Management Panel</p>
+    <h1 id="login-title">ARMA <span>REFORGER</span></h1>
+    <form id="login-form" method="post" action="/login" aria-describedby="login-error">
+      <div class="field">
+        <label for="username">Username</label>
+        <input id="username" name="username" autocomplete="username" placeholder="admin" required autofocus>
+      </div>
+      <div class="field">
+        <label for="pwd">Password</label>
+        <input id="pwd" name="password" type="password" autocomplete="current-password" placeholder="Enter password…" required>
+      </div>
+      <button class="login-submit" type="submit">Sign in</button>
+      <p class="login-error" id="login-error" role="alert" hidden></p>
+    </form>
+    <noscript>Enable JavaScript to sign in to the panel.</noscript>
+  </main>
+  <script src="/static/login.js"></script>
+  <script src="/static/pwa.js"></script>
 </body>
 </html>

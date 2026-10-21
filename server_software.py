@@ -71,7 +71,9 @@ class SoftwareManager:
 
     def executable(self):
         configured = self.api._cfg.get('STEAMCMD_PATH')
-        candidates = [configured] if configured else [str(Path(self.api.SERVER_DIR).parent / 'steamcmd' / 'steamcmd.sh'), shutil.which('steamcmd'), '/usr/games/steamcmd']
+        candidates = [configured] if configured else [shutil.which('steamcmd'), '/usr/games/steamcmd']
+        if not configured and (not getattr(self.api, 'manager_mode', False) or self.api.selected_instance()):
+            candidates.insert(0, str(Path(self.api.SERVER_DIR).parent / 'steamcmd' / 'steamcmd.sh'))
         return next((p for p in candidates if p and os.path.isfile(p) and os.access(p, os.X_OK)), None)
 
     def acquire(self):

@@ -1,4 +1,6 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Server setup</title><script src="/static/theme.js"></script><link rel="stylesheet" href="/static/base.css"><link rel="stylesheet" href="/static/workspace.css"><link rel="stylesheet" href="/static/sharp.css"><link rel="stylesheet" href="/static/themes.css"><link rel="stylesheet" href="/static/instances.css"><link rel="stylesheet" href="/static/setup.css"><link rel="stylesheet" href="/static/ux.css">
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Server setup</title><script src="/static/theme.js"></script>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#c8a84b"><link rel="stylesheet" href="/static/base.css"><link rel="stylesheet" href="/static/workspace.css"><link rel="stylesheet" href="/static/sharp.css"><link rel="stylesheet" href="/static/themes.css"><link rel="stylesheet" href="/static/instances.css"><link rel="stylesheet" href="/static/setup.css"><link rel="stylesheet" href="/static/ux.css">
 </head><body data-setup-page><main><a href="/servers" style="color:var(--accent)">← All servers</a><h1>Create a server</h1><p>Start from defaults or copy settings from a managed server.</p><select id="instance-switcher" hidden></select><button id="manage-instances" hidden>Servers</button><dialog id="instances-dialog" class="instances-dialog" open>
   <div class="card-label">Servers on this VM</div><button type="button" class="btn-logout" id="close-instances" hidden>Close</button>
   <div id="instance-list" class="instance-list" role="status"></div>
@@ -16,4 +18,4 @@
       <div class="field"><label for="instance-rcon-port">RCON UDP port</label><input id="instance-rcon-port" name="rcon_port" type="number" min="1024" max="65535"></div>
     </details><button class="btn-save" type="submit">Create and start server</button>
   </form><p id="instance-result" class="feature-note" role="status"></p><pre id="instance-job-output" class="instance-job-output" hidden></pre>
-</dialog></main><script src="/static/api.js"></script><script src="/static/instances.js"></script></body></html>
+</dialog></main><script src="/static/api.js"></script><script src="/static/instances.js"></script><script src="/static/pwa.js"></script></body></html>

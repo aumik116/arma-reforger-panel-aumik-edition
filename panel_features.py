@@ -234,7 +234,10 @@ def install(api):
             g.mutation_lock = held_lock
             if request.endpoint in {"api_start", "api_restart"} and api.software_manager.busy():
                 return jsonify(ok=False, error="Wait for the server software job to finish before starting or restarting."), 409
-            g.audit_server_config = request.endpoint not in api.PANEL_WIDE_ENDPOINTS and request.endpoint not in getattr(api, 'PROVISIONING_ENDPOINTS', set()) and request.endpoint not in {'notifications_save','notifications_test'}
+            # Stopping a broken server must not require readable configuration.
+            g.audit_server_config = (request.endpoint not in api.PANEL_WIDE_ENDPOINTS
+                and request.endpoint not in getattr(api, 'PROVISIONING_ENDPOINTS', set())
+                and request.endpoint not in {'notifications_save','notifications_test','api_stop'})
             g.before_config = api.read_config() if g.audit_server_config else {}
             g.audit_actor = user["username"]
             g.audit_details = {}

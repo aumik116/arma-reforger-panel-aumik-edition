@@ -20,12 +20,4 @@ fetchMetrics();
 startLogStream();
 fetchStatus().then(() => { fetchPersistence(); startCountdown(); });
 
-// PWA — service worker registration
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .catch(err => console.log('SW error:', err));
-  });
-}
-
 loadNotifications();

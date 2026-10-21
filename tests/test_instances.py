@@ -63,11 +63,13 @@ class InstanceTests(unittest.TestCase):
             with self.module.app.test_request_context('/api/status'):
                 g.server_instance = server
                 self.module._LAST_SCAN_RESULT['scenarios'] = [server.id]
+                self.module._scan_cache_save({server.id: []}, {server.id: 1})
                 barrier.wait(timeout=5)
                 return (self.module.read_config()['game']['name'],
                         list(self.module._LAST_SCAN_RESULT['scenarios']),
                         str(self.module._SCAN_CACHE_FILE),
-                        str(self.module.software_manager.path))
+                        str(self.module.software_manager.path),
+                        list(self.module._scan_cache_load()[0]))
         with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
             results = list(pool.map(read, servers))
         for server, result in zip(servers, results):
@@ -75,6 +77,48 @@ class InstanceTests(unittest.TestCase):
             self.assertEqual(result[1], [server.id])
             self.assertEqual(Path(result[2]).parent, server.directory)
             self.assertEqual(Path(result[3]).parent, server.directory)
+            self.assertEqual(result[4], [server.id])
+
+    def test_mods_logs_and_config_requests_keep_their_server_target(self):
+        first, second = self.instance('first'), self.instance('second')
+        legacy = self.config.read_text()
+        for server, mod_id in ((first, 'AAAA'), (second, 'BBBB')):
+            config = json.loads(server.paths['config'].read_text())
+            config['game']['mods'] = [{'modId':mod_id, 'name':server.id}]
+            server.paths['config'].write_text(json.dumps(config))
+            (server.paths['logs'] / 'console.log').write_text(server.id + '\n')
+        for server in (first, second, first):
+            headers = {'X-Server-ID':server.id}
+            logs = self.admin.get('/api/logs', headers=headers)
+            self.assertEqual(logs.status_code, 200, logs.json)
+            self.assertEqual(logs.json['lines'], [server.id])
+            config = self.admin.get('/api/config/editor', headers=headers)
+            self.assertEqual(config.json['config']['game']['name'], server.id)
+            self.assertEqual(config.json['config']['game']['mods'][0]['name'], server.id)
+        csrf = self.admin.get('/api/csrf').json['csrf']
+        added = self.admin.post('/api/mods/add', json={'modId':'DDDD', 'name':'Only first'},
+            headers={'X-Server-ID':'first', 'X-CSRF-Token':csrf})
+        self.assertTrue(added.json['ok'], added.json)
+        self.assertEqual(len(json.loads(first.paths['config'].read_text())['game']['mods']), 2)
+        self.assertEqual(len(json.loads(second.paths['config'].read_text())['game']['mods']), 1)
+        self.assertEqual(self.config.read_text(), legacy)
+
+    def test_stopping_does_not_depend_on_readable_configuration(self):
+        server = self.instance('broken')
+        self.config.write_text('{broken')
+        server.paths['config'].write_text('{broken')
+        csrf = self.admin.get('/api/csrf').json['csrf']
+        for server_id in ('', server.id):
+            headers = {'X-Server-ID':server_id, 'X-CSRF-Token':csrf}
+            with patch.object(self.module, 'stop_server') as stop:
+                response = self.admin.post('/api/stop', json={}, headers=headers)
+                self.assertEqual(response.status_code, 200, response.json)
+                self.assertEqual(response.json['server_id'], server_id)
+                stop.assert_called_once()
+            with patch.object(self.module, 'start_server') as start:
+                response = self.admin.post('/api/start', json={}, headers=headers)
+                self.assertEqual(response.status_code, 503, response.json)
+                start.assert_not_called()
 
     def test_service_commands_target_selected_unit(self):
         server = self.instance('first')

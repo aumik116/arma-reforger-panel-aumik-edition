@@ -12,7 +12,7 @@
 .dashboard-heading .stat-item .label{font-size:9px}.dashboard-heading .status-indicator{order:1}
 .dashboard-heading .status-row>.stat-item:nth-of-type(3){order:-1}
 .dashboard-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:18px}
-.dashboard-summary .card{margin:0;padding:18px 22px}.dashboard-summary .chart-value{font-size:27px;color:var(--heading);margin:9px 0 5px}
+.dashboard-summary .card{margin:0;padding:15px 20px}.dashboard-summary .chart-value{font-size:24px;color:var(--heading);margin:9px 0 5px}
 .dashboard-columns{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:18px;align-items:start}
 .dashboard-performance,.dashboard-live{display:grid;gap:18px;min-width:0}
 .dashboard-columns :is(.card,.chart-card,.log-viewer-card){margin:0}
@@ -30,6 +30,5 @@
 .dashboard-diagnostics>summary span{display:block;margin:5px 0 0 16px;font-size:11px;color:var(--muted)}
 .dashboard-diagnostics-content{display:grid;gap:18px;margin-top:18px}
 .metric-explanation{margin-top:12px;color:var(--muted);font-size:11px}.metric-explanation summary{cursor:pointer}
-.dashboard-summary .card{padding:15px 20px}.dashboard-summary .chart-value{font-size:24px}
 @media(max-width:1050px){.dashboard-columns{grid-template-columns:minmax(0,1fr)}.dashboard-live{grid-row:1}.dashboard-summary{gap:10px}.dashboard-summary .card{padding:16px}}
 @media(max-width:700px){.dashboard-summary{grid-template-columns:minmax(0,1fr)}.dashboard-heading .controls-grid{width:100%}.dashboard-live #log-output{height:280px}}

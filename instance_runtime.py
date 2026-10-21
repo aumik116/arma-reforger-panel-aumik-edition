@@ -65,11 +65,18 @@ def install(api):
         with state_lock:
             states.pop(server_id, None)
     api.clear_instance_state = clear_state
+    def server_path(path, default):
+        instance = selected()
+        if instance:
+            return str(instance.paths[path] if path else instance.directory)
+        if api.manager_mode:
+            raise api.ConfigReadError('Select a managed server before accessing its files')
+        return default
+
     for setting, path in [('SERVER_DIR', 'server'), ('SERVER_CONFIG', 'config'),
                           ('LOG_DIR', 'logs'), ('PROFILE_DIR', 'profile'), ('WORKSHOP_DIR', 'workshop')]:
         default = getattr(api, setting)
-        setattr(api, setting, ScopedPath(lambda path=path, default=default:
-            str(selected().paths[path]) if selected() else default))
+        setattr(api, setting, ScopedPath(lambda path=path, default=default: server_path(path, default)))
     api._STATE_DIR = ScopedPath(lambda: str(selected().directory) if selected() else api._BASE_DIR)
 
     def settings():
@@ -85,7 +92,7 @@ def install(api):
         return result
 
     api._cfg = LocalProxy(settings)
-    api._SCAN_CACHE_FILE = ScopedPath(lambda: str(Path(api._STATE_DIR) / '.scenario-cache.json'))
+    api._SCAN_CACHE_FILE = ScopedPath(lambda: str(Path(server_path(None, api._BASE_DIR)) / '.scenario-cache.json'))
     for key, factory in [('_SCAN_LOCK', threading.Lock),
                          ('_LAST_SCAN_RESULT', lambda: {'scenarios': [], 'diag': None, 'ts': 0.0}),
                          ('_process_metrics', api.ProcessMetrics), ('_traffic_metrics', api.TrafficMetrics),

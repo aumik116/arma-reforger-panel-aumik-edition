@@ -1,24 +1,7 @@
-const CACHE_NAME = 'arma-panel-v2';
-
-// Do not cache on installation; panel data must remain live
-self.addEventListener('install', event => {
-  self.skipWaiting();
-});
-
+// Panel requests always use the network, including after an application update.
+self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
 self.addEventListener('activate', event => {
-  event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.map(key => caches.delete(key)))
-    )
-  );
-  self.clients.claim();
-});
-
-// Always use the network for current panel data
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    fetch(event.request).catch(() =>
-      caches.match(event.request)
-    )
-  );
+  event.waitUntil(caches.keys()
+    .then(keys => Promise.all(keys.filter(key => key.startsWith('arma-panel-')).map(key => caches.delete(key))))
+    .then(() => self.clients.claim()));
 });

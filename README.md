@@ -1,23 +1,12 @@
 # Arma Reforger Server Management Panel
 
-A self-hosted web panel for multiple Arma Reforger dedicated servers on one Linux VM.
+Manage multiple Arma Reforger dedicated servers on one Ubuntu VM: mods, performance, players, configuration, files and scheduled operations.
 
-## What it does
+The current development branch is **`multi-server-manager`**. Fresh Ubuntu installation, Steam downloads and systemd game startup still need real VM verification. Remote nodes are not supported yet.
 
-- Start, stop and restart the server; monitor CPU, RAM, FPS, players, AI, vehicles, network and disk activity.
-- View and filter live logs, use RCON, and inspect network listeners.
-- Edit server settings through grouped controls or inspect the raw JSON draft.
-- Manage Workshop mods, version pins, load order and scenario-plus-mod presets. Review current Workshop releases before changing pins.
-- Manage profile files with uploads, folders, rename, recoverable Trash and text editing with diff review and automatic backups. Workshop, game files, logs and the main server config are read-only.
-- Manage panel accounts and view an activity history.
+## Fresh installation
 
-Game configuration and mod changes take effect after a game-server restart. The panel does not restart the game automatically when you save them.
-
-## Install
-
-Use an x86_64 Ubuntu server with Python 3.10 or newer. The installer sets up the panel's dependencies.
-
-For a new manager installation:
+Use **Ubuntu 24.04, x86_64**, a sudo account and enough disk space for each server's game files, mods and saves. The installer installs Python dependencies and prepares SteamCMD.
 
 ```bash
 git clone --branch multi-server-manager https://github.com/aumik116/arma-reforger-panel-aumik-edition.git
@@ -25,207 +14,101 @@ cd arma-reforger-panel-aumik-edition
 sudo bash install.sh
 ```
 
-Fresh installation prepares the panel and SteamCMD only. Sign in as `admin` and create your first server in the browser; it starts automatically after installation. Additional servers can start from defaults or copy a managed server’s settings and mods. Set Public IPv4 address when automatic detection is unsuitable behind NAT. Firewall and router rules remain your responsibility. `--panel-only` is an alias for this installation flow. Existing installations should use `--update`, which retains their settings and servers.
+1. Choose the service user, panel password and panel TCP port. The defaults are `arma` and port `8888`.
+2. Open `http://YOUR_VM_IP:8888` and sign in as **admin** with that password.
+3. From **All servers**, choose **Create server**. Review the name, permanent server ID, player limit, FPS cap and ports.
+4. Watch provisioning finish. SteamCMD downloads and validates the game; the new server then starts automatically.
 
-Open `http://YOUR_SERVER_IP:8888`, or the port chosen during installation. Sign in as `admin` with the password you set in the installer.
+The installer creates the panel first. It does not download a game server until you create one in the browser. `--panel-only` is an alias for this fresh installation flow.
 
-## Per-server staff access
+Additional servers can start from defaults or copy a managed server's settings and mod selections. Passwords and saves are not copied. Existing local game files can be reused before Steam validation; each server still has its own files, ports, profile and service.
 
-New accounts start with no server access. In Administration, edit an account and
-assign Viewer, Operator, Manager or Server administrator separately for each
-server. Unassigned servers are hidden and their APIs reject access. Server
-administrator does not grant panel account-management rights. Panel access is a
-separate Staff / Panel administrator choice. The normal form assigns roles to
-named servers; all-server defaults are under Advanced, and a summary describes
-the resulting access before saving. The Owner remains
-protected. Existing accounts keep their previous all-server access on upgrade;
-turn that option off to restrict them to explicit assignments. Access changes
-invalidate existing sessions, and scheduled jobs recheck their owner's access.
-Older panel versions do not enforce these assignments: do not downgrade to an
-older build while relying on server restrictions.
+**Public IPv4 address:** leave blank for automatic detection, or enter the address players should use. For LAN-only testing, use the VM's private IPv4 address. Advertising an address does not configure NAT or prove internet connectivity.
 
-## Server overview
+## Update an existing installation
 
-After signing in, `/servers` lists all servers on this VM with process CPU,
-resident memory, uptime and available player counts. Start, stop, restart and
-open a server from its row. Failed installations link to setup for progress and
-retry. Unavailable readings stay marked unavailable; the overview refreshes every
-10 seconds. Existing unmanaged servers remain accessible through their own row.
-
-Start, stop and restart apply to the server shown in the overview row or
-dashboard. Stop and restart ask for confirmation, and repeated clicks are
-blocked while an action is running. Failed actions display the server's error; unavailable status disables
-the dashboard controls until a successful refresh. Manager installations never
-fall back to the legacy server service when no server is selected.
-
-## Everyday use
-
-The dashboard places status and controls above summary cards, with performance
-charts on the left and players/console on the right. The square controls and
-original amber palette remain the default. Open **Appearance** in the sidebar
-to choose Original, Ocean, Forest, or Light. The preference is saved to your
-account and applies across servers; it does not change another user's theme.
-
-All original sidebar workspaces remain directly accessible. The dashboard prioritizes
-simulation FPS and places host memory, disk activity and latency under **More
-performance details**. Configuration uses compact cards, with player name labels
-under an expandable section. The Mods toolbar keeps search and adding mods visible;
-**View & order** contains display and sorting controls.
-
-**Dashboard** shows server controls, live metrics and the current player list. Network rates are host-wide and may include other services. Player names and IDs need working RCON; FPS and AI/vehicle counts come from game logs.
-
-**Players** adds live search, identity copying and per-server player history. The Linux panel service samples running servers every 30 seconds even with the browser closed; dashboard queries also update history. First/last observed timestamps describe panel observations, not exact connection/disconnection times, and short connections between samples may be missed. History starts when this version is installed. Administrators can grant or remove in-game access here; a game-server restart applies those changes. Existing game-admin controls remain in Server config.
-
-**Startup** lets administrators save an FPS cap (0 disables it) for managed servers or the original server. It shows launch paths, process/build status and recent output. Changes apply on the next game-server start; startup settings are stored in the panel database, without rewriting `config.env`. The original Servers dialog's FPS control still works.
-
-**Scheduler** supports one-off jobs, custom intervals of 1–720 hours, and daily/weekly jobs following the VM’s local server clock. Enter the first run in server time; the panel does not convert it using your browser timezone. Calendar jobs keep their server-local time; nonexistent daylight-saving times are skipped, and repeated times run once. Schedules can be edited, paused and resumed. Run history supports outcome/name filters, pagination and preparing a one-off retry. Editing a schedule preserves the names/actions recorded by prior runs. Existing warning and missed-run protections remain in place. Schedules belong to the selected server; no default jobs are created.
-
-The installed Linux `app.py` service runs the scheduler; it must stay active, but the browser can be closed. A file lock prevents duplicate scheduler loops and database claims prevent replaying a run. Jobs more than 90 seconds late fail instead of catching up; work interrupted by a panel restart is recorded as interrupted. Pause/removal affects future runs and does not cancel an update already in progress. Removing a managed server disables its schedules, and each execution rechecks its creator's administrator access.
-
-Scheduled restarts, stops and game updates warn at 5 minutes and 1 minute using Server Admin Tools `#message` over admin RCON. A running server's run is skipped if either warning failed/missed or its process changed. Restarts leave stopped servers stopped. Successful updates restart only servers that were running beforehand; failed/interrupted updates leave them stopped for review. **Configuration backup** copies only the server JSON into the existing backup library (20 versions); world saves are not included. Scheduler and run history, player history and startup caps persist in `.panel-data.sqlite3`; include that database in your VM backups.
-
-**Server config** lets you edit settings, select a scenario by name, validate changes and save. `Use default` removes an explicit value. The Raw JSON view shows the current draft, including unsaved edits. Restart the game server to apply saved changes.
-
-**Mods** supports adding mods, importing or exporting JSON lists, reordering, and saving scenario-plus-mod presets. Existing mod-only presets still work. The Updates tab compares pinned versions with the current Workshop release; select changes, review them, then save. Unpinned mods already use the latest release. Workshop metadata may be cached for up to one hour.
-
-**Configuration backups** are created before panel-managed server JSON changes. Administrators can review and restore the latest 20 versions in **Administration → Maintenance**. Backups live in `.panel-config-backups` beside the server JSON; they include passwords but not game saves. Restoring also backs up the current JSON.
-
-**Mods → Compare lists** compares your configured mods with an ArmaHQ server or pasted mod JSON. Search a name/address or paste a server URL. Missing mods, extras and version differences have individual checkboxes; review and apply only the changes you want. ArmaHQ data may lag behind the live server. Restart the game server after changing mods.
-
-**Persistence** has Settings, Save points and Named backups tabs. Save selection and named backups are marked WIP pending production verification. It shows the game's save settings and detected session save points. After an autosave, you can keep a named backup and select a save point to load on every server start; the panel preserves a copy outside the game's normal save retention. Startup selections are remembered per scenario. The selected scenario must support persistence; an autosave interval alone does not mean a save was written. Stop the game server and clear its pinned startup save before using **Flush saves**.
-
-**Files** is available to Administrators assigned to the selected server. Browse Profile, Workshop, Game files, Logs, Backups and Server config. Profile supports file and folder uploads (50 MiB per file), new folders/text files, rename and deletion to recoverable Trash. Upload folder preserves the selected folder name and nested paths inside the currently open profile folder. Existing directories are merged; conflicting files are skipped and reported, while remaining files continue. Empty folders are omitted by the browser. Uploads are applied per file, so completed files and created folders remain after a partial failure; retrying skips completed files. Browsers without directory selection can still upload individual files. Existing names are never overwritten; rename or move the existing item to Trash first. Regular files can be downloaded, while supported UTF-8 text files can be edited with diff review and automatic backups. Backups are available in the read-only Backups location. Trash retains deleted files and folders on disk until restored; restore the parent folder first, and rename any conflicting destination before restoring. Links and paths outside the selected location are refused. Workshop, game files, logs, backups and the main server config are read-only; use Server config for validated server settings. File operations do not reload a mod or restart the game.
-
-**Console** filters recent logs and exports the visible lines. Connect, Disconnect, Kill and Chat are event filters; Hide RCON removes RCON lines from the log view. RCON shortcuts fill the command box for review; press Enter or Execute to send. Broadcast requires the Server Admin Tools mod.
-
-## RCON and accounts
-
-Set up RCON in **Server config → Remote console**. Bind it to `127.0.0.1`, choose a private UDP port and a unique password, then restart the game server. Allow `#players` if you use a command whitelist. To send commands from the panel, set the game's RCON permission to `admin`. Keep the RCON port off the public internet.
-
-The panel supports Viewer, Operator, Manager and Administrator accounts. Operators can control the server and read logs. Managers can also change gameplay settings and mods. Administrators manage infrastructure settings, files and accounts. Other Administrators cannot change the original Owner account. Every user can change their own password in **Administration**.
-
-## Update
-
-From the repository checkout:
+Run these commands inside your repository checkout:
 
 ```bash
+git fetch origin
+git switch multi-server-manager
 git pull --ff-only
 sudo bash install.sh --update
 ```
 
-This updates panel files and restarts the panel service. It keeps `config.env`, accounts, presets and activity history. It does not restart the game server.
+Pulling `main` does not install changes from `multi-server-manager`. If Git says it is already up to date, check `git status --short --branch` and `git log -1 --oneline`.
 
-Before updating production, take a VM backup or snapshot and wait for installations and game updates to finish. The updater saves installed panel files and affected service settings in a private `/var/backups/arma-panel/update-*` directory. If copying, service configuration, or the panel restart fails, it restores those files and attempts to restart the previous panel. The update still exits with an error so the failure is visible. This checks service activity, not game connectivity.
+The update preserves accounts, settings, existing servers and legacy server access. It restarts the panel service; it does not deliberately restart the game servers. Wait for provisioning and software jobs to finish before updating.
 
-Each recovery directory also contains a consistent `panel-data.sqlite3` backup when the database exists. Automatic rollback keeps the live database and game saves; restoring a database is a separate manual recovery step. Keep your VM backup for a full rollback, especially across database schema changes. Recovery snapshots contain secrets: keep them private.
+Updates create recovery snapshots under `/var/backups/arma-panel/`. A failed update attempts to restore panel files and service settings. Automatic rollback does not rewind the live database or game saves. Take a VM backup before production updates; see [backup and recovery](docs/operations.md#backup-and-recovery).
 
-Port allocation reserves the original server's configured ports even while it is stopped. Changes to managed servers' ports through the panel update their reservations and reject conflicts with other servers. Restart the affected game server after editing ports, and adjust your own firewall/forwarding rules.
+## Find your tools
 
-To update the **game server**, stop it first, then use **Server config → Server software**. The panel runs SteamCMD and leaves the game stopped afterward; start it once you have checked the result. The panel service account needs write access to the game and SteamCMD directories.
+**All servers** shows the fleet overview. Open a server or use the selector at the **top of the sidebar** to switch. Switching reloads the workspace and clears its previous drafts and console cursor.
 
-## Files and service commands
+| Workspace | What you use it for |
+| --- | --- |
+| Dashboard | Start, stop, restart, performance charts, players and notifications |
+| Console | Search/filter logs, export output and send RCON commands |
+| Startup | FPS cap, launch options, CPU/memory limits and diagnostics |
+| Players | Live roster, observed player history, game admins and moderation |
+| Scheduler | Starts, warned stops/restarts, updates, broadcasts and config backups |
+| Persistence | Save settings, detected save points and named backups |
+| Server config | Validated settings, scenario selection and a raw JSON draft |
+| Mods | Workshop browsing, dependencies, version pins, presets and list comparisons |
+| Files | Profile uploads, text editing, downloads and recoverable Trash |
+| Network | Listeners, ports, network settings and host traffic |
+| Administration | Staff access, activity, Discord notifications and maintenance |
 
-`config.env` holds panel settings and paths, including `PANEL_PORT`, `SERVER_DIR`, `SERVER_CONFIG`, `LOG_DIR` and `STEAMCMD_PATH`. Restart `arma-panel` after editing it. Back up `config.env`, the game config, `.panel-data.sqlite3`, `.panel-secret`, `.panel-save-selection.json`, `.panel-save-archives` and the game profile. Keep these backups private; stop the panel while copying its database.
+**Account settings** is a separate page for your password and theme. Original, Ocean, Forest and Light themes are available; the login page uses the last theme remembered by that browser.
+
+Stop and restart ask for confirmation. Controls block repeated clicks while an action runs and show failures. Unavailable status is distinct from a stopped server.
+
+For limits, advanced settings and workflow details, use the [operations guide](docs/operations.md).
+
+## Staff access and networking
+
+New staff accounts have no server access until assigned. In **Administration → Accounts**, grant Viewer, Operator, Manager or Server administrator separately for each server. Panel administrator access controls account management and is separate from server roles. Existing accounts retain their prior access on upgrade. The original Owner account remains protected.
+
+Set up RCON in **Server config → Remote console**. Use a unique password and keep it on loopback or a private network. Admin RCON is required for panel commands and moderation; scheduled warnings and broadcasts also require the Server Admin Tools mod. **Do not forward RCON publicly.**
+
+The panel does not configure UFW, firewall rules, router forwarding or NAT. Configure the panel's TCP port and each server's game/query UDP ports yourself. For remote panel access, use an HTTPS reverse proxy. Check your current forwarding targets when troubleshooting a join failure.
+
+## Service checks and Owner recovery
+
+For the panel and a managed server with ID `training`:
 
 ```bash
-sudo systemctl status arma-panel
-sudo journalctl -u arma-panel -n 50 --no-pager
-sudo systemctl status arma-server
-sudo journalctl -u arma-server -n 50 --no-pager
+sudo systemctl status arma-panel.service
+sudo journalctl -u arma-panel.service -n 50 --no-pager
+sudo systemctl status arma-server@training.service
+sudo journalctl -u arma-server@training.service -n 50 --no-pager
 ```
 
-For internet access, put the panel behind an HTTPS reverse proxy. If players are unavailable, check the RCON listener, password, permission, whitelist and any `RCON_*` overrides in `config.env`. If a configuration change has no effect, restart the game server and check its log.
+Replace `training` with your server ID. An upgraded unmanaged installation uses `arma-server.service` instead.
 
-For game settings, see [Bohemia's server configuration reference](https://community.bistudio.com/wiki/Arma_Reforger:Server_Config).
+To recover a forgotten Owner password, run this from an up-to-date checkout on the VM:
 
-## Multiple servers on one VM
+```bash
+sudo bash install.sh --reset-owner-password
+```
 
-Local multi-server support is under development. Create Server is implemented
-and covered by simulated tests; a complete Ubuntu VM run has not yet been
-verified. The existing interface styling is retained.
+It prompts for a new password and invalidates the Owner's existing sessions. It requires local sudo access; the old password is not needed.
 
-Run the current installer (or `sudo bash install.sh --update` for an existing
-panel) once to install the instance service template and root-owned helper.
-An administrator can then use **Servers → Create Server** to start from defaults
-or copy an existing server's settings and mod selections. Each instance gets
-its own game installation, config, profile, logs, workshop directory, and
-service. Passwords and saves are not copied; RCON gets a new random password
-and listens on loopback.
+## Development and VM validation
 
-Blank ports are allocated automatically, avoiding registered and currently bound
-UDP ports. Custom ports are checked for conflicts. The detached installer shows
-output through **Progress / retry**, which can resume interrupted downloads.
-Verified installations are enabled at boot and started automatically. A running
-process does not prove the mission has loaded or players can connect.
+Automated checks require Python with Flask/bcrypt, plus Node.js for the frontend tests:
 
-Creation seeds the new installation from local game files when available. It
-prefers the selected copy source, otherwise the existing installation or another
-ready instance. Files are copied independently, not hard-linked; configuration,
-saves, logs, and Workshop downloads are excluded from this game-file copy.
-SteamCMD still validates the installation and retrieves missing or updated
-files. A missing or busy source falls back to normal installation.
+```bash
+python3 -m unittest discover -s tests
+node tests/frontend_regressions.cjs
+bash -n install.sh
+```
 
-The selector at the top of the sidebar reloads the page to clear the previous instance's forms and
-console cursor. **Existing server** targets the original installation. Creation
-and installation output require administrator permission. Existing roles apply
-to all instances; per-server account assignments are not implemented.
-
-The default instance root is `instances/` inside the panel directory. Set
-`INSTANCE_ROOT` in `config.env` before registering instances to use another
-location. Back up this root and the registry in `.panel-data.sqlite3` together.
-Do not move registered directories manually.
-
-Provisioning does not change host firewall rules or router/NAT forwarding.
-Allow the chosen game/query UDP ports before testing external connectivity.
-Use **Startup** in the server list to set an instance's FPS cap (0 disables it).
-Restart that instance to apply changes. **Remove** requires typing the server ID,
-stops/disables its service, and releases its reserved ports. Files are retained
-under `instances/.removed/`; this does not reclaim their disk space. Removal is
-refused while provisioning or a software job holds the instance's file lock.
-
-For Ubuntu 24 validation:
-
-1. Run the updated installer; create a default server and watch installation.
-2. Inspect Console and confirm a player can join.
-3. Copy its settings/mods into a second server; confirm its ports differ.
-4. Edit, stop, and restart each independently.
-5. Reboot the VM and verify both services and their separate saves/logs.
-6. Test an interrupted download and use Retry to resume it.
+Configuration tests bind temporary UDP ports, so run them where socket binding is permitted. Automated checks do not establish Steam download success, systemd startup, mission readiness or public connectivity. Follow the [Ubuntu VM checklist](docs/operations.md#ubuntu-vm-checklist) before production deployment. Persistence save selection and named backups remain WIP pending real-server verification.
 
 ## License and credits
 
-MIT — free to use, modify and distribute.
+MIT, as described by the [upstream project](https://github.com/mateuszgolebiewski-code/arma-reforger-panel).
 
-Based on the panel by [Mateusz Gołębiewski](https://mateuszgolebiewski.pl). This fork is developed with AI assistance, including code, interface changes and documentation, using OpenAI Codex.
-
-### Workshop browser
-
-Mods includes the official Workshop catalog with search, categories, sorting and pagination. Open a card for author, ratings, dependencies and a release dropdown. Track latest or pin a published release, then preview and save the change. Changes require a game-server restart. Staff need the server Mods permission to save; previews expire after five minutes and reject changes if the configured list changed. Configuration backups and activity history apply as usual.
-
-New mods and dependencies track latest by default; only choosing a release explicitly creates a pin. Existing explicit dependency pins are preserved. Adding dependencies uses current-release metadata and refuses conflicting existing pins. Historical pins do not guess dependency versions. Removing a mod retains dependencies so shared requirements are not accidentally removed. Workshop availability depends on the public website; unavailable metadata produces a retryable error.
-
-Terrain mods also show published scenarios in their detail panel. Use scenario previews the mission and required mod additions together; saving requires both Mods and Configuration permissions. Scenario metadata applies to the current Workshop release, so older pinned terrain releases must be updated before using this action.
-
-### Server notifications
-
-Dashboard → Server notifications shows the selected server’s recent events and Discord delivery status. Administration → Notifications lets that server’s Administrators save a Discord webhook, choose routine-event delivery and optionally mention one Discord role ID. New configurations include routine starts/stops and successful updates; failures are always eligible for Discord delivery when a webhook is configured. Blank webhook input preserves the saved URL; Remove clears it. The secret URL is never returned to the browser after saving.
-
-The Linux panel service monitors processes, initial installation/start failures and update jobs without an open browser. Panel-controlled stops are recorded as intentional; stops or process changes outside the panel are flagged as unexpected. The first observation establishes a baseline rather than replaying old state. Repeated failures of the same type are suppressed for five minutes. Discord delivery makes up to three attempts, observes rate-limit retry delays and records failures in the panel. No game passwords, logs or configuration values are sent. Only the explicitly configured role can be mentioned.
-
-Notification history/settings live in the existing private panel database. The latest 1,000 events per server are retained; the UI shows 100. Saving settings cancels queued messages so they do not move to a different webhook/role. The Windows preview supports settings/history; automatic monitoring and Discord delivery require the Linux service. After updating Ubuntu, save a webhook and use Send test message to verify delivery.
-
-### Resource controls and storage usage
-
-Startup includes allowed logical CPUs, a soft memory target and an optional hard memory cap. Blank CPUs uses all available CPUs; memory 0 means unlimited. Memory inputs use decimal MB. The soft target asks Linux to reclaim memory under pressure; the hard cap can terminate the game. Select logical CPUs with checkboxes or enter CPU numbers/ranges; Use all CPUs removes the CPU restriction. Resource presets fill the editable draft: Unrestricted uses all CPUs and unlimited memory; Small selects up to 2 CPUs with a 4,000 MB soft target, Standard up to 4 with 8,000 MB, and Large up to 8 with 16,000 MB. Each preset clears the hard cap and preserves FPS and other launch options. Presets use the lowest numbered CPUs, adapt to the VM CPU count, and do not reserve CPUs or memory; review their suitability for your VM and mission. Save startup settings to persist the draft for this server. Settings apply on the next server start using systemd AllowedCPUs, MemoryHigh and MemoryMax. Install the updated root-owned helper with `sudo bash install.sh --update` before using limits. Enforcement requires Linux with cgroup v2; the local Windows preview only saves/displays settings. Existing unlimited servers continue launching with an older helper.
-
-Dashboard → Storage breakdown scans game files, Workshop mods, profile/saves, logs, backups, Trash and server configuration in a background worker. Results are cached for ten minutes, can be refreshed explicitly, and stop at a time/file limit with a partial-result notice. Links are ignored; nested locations and same-folder hard links are not double-counted. Figures describe file sizes, so shared/reflinked allocation may differ from filesystem usage. Storage displays use decimal GB/MB (1 GB = 1,000,000,000 bytes).
-
-**Account settings** has its own `/account` page, linked from the server sidebar and All servers header. Every signed-in user can change their theme and password without needing an assigned server. Password changes require the current password, keep this session signed in and invalidate other existing sessions. User management remains under Administration.
-
-**Forgotten Owner password:** From an up-to-date repository checkout on the VM, run `sudo bash install.sh --reset-owner-password`. It locates the installed panel using `arma-panel.service` and prompts twice for a new password without displaying it. You do not need the old password or a panel login. The existing Owner is identified by its protected database record, even if renamed. All existing Owner sessions are invalidated. Other accounts, settings and game servers are untouched; no service restart or panel update is required. Recovery requires local terminal/sudo access and works with custom `PANEL_DATA_FILE` paths. Passwords cannot be passed as arguments or piped in.
-
-**Player moderation:** Server administrators can kick connected players, ban identities for a fixed duration or permanently, and remove bans under Players → Ban management. These use native Reforger `#kick` and `#ban` commands with admin RCON. Kicks query a fresh roster to resolve the identity to its current session slot; expired/stale roster entries are refused. The live game ban list is paginated (25 per page), with a current-page identity filter and raw reply fallback. The game does not supply reasons in its list; panel moderation reasons and durations are recorded in Activity. Offline moderation is unavailable. Command submission is not proof of enforcement: refresh the live list/roster to verify. Ban removal and game-admin grants are separate actions.
-
-**Expanded Startup:** Validated controls cover noSound, forceUpdate, noThrow, advanced singleThreadedUpdate, optional AI population/batch limits and a 1–10 second native statistics interval. Defaults preserve the existing launch command. Settings are saved per server and apply on its next start. Ports, config/profile paths and persistence flags stay managed by their existing pages. Diagnostics check executable presence, known configuration fields, scenario selection, RCON configuration, Linux UDP listeners/occupied ports, disk free space and the installed resource helper. They report unknowns and do not certify external connectivity or mission readiness.
-
-**Additional schedules:** Start, warned stop and broadcast join restart/update/config-backup actions. Broadcasts use Server Admin Tools `#message` and require the game running with admin RCON. Run now creates a separate one-off job under the requesting administrator without changing the original schedule: start/broadcast/backup run on the next scheduler tick; restart/stop/update wait six minutes to preserve the five-minute and one-minute warnings. Failed/missed warnings prevent a disruptive action on a running game process. All scheduling still follows server time. The local Windows preview never executes scheduled jobs.
+Based on Mateusz Gołębiewski's original panel, including upstream contributions by [YoussefKababe](https://github.com/YoussefKababe). This fork is developed with AI assistance using OpenAI Codex. Bundled Chart.js retains its [MIT license](static/chart.LICENSE.txt).

@@ -10,6 +10,7 @@
   }
   try { apply(localStorage.getItem('panel-theme')); } catch (_) { apply('original'); }
   document.addEventListener('DOMContentLoaded', async () => {
+    if (document.body.hasAttribute('data-login-page')) return;
     const picker = document.getElementById('theme-choice');
     const feedback = document.getElementById('theme-feedback');
     if (!picker) {

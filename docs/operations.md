@@ -2,6 +2,14 @@
 
 [Back to installation and the workspace overview](../README.md).
 
+## All servers dashboard
+
+The totals and cards cover servers your account can access. Search and status filters narrow the cards without changing totals. Click a card to open that server's dashboard; Start, Stop and Restart use that card's server and permissions. Stop and Restart ask for confirmation.
+
+Player activity is the combined count from available rosters. A `+` on the total means some readings are missing; the chart leaves a gap rather than treating those servers as empty. Host CPU and memory cover the whole VM, while cards show individual game-process usage. Host CPU needs two samples after the panel starts.
+
+Charts keep up to 30 minutes of readings while this page is open and reset on reload. Alerts show current failures, status changes observed while the page is open, and the latest permitted administrative activity. An online-to-offline change records a stop or exit; it does not establish whether the process crashed. Player joins and leaves are not listed. If a refresh fails, the page marks the retained server readings as potentially out of date.
+
 ## Servers and configuration
 
 Each managed server has its own game installation, JSON configuration, profile, Workshop directory, logs, backups, reserved ports and `arma-server@ID.service` unit. The default instance root is `instances/` inside the panel directory. Set `INSTANCE_ROOT` before creating servers; do not move registered directories manually.

@@ -2,7 +2,63 @@ document.addEventListener('DOMContentLoaded', () => {
   const rows = document.getElementById('overview-rows'), feedback = document.getElementById('overview-feedback');
   let loading = false, permissions = [], timer;
   const busy = new Set();
-  let snapshots = [], measureStorage = false;
+  let snapshots = [], measureStorage = false, events = [], eventError = '', host = null;
+  const transitions = [];
+  const charts = [];
+  function chart(id, labels, percent) {
+    if (typeof Chart === 'undefined') {
+      document.getElementById('fleet-chart-note').textContent = 'Charts could not load. Current readings are still available below.';
+      return null;
+    }
+    const instance = new Chart(document.getElementById(id), {
+      type:'line', data:{datasets:labels.map(label => ({label, data:[], borderWidth:2, pointRadius:context => context.dataIndex === context.dataset.data.length - 1 ? 2 : 0, pointHitRadius:12, spanGaps:false, tension:0.2}))},
+      options:{responsive:true, maintainAspectRatio:false, animation:false, parsing:false,
+        interaction:{mode:'index', intersect:false},
+        plugins:{legend:{display:labels.length > 1}, tooltip:{callbacks:{title:items => new Date(items[0].parsed.x).toLocaleTimeString(), label:item => `${item.dataset.label}: ${item.parsed.y}${percent ? '%' : ''}`}}},
+        scales:{x:{type:'linear', ticks:{maxTicksLimit:5, callback:value => new Date(value).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}}, y:{min:0, ...(percent ? {max:100} : {ticks:{precision:0}})}}}
+    });
+    charts.push(instance); return instance;
+  }
+  const playerChart = chart('fleet-player-chart', ['Players'], false);
+  const hostChart = chart('fleet-host-chart', ['CPU', 'Memory'], true);
+  function themeCharts() {
+    const style = getComputedStyle(document.documentElement);
+    for (const instance of charts) {
+      instance.data.datasets.forEach((set,index) => { set.borderColor = style.getPropertyValue(index ? '--online' : '--accent').trim(); set.backgroundColor = set.borderColor; });
+      instance.options.plugins.legend.labels = {color:style.getPropertyValue('--text').trim(), boxWidth:12, boxHeight:2};
+      for (const axis of Object.values(instance.options.scales)) { axis.ticks.color = style.getPropertyValue('--muted').trim(); axis.grid = {color:style.getPropertyValue('--border').trim()}; }
+      instance.update('none');
+    }
+  }
+  themeCharts();
+  document.addEventListener('panel-theme-change', themeCharts);
+  function sample(chart, values, now) {
+    if (!chart) return;
+    chart.data.datasets.forEach((set,index) => {
+      const last = set.data.at(-1);
+      if (last && now - last.x > 30000) set.data.push({x:last.x + 10000,y:null});
+      set.data.push({x:now, y:Number.isFinite(values[index]) ? values[index] : null});
+      set.data = set.data.filter(point => point.x >= now - 1800000).slice(-181);
+    });
+    chart.options.scales.x.min = now - 1800000; chart.options.scales.x.max = now;
+    chart.update('none');
+  }
+  function renderEvents() {
+    const target = document.getElementById('fleet-events'); target.replaceChildren();
+    const names = {api_start:'Start requested', api_stop:'Stop requested', api_restart:'Restart requested', software_update:'Server update requested', server_delete:'Server removed', servers_create:'Server created', server_provision_retry:'Installation retried', config_editor_save:'Configuration saved', users_save:'Account permissions updated', players_moderate:'Player moderation', players_admin_save:'Server admins updated'};
+    const relevant = events.filter(event => !['login','account_preferences_save','config_editor_validate','files_preview','software_check'].includes(event.action));
+    const items = [...relevant.map(event => {
+      const serverName = event.details.server_id ? snapshots.find(server => server.id === event.details.server_id)?.name || event.details.server_id : '';
+      return {ts:event.ts, text:`${serverName ? serverName + ' · ' : ''}${names[event.action] || event.action.replace(/^api_/, '').replaceAll('_',' ')} · ${event.outcome} · ${event.actor}`, failed:event.outcome === 'failed'};
+    }), ...transitions].sort((a,b) => b.ts-a.ts).slice(0,8);
+    for (const item of items) {
+      const row = element('div','', 'fleet-event');
+      const time = element('time', new Date(item.ts*1000).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}));
+      time.dateTime = new Date(item.ts*1000).toISOString();
+      row.append(element('span',item.text,item.failed ? 'fleet-event-error' : ''), time); target.append(row);
+    }
+    document.getElementById('fleet-alert-status').textContent = eventError || (items.length ? 'Recent events · no player join/leave notices' : 'No recent alerts');
+  }
   const attention = server => ['failed','unavailable'].includes(server.status);
   const storageSize = bytes => (bytes / 1e9).toFixed(2) + ' GB';
   const workspace = server => server.id ? '/?server=' + encodeURIComponent(server.id) : '/?legacy=1';
@@ -33,7 +89,9 @@ document.addEventListener('DOMContentLoaded', () => {
     finally { busy.delete(server.id); button.disabled = false; await refresh(false); }
   }
   function render(servers) {
-    if(rows.contains(document.activeElement)&&document.activeElement!==document.body)return;
+    const focused = rows.contains(document.activeElement) ? document.activeElement : null;
+    const focusedServer = focused?.closest('[data-server-id]')?.dataset.serverId;
+    const focusedAction = focused?.dataset.action;
     rows.replaceChildren();
     const query = document.getElementById('overview-search').value.trim().toLowerCase();
     const filter = document.getElementById('overview-filter').value;
@@ -41,16 +99,27 @@ document.addEventListener('DOMContentLoaded', () => {
       [server.name, server.ip, server.port, server.game_port, server.query_port].join(' ').toLowerCase().includes(query) &&
       (filter === 'all' || filter === server.status || filter === 'attention' && attention(server) || filter === 'installing' && ['provisioning','registered','installing'].includes(server.status)));
     for (const server of visible) {
-      const row = element('tr', '');
-      const status = element('td',''); status.append(element('span',server.status,'server-state state-' + server.status)); row.append(status);
-      const name = element('td',''); name.append(element('strong',server.name));
-      if (server.ip && server.ip !== '—') name.append(element('small',server.ip + ':' + (server.port || server.game_port || '—')));
-      if (server.map) name.append(element('small',server.map));
-      name.append(element('small',server.error || (server.port || server.game_port ? `Game ${server.port || server.game_port} · Query ${server.query_port || '—'}` : 'Existing server'))); row.append(name);
-      for (const value of [server.players ?? '—', typeof server.cpu === 'number' ? server.cpu.toFixed(1)+'%' : '—', typeof server.ram_process === 'number' ? (server.ram_process/1024).toFixed(2)+' GiB' : '—',server.uptime || '—']) row.append(element('td',value));
-      const storage = server.storage;
-      row.append(element('td', storage && Number.isFinite(storage.total_bytes) ? storageSize(storage.total_bytes) + (storage.status === 'partial' ? ' (partial)' : '') : storage?.status === 'pending' ? 'Measuring…' : '—'));
-      const actions = element('td',''); actions.className = 'manager-actions';
+      const row = element('article', '', 'fleet-server-card'); row.dataset.serverId = server.id;
+      const heading = element('div','', 'fleet-card-heading');
+      heading.append(element('span',server.status,'server-state state-' + server.status));
+      heading.append(element('span',server.uptime && server.running ? 'Up ' + server.uptime : '', 'fleet-uptime')); row.append(heading);
+      const title = element('h3','');
+      const link = element('a',server.name,'fleet-server-title');
+      link.href = server.state === 'ready' ? workspace(server) : '/setup?server='+encodeURIComponent(server.id);
+      link.dataset.action = 'open'; title.append(link); row.append(title);
+      row.append(element('p',server.map || (server.state === 'ready' ? 'Scenario unavailable' : 'Preparing server'), 'fleet-map'));
+      row.append(element('p',server.ip && server.ip !== '—' ? server.ip + ':' + (server.port || server.game_port || '—') : 'Game ' + (server.port || server.game_port || '—') + ' · Query ' + (server.query_port || '—'), 'fleet-address'));
+      if (server.error) row.append(element('p',server.error,'fleet-event-error'));
+      const stats = element('dl','', 'fleet-card-stats');
+      for (const [label,value] of [['Players',server.players ?? '—'],['CPU',Number.isFinite(server.cpu) ? server.cpu.toFixed(1)+'%' : '—'],['Memory',Number.isFinite(server.ram_process) ? (server.ram_process/1024).toFixed(2)+' GiB' : '—']]) {
+        const stat = element('div',''); stat.append(element('dt',label),element('dd',value)); stats.append(stat);
+      }
+      row.append(stats);
+      if (measureStorage) {
+        const storage = server.storage;
+        row.append(element('p','Storage · ' + (storage && Number.isFinite(storage.total_bytes) ? storageSize(storage.total_bytes) + (storage.status === 'partial' ? ' (partial)' : '') : storage?.status === 'pending' ? 'Measuring…' : 'Unavailable'), 'fleet-address'));
+      }
+      const actions = element('div','', 'manager-actions');
       if ((server.permissions || []).includes('control') && ['online','offline'].includes(server.status)) {
         const command = server.running ? 'stop' : 'start';
         const button = element('button',server.running ? '■ Stop' : '▶ Start','btn-logout'); button.disabled = busy.has(server.id); button.onclick = () => action(server,command,button); actions.append(button);
@@ -64,21 +133,25 @@ document.addEventListener('DOMContentLoaded', () => {
         busy.add(server.id);remove.disabled=true;
         try{const response=await postJson('/api/servers/'+encodeURIComponent(server.id)+'/delete',{confirm_id:confirmId});const body=await response.json();if(!response.ok)throw new Error(body.error);feedback.textContent=server.name+': removed. Files retained on the VM.';}catch(error){feedback.textContent=error.message;}finally{busy.delete(server.id);await refresh(false);}
       };actions.append(remove);}
+      Array.from(actions.children).forEach(node => { node.dataset.action = node.textContent; });
       row.append(actions); rows.append(row);
     }
-    if (!visible.length) { const empty = element('td',servers.length ? 'No servers match these filters.' : 'No servers are assigned to your account.'); empty.colSpan = 8; const row = element('tr',''); row.append(empty); rows.append(row); }
+    if (!visible.length) rows.append(element('p',servers.length ? 'No servers match these filters.' : permissions.includes('admin_config') ? 'No servers yet. Create your first server to get started.' : 'No servers are assigned to your account.', 'fleet-empty'));
+    if (focusedAction) {
+      const card = Array.from(rows.children).find(node => node.dataset.serverId === focusedServer);
+      Array.from(card?.querySelectorAll('[data-action]') || []).find(node => node.dataset.action === focusedAction)?.focus({preventScroll:true});
+    }
     const alerts = document.getElementById('overview-alerts'); alerts.replaceChildren();
     const problems = servers.filter(attention); alerts.hidden = !problems.length;
     for (const server of problems) { const link = element('a',server.name + ': ' + (server.error || 'Installation failed. Open progress to review and retry.')); link.href = server.state === 'ready' ? workspace(server) : '/setup?server='+encodeURIComponent(server.id); alerts.append(link); }
     document.getElementById('overview-alert-count').textContent = problems.length;
-    const measured = servers.filter(server => Number.isFinite(server.cpu));
-    document.getElementById('overview-cpu').textContent = measured.length ? measured.reduce((sum,server)=>sum+server.cpu,0).toFixed(1)+'%' + (measured.length < servers.length ? '+' : '') : '—';
-    const ram = servers.filter(server => Number.isFinite(server.ram_process));
-    document.getElementById('overview-ram').textContent = ram.length ? (ram.reduce((sum,server)=>sum+server.ram_process,0)/1024).toFixed(2)+' GiB' + (ram.length < servers.length ? '+' : '') : '—';
+    document.getElementById('overview-cpu').textContent = Number.isFinite(host?.cpu_host) ? host.cpu_host.toFixed(1)+'%' : '—';
+    document.getElementById('overview-ram').textContent = host?.ram_total > 0 ? (100*host.ram_used/host.ram_total).toFixed(1)+'%' : '—';
+    document.getElementById('overview-ram-detail').textContent = host?.ram_total > 0 ? (host.ram_used/1024).toFixed(1)+' / '+(host.ram_total/1024).toFixed(1)+' GiB' : 'Waiting for a reading';
     document.getElementById('overview-total').textContent = servers.length;
     document.getElementById('overview-online').textContent = servers.filter(s => s.status === 'online').length;
     const known = servers.filter(s => s.players !== null && s.players !== undefined);
-    document.getElementById('overview-players').textContent = known.length ? known.reduce((total,s) => total+s.players,0) + (known.length < servers.length ? '+' : '') : '—';
+    document.getElementById('overview-players').textContent = !servers.length ? '0' : known.length ? known.reduce((total,s) => total+s.players,0) + (known.length < servers.length ? '+' : '') : '—';
   }
   async function refresh(report = true) {
     if (loading) return; loading = true;
@@ -86,13 +159,31 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const data = await read('/api/servers');
       const servers = [...(data.legacy_server ? [{id:'',name:data.legacy_server.name,state:'ready',permissions:data.legacy_server.permissions}] : []),...data.servers];
+      const activityServer = servers.find(server => (server.permissions || []).includes('activity'));
+      const canReadActivity = permissions.includes('activity') || !!activityServer;
+      const hostResult = await Promise.allSettled([read('/api/host-metrics'), canReadActivity ? read('/api/activity', permissions.includes('activity') ? undefined : activityServer.id) : Promise.resolve(null)]);
+      host = hostResult[0].status === 'fulfilled' ? hostResult[0].value : null;
+      const activity = hostResult[1];
+      events = activity.status === 'fulfilled' ? activity.value?.events || [] : [];
+      eventError = activity.status === 'rejected' ? 'Activity unavailable; showing observed status changes' : !canReadActivity ? 'Showing observed status changes; activity history requires permission' : '';
       if (!rows.children.length) render(servers.map(server => ({...server,status:server.state === 'ready' ? 'checking' : server.state}))); 
       // Three concurrent checks keep a host with many instances responsive.
       const results = new Array(servers.length); let next = 0;
       await Promise.all(Array.from({length:Math.min(3,servers.length)},async () => { while (next < servers.length) { const index = next++; results[index] = await inspect(servers[index]); } }));
-      snapshots = results; render(snapshots);
-      if (report) feedback.textContent = servers.length ? 'Updated ' + new Date().toLocaleTimeString() : 'No servers yet. Create your first server to get started.';
-    } catch (error) { feedback.textContent = error.message; }
+      for (const server of results) {
+        const previous = snapshots.find(item => item.id === server.id);
+        if (previous && previous.status !== server.status && previous.status !== 'checking') {
+          transitions.unshift({ts:Date.now()/1000, text:`${server.name} · ${previous.status} → ${server.status}`, failed:attention(server)});
+        }
+      }
+      transitions.splice(20);
+      snapshots = results;
+      const now = Date.now();
+      sample(playerChart, [results.every(server => Number.isFinite(server.players)) ? results.reduce((sum,server) => sum+server.players,0) : null], now);
+      sample(hostChart, [host?.cpu_host, host?.ram_total > 0 ? 100*host.ram_used/host.ram_total : null], now);
+      render(snapshots); renderEvents();
+      if (report) feedback.textContent = servers.length ? 'Updated ' + new Date().toLocaleTimeString() : permissions.includes('admin_config') ? 'No servers yet. Create your first server to get started.' : 'No servers are assigned to your account.';
+    } catch (error) { feedback.textContent = 'Refresh failed · ' + error.message + '. Displayed server readings may be out of date.'; host = null; sample(playerChart,[null],Date.now()); sample(hostChart,[null,null],Date.now()); }
     finally { loading = false; button.disabled = false; }
   }
   document.getElementById('overview-search').oninput = () => render(snapshots);

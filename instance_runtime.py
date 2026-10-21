@@ -102,7 +102,7 @@ def install(api):
 
     # Panel account/database operations never depend on a game-server config.
     api.PANEL_WIDE_ENDPOINTS = {
-        'account_me', 'account_password', 'users_list', 'users_save',
+        'api_host_metrics', 'account_me', 'account_password', 'users_list', 'users_save',
         'account_preferences', 'account_preferences_save', 'users_delete',
         'admin_label_save', 'activity_list', 'presets_delete', 'api_csrf', 'logout',
     }

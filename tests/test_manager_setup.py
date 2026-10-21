@@ -43,6 +43,15 @@ class ManagerSetupTests(unittest.TestCase):
         self.assertNotEqual(self.module.app.test_client().get('/servers').status_code, 200)
         self.assertEqual(self.post(self.admin, '/logout').status_code, 200)
 
+    def test_host_metrics_need_login_but_no_selected_server_or_game_config(self):
+        self.config.unlink()
+        with patch.object(self.module._fleet_host_metrics, 'read', return_value={'cpu_host':37.5}), patch.object(self.module, 'get_system_ram', return_value=(1024,4096)):
+            response = self.admin.get('/api/host-metrics')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['cpu_host'], 37.5)
+        self.assertEqual(response.json['ram_total'], 4096)
+        self.assertEqual(self.module.app.test_client().get('/api/host-metrics').status_code, 401)
+
     def test_address_validation(self):
         self.assertEqual(validate_public_address(' 203.0.113.4 '), '203.0.113.4')
         self.assertEqual(validate_public_address(''), '')

@@ -107,6 +107,19 @@ class HostMetrics:
                 if old is None or now <= old[0] or any(a < b for a, b in zip(counters, old[1])):
                     return None
                 return [(a - b) / (now - old[0]) for a, b in zip(counters, old[1])]
+            result['cpu_host'] = None
+            try:
+                with open('/proc/stat') as stream:
+                    fields = stream.readline().split()
+                if fields[0] != 'cpu':
+                    raise ValueError('Missing aggregate CPU counters')
+                ticks = [int(value) for value in fields[1:9]]
+                # Guest counters are already included in user/nice. Idle includes I/O wait.
+                speeds = rate(('cpu',), (sum(ticks), ticks[3] + ticks[4]))
+                if speeds and speeds[0] > 0:
+                    result['cpu_host'] = round(max(0, min(100, 100 * (1 - speeds[1] / speeds[0]))), 1)
+            except (OSError, ValueError, IndexError):
+                self.previous.pop(('cpu',), None)
             try:
                 interfaces = {}
                 with open('/proc/net/dev') as stream:

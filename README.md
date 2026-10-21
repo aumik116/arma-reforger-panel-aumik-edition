@@ -44,7 +44,7 @@ Updates create recovery snapshots under `/var/backups/arma-panel/`. A failed upd
 
 ## Find your tools
 
-**All servers** shows the fleet overview. Open a server or use the selector at the **top of the sidebar** to switch. Switching reloads the workspace and clears its previous drafts and console cursor.
+**All servers** shows summary totals, compact server cards, player and host CPU/memory charts, and recent alerts. Live charts cover up to 30 minutes collected while the page is open; they reset on reload. Start, Stop and Restart are available on cards when your role permits them, with confirmation before Stop or Restart. Open a server or use the selector at the **top of the sidebar** to switch. Switching reloads the workspace and clears its previous drafts and console cursor.
 
 | Workspace | What you use it for |
 | --- | --- |

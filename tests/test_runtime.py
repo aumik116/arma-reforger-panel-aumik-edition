@@ -9,6 +9,22 @@ from runtime_ops import ProcessMetrics, TrafficMetrics, HostMetrics, ServerFPS, 
 
 
 class RuntimeTests(unittest.TestCase):
+    def test_host_cpu_interval_warmup_cache_and_counter_reset(self):
+        metrics = HostMetrics()
+        def reading(ticks, now):
+            def opened(path, *args, **kwargs):
+                if path == '/proc/stat':
+                    return mock_open(read_data='cpu ' + ticks + '\n')()
+                raise OSError('unavailable')
+            with patch('builtins.open', side_effect=opened), patch('runtime_ops.time.monotonic', return_value=now):
+                return metrics.read('/nonexistent')['cpu_host']
+        self.assertIsNone(reading('100 0 0 800 100 0 0 0 50 0', 1))
+        self.assertEqual(reading('150 0 0 850 100 0 0 0 90 0', 2), 50)
+        self.assertEqual(reading('150 0 0 850 100 0 0 0', 2.1), 50)
+        self.assertIsNone(reading('1 0 0 8 1 0 0 0', 3))
+        self.assertIsNone(reading('broken', 4))
+        self.assertIsNone(reading('100 0 0 800 100 0 0 0', 5))
+
     def test_cpu_frequency_average_and_unavailable(self):
         with patch('builtins.open', mock_open(read_data='cpu MHz : 2400.0\ncpu MHz : 3600.0\ncpu MHz : 0\n')):
             self.assertEqual(read_cpu_frequency(), 3000.0)

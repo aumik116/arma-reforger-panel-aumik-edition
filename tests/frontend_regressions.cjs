@@ -5,6 +5,7 @@ const vm = require('node:vm');
 const path = require('node:path');
 require('./server_controls.cjs');
 require('./login_and_pwa.cjs');
+require('./fleet_dashboard.cjs');
 const source = name => fs.readFileSync(path.join(__dirname, '..', 'static', name), 'utf8');
 const between = (text, first, next) => text.slice(text.indexOf(first), text.indexOf(next));
 

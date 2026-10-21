@@ -649,6 +649,7 @@ def get_cpu_count():
 _process_metrics = ProcessMetrics()
 _traffic_metrics = TrafficMetrics()
 _host_metrics = HostMetrics()
+_fleet_host_metrics = HostMetrics()
 _server_fps = ServerFPS()
 
 
@@ -964,6 +965,13 @@ def api_scenarios_rescan():
                            "from_mods": sum(1 for m in missions if m.get("source") != "vanilla")},
         "diag": diag,
     })
+
+@app.get('/api/host-metrics')
+def api_host_metrics():
+    ram_used, ram_total = get_system_ram()
+    return jsonify(cpu_host=_fleet_host_metrics.read(_STATE_DIR)['cpu_host'],
+                   ram_used=ram_used, ram_total=ram_total, ts=int(time.time()))
+
 
 @app.route("/api/metrics")
 def api_metrics():

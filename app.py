@@ -12,7 +12,7 @@ Developed with AI assistance using OpenAI Codex. Fork modifications:
   - Auto-discovery of scenarios from addon metadata and resource databases
 """
 
-from flask import Flask, request, jsonify, session, redirect, Response, send_from_directory, g, has_request_context
+from flask import Flask, request, jsonify, session, redirect, Response, send_from_directory, g
 import bcrypt
 from mod_validation import normalize_mod_entry
 import hmac
@@ -281,7 +281,7 @@ def _candidate_addon_roots():
         home = os.path.expanduser("~arma") if os.path.isdir("/home/arma") else os.path.expanduser("~")
 
     roots = []
-    if has_request_context() and getattr(g, 'server_instance', None):
+    if selected_instance():
         return [(str(WORKSHOP_DIR), False), (str(SERVER_DIR), True)]
     # Workshop mod dirs (downloaded via SteamCMD / the game)
     if WORKSHOP_DIR:
@@ -606,7 +606,7 @@ def all_scenarios_cached():
 
 def get_server_pid():
     try:
-        instance = getattr(g, 'server_instance', None) if has_request_context() else None
+        instance = selected_instance()
         if instance:
             result = subprocess.run(['systemctl', 'show', instance.service_name,
                                      '--property=MainPID', '--value'],
@@ -614,6 +614,8 @@ def get_server_pid():
             if result.returncode:
                 return None
             return int(result.stdout.strip()) or None
+        if manager_mode:
+            return None
         expected = os.path.realpath(os.path.join(SERVER_DIR, SERVER_BINARY))
         for entry in glob.glob('/proc/[0-9]*/exe'):
             try:
@@ -668,7 +670,7 @@ def get_system_ram():
         return 0, 0
 
 def get_latest_log():
-    if has_request_context() and getattr(g, 'server_instance', None):
+    if selected_instance():
         direct = os.path.join(LOG_DIR, 'console.log')
         if os.path.isfile(direct):
             return direct
@@ -1386,13 +1388,14 @@ def api_mods_update_pins():
 def service_command(action):
     if action not in ('start', 'stop'):
         raise ValueError('Unsupported service action')
-    instance = getattr(g, 'server_instance', None) if has_request_context() else None
-    service = instance.service_name if instance else 'arma-server.service'
+    instance = selected_instance()
     if instance:
         from server_provisioning import service_command as instance_service_command
         return instance_service_command(action, instance.id)
+    if manager_mode:
+        raise RuntimeError('Select a managed server before controlling it')
     result = subprocess.run(
-        ["sudo", "-n", "/usr/bin/systemctl", action, service],
+        ["sudo", "-n", "/usr/bin/systemctl", action, 'arma-server.service'],
         capture_output=True, text=True, timeout=150)
     if result.returncode:
         raise RuntimeError(result.stderr.strip() or "Server service command failed")
@@ -1417,6 +1420,8 @@ def stop_server():
 
 def start_server():
     service_command("start")
+    instance = selected_instance()
+    service = instance.service_name if instance else 'arma-server.service'
     # Verify the same process survives an observation window. This is process
     # health, not a claim that mods have loaded or players can connect yet.
     pid = get_server_pid()
@@ -1425,41 +1430,11 @@ def start_server():
         time.sleep(0.25)
         pid = get_server_pid()
     if not pid:
-        raise RuntimeError("Server did not start. Check the console and journalctl -u arma-server.")
+        raise RuntimeError(f"Server did not start. Check the console and journalctl -u {service}.")
     for _ in range(8):
         time.sleep(0.5)
         if get_server_pid() != pid:
-            raise RuntimeError("Server exited during startup. Check the console and journalctl -u arma-server.")
-
-
-@app.route("/api/start", methods=["POST"])
-def api_start():
-    try:
-        if get_server_pid():
-            return jsonify(ok=False, error="Server is already running")
-        start_server()
-        return jsonify(ok=True)
-    except Exception as exc:
-        return jsonify(ok=False, error=str(exc))
-
-
-@app.route("/api/stop", methods=["POST"])
-def api_stop():
-    try:
-        stop_server()
-        return jsonify(ok=True)
-    except Exception as exc:
-        return jsonify(ok=False, error=str(exc))
-
-
-@app.route("/api/restart", methods=["POST"])
-def api_restart():
-    try:
-        stop_server()
-        start_server()
-        return jsonify(ok=True)
-    except Exception as exc:
-        return jsonify(ok=False, error=str(exc))
+            raise RuntimeError(f"Server exited during startup. Check the console and journalctl -u {service}.")
 
 
 from instance_runtime import install as install_instance_runtime

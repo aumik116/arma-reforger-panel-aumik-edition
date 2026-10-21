@@ -1,5 +1,6 @@
-"""Request-local server selection without mutating process-wide settings."""
+"""Request-local server selection, state and lifecycle controls."""
 from pathlib import Path
+import subprocess
 import threading
 
 from flask import g, has_request_context, jsonify, request
@@ -127,6 +128,22 @@ def install(api):
             g.instance_selection_error = (jsonify(ok=False, error='Server is not provisioned', state=instance.state), 409)
             return
         g.server_instance = instance
+
+    @api.app.post('/api/start', endpoint='api_start', defaults={'action': 'start'})
+    @api.app.post('/api/stop', endpoint='api_stop', defaults={'action': 'stop'})
+    @api.app.post('/api/restart', endpoint='api_restart', defaults={'action': 'restart'})
+    def control_server(action):
+        try:
+            if action == 'start' and api.get_server_pid():
+                return jsonify(ok=False, error='Server is already running'), 409
+            if action in ('stop', 'restart'):
+                api.stop_server()
+            if action in ('start', 'restart'):
+                api.start_server()
+            instance = selected()
+            return jsonify(ok=True, action=action, server_id=instance.id if instance else '')
+        except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+            return jsonify(ok=False, error=str(exc)), 503
 
     @api.app.get('/api/servers')
     def servers_list():

@@ -249,8 +249,9 @@ function exportConsoleLog() {
 }
 
 function syncConsoleControls(running, pending) {
-  document.getElementById('console-live-dot').classList.toggle('off', !running);
-  document.getElementById('console-live-label').textContent = running ? 'LIVE' : 'SERVER OFFLINE';
+  document.getElementById('console-live-dot').classList.toggle('off', running !== true);
+  document.getElementById('console-live-label').textContent = typeof running !== 'boolean'
+    ? 'STATUS UNAVAILABLE' : running ? 'LIVE' : 'SERVER OFFLINE';
 }
 
 function insertConsoleCommand(command) {

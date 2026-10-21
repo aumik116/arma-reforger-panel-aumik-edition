@@ -52,6 +52,12 @@ open a server from its row. Failed installations link to setup for progress and
 retry. Unavailable readings stay marked unavailable; the overview refreshes every
 10 seconds. Existing unmanaged servers remain accessible through their own row.
 
+Start, stop and restart apply to the server shown in the overview row or
+dashboard. Stop and restart ask for confirmation, and repeated clicks are
+blocked while an action is running. Failed actions display the server's error; unavailable status disables
+the dashboard controls until a successful refresh. Manager installations never
+fall back to the legacy server service when no server is selected.
+
 ## Everyday use
 
 The dashboard places status and controls above summary cards, with performance

@@ -8,8 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const workspace = server => server.id ? '/?server=' + encodeURIComponent(server.id) : '/?legacy=1';
   function element(tag, text, className) { const node = document.createElement(tag); node.textContent = text; if (className) node.className = className; return node; }
   async function read(url, id) {
-    const response = await fetch(url, {headers:id ? {'X-Server-ID':id} : {}, signal:AbortSignal.timeout(8000)});
-    const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Request failed'); return body;
+    return readJson(await fetch(url, {headers:id === undefined ? {} : {'X-Server-ID':id}, signal:AbortSignal.timeout(8000)}));
   }
   async function inspect(server) {
     if (server.state !== 'ready') return {...server, status:server.state};
@@ -24,13 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (error) { return {...server, status:'unavailable', error:error.message}; }
   }
   async function action(server, command, button) {
+    if (busy.has(server.id)) return;
     if (command !== 'start' && !confirm(`${command === 'stop' ? 'Stop' : 'Restart'} ${server.name}? Connected players will be disconnected.`)) return;
     busy.add(server.id); button.disabled = true;
     try {
-      // Explicit target per action; never change the page's global server selection.
-      if (!CSRF) CSRF = (await read('/api/csrf')).csrf;
-      const response = await fetch('/api/' + command, {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF,...(server.id ? {'X-Server-ID':server.id} : {})}, body:JSON.stringify({_csrf:CSRF})});
-      const body = await response.json(); if (!response.ok || body.ok === false) throw new Error(body.error || 'Operation failed');
+      await controlServer(command, server.id);
       feedback.textContent = `${server.name}: ${command} requested.`;
     } catch (error) { feedback.textContent = error.message; }
     finally { busy.delete(server.id); button.disabled = false; await refresh(false); }

@@ -10,30 +10,32 @@ function setLog(msg, type = 'info') {
 
 function setBusy(state) {
   busy = state;
-  ['btn-start','btn-stop','btn-reset','btn-persist-flush'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = state;
-  });
+  syncServerControls();
+}
+
+function syncServerControls() {
+  const running = window.consoleServerRunning;
+  const known = typeof running === 'boolean';
+  document.getElementById('btn-start').disabled = busy || !known || running;
+  document.getElementById('btn-stop').disabled = busy || !known || !running;
+  document.getElementById('btn-reset').disabled = busy || !known;
+  document.getElementById('btn-persist-flush').disabled = busy;
   if (typeof applyPermissions === 'function') applyPermissions();
-  if (typeof syncConsoleControls === 'function') syncConsoleControls(Boolean(window.consoleServerRunning), state);
+  if (typeof syncConsoleControls === 'function') syncConsoleControls(running, busy);
 }
 
 async function serverAction(action) {
   const labels = { start: 'Starting server...', stop: 'Stopping server...', restart: 'Restarting server...' };
+  if (busy || !labels[action]) return;
+  const name = document.getElementById('server-name-display').textContent || 'this server';
+  if (action !== 'start' && !confirm(`${action === 'stop' ? 'Stop' : 'Restart'} ${name}? Connected players will be disconnected.`)) return;
   setBusy(true);
   setLog(labels[action], 'info');
   try {
-    const r = await postJson('/api/' + action, {});
-    if (r.status === 401) { window.location.href = '/login'; return; }
-    const d = await r.json();
-    if (d.ok) {
-      const success = { start: 'Server started', stop: 'Server stopped', restart: 'Server restarted' };
-      setLog(success[action], 'ok');
-      await new Promise(res => setTimeout(res, 1500));
-      await fetchStatus();
-    } else {
-      setLog('Error: ' + (d.error || 'unknown'), 'error');
-    }
-  } catch(e) { setLog('Connection error', 'error'); }
-  setBusy(false);
+    await controlServer(action);
+    const success = { start: 'Server started', stop: 'Server stopped', restart: 'Server restarted' };
+    setLog(success[action], 'ok');
+    await fetchStatus();
+  } catch (error) { setLog(error.message || 'Connection error', 'error'); }
+  finally { setBusy(false); }
 }

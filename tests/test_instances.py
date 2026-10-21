@@ -87,6 +87,68 @@ class InstanceTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.module.service_command('enable')
 
+    def test_controls_use_the_request_target_and_report_failures(self):
+        for server_id in ('first', 'second'):
+            self.instance(server_id)
+        csrf = self.admin.get('/api/csrf').json['csrf']
+        calls = []
+        def observe(action):
+            calls.append((action, self.module.selected_instance().id))
+        with patch.object(self.module, 'start_server', side_effect=lambda: observe('start')), \
+             patch.object(self.module, 'stop_server', side_effect=lambda: observe('stop')):
+            for server_id in ('first', 'second'):
+                for action in ('start', 'stop', 'restart'):
+                    response = self.admin.post('/api/' + action, json={},
+                        headers={'X-Server-ID':server_id, 'X-CSRF-Token':csrf})
+                    self.assertEqual(response.status_code, 200, response.json)
+                    self.assertEqual(response.json['server_id'], server_id)
+                    self.assertEqual(response.json['action'], action)
+            self.assertEqual(calls, [(action, server_id) for server_id in ('first', 'second')
+                                    for action in ('start', 'stop', 'stop', 'start')])
+            calls.clear()
+            for headers, status in [({'X-Server-ID':'missing', 'X-CSRF-Token':csrf}, 404),
+                                    ({'X-Server-ID':'first'}, 403)]:
+                response = self.admin.post('/api/start', json={}, headers=headers)
+                self.assertEqual(response.status_code, status)
+            self.assertEqual(calls, [])
+        with patch.object(self.module, 'get_server_pid', return_value=42), \
+             patch.object(self.module, 'start_server') as start:
+            response = self.admin.post('/api/start', json={},
+                headers={'X-Server-ID':'first', 'X-CSRF-Token':csrf})
+            self.assertEqual(response.status_code, 409)
+            start.assert_not_called()
+        with patch.object(self.module, 'stop_server', side_effect=RuntimeError('Still stopping')), \
+             patch.object(self.module, 'start_server') as start:
+            response = self.admin.post('/api/restart', json={},
+                headers={'X-Server-ID':'second', 'X-CSRF-Token':csrf})
+            self.assertEqual(response.status_code, 503)
+            self.assertEqual(response.json['error'], 'Still stopping')
+            start.assert_not_called()
+
+    def test_manager_controls_never_fall_back_to_the_legacy_service(self):
+        self.module.manager_mode = True
+        with self.module.app.test_request_context('/internal/control'), \
+             patch.object(self.module.subprocess, 'run') as run:
+            with self.assertRaisesRegex(RuntimeError, 'Select a managed server'):
+                self.module.service_command('start')
+            run.assert_not_called()
+        csrf = self.admin.get('/api/csrf').json['csrf']
+        with patch.object(self.module, 'start_server') as start:
+            response = self.admin.post('/api/start', json={}, headers={'X-CSRF-Token':csrf})
+            self.assertEqual(response.status_code, 409)
+            self.assertTrue(response.json['setup_required'])
+            start.assert_not_called()
+
+    def test_startup_errors_name_the_selected_service(self):
+        server = self.instance('first')
+        with self.module.app.test_request_context('/api/start'), \
+             patch.object(self.module, 'service_command'), \
+             patch.object(self.module.time, 'sleep'), \
+             patch.object(self.module, 'get_server_pid', side_effect=[42, None]):
+            g.server_instance = server
+            with self.assertRaisesRegex(RuntimeError, 'journalctl -u ' + server.service_name):
+                self.module.start_server()
+
     def test_state_files_credentials_and_events_are_scoped(self):
         first, second = self.instance('first'), self.instance('second')
         for server in (first, second):

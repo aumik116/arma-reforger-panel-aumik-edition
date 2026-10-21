@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
+require('./server_controls.cjs');
 const source = name => fs.readFileSync(path.join(__dirname, '..', 'static', name), 'utf8');
 const between = (text, first, next) => text.slice(text.indexOf(first), text.indexOf(next));
 
@@ -85,15 +86,20 @@ console.log('Frontend refresh and configuration-layout regressions passed');
 // An overview control must target its row, including after another row is used.
 (async () => {
   const calls = [], feedback = {textContent:''};
-  const context = vm.createContext({CSRF:'token', busy:new Set(), feedback,
+  const context = vm.createContext({busy:new Set(), feedback, Headers, Request, URL, URLSearchParams,
+    location:{href:'https://panel.test/servers?server=unrelated',origin:'https://panel.test',search:'?server=unrelated'},
+    document:{dispatchEvent(){}}, CustomEvent:class {},
     confirm:()=>true, refresh:async()=>{},
-    fetch:async(url,options)=>{calls.push({url,options});return {ok:true,json:async()=>({ok:true})};}});
+    fetch:async(url,options)=>{calls.push({url,options});return {ok:true,status:200,json:async()=>({ok:true})};}});
+  context.window = context;
+  vm.runInContext(source('api.js'),context);
+  vm.runInContext('CSRF="token";',context);
   vm.runInContext(between(source('servers.js'),'  async function action(', '  function render('),context);
   for (const id of ['training','everon','']) await context.action({id,name:id || 'Existing'},'restart',{disabled:false});
-  assert.equal(calls[0].options.headers['X-Server-ID'],'training');
-  assert.equal(calls[1].options.headers['X-Server-ID'],'everon');
-  assert.equal(calls[2].options.headers['X-Server-ID'],undefined);
-  assert.equal(calls[0].options.headers['X-CSRF-Token'],'token');
+  assert.equal(calls[0].options.headers.get('X-Server-ID'),'training');
+  assert.equal(calls[1].options.headers.get('X-Server-ID'),'everon');
+  assert.equal(calls[2].options.headers.get('X-Server-ID'),'');
+  assert.equal(calls[0].options.headers.get('X-CSRF-Token'),'token');
   assert.equal(context.busy.size,0);
   console.log('Overview controls preserve per-server targets and CSRF');
 })().catch(error=>{console.error(error);process.exitCode=1;});

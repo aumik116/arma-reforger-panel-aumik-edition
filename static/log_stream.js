@@ -81,7 +81,7 @@ async function fetchLogs(count) {
       d.lines.forEach(line => appendLog(line));
       if (d.cursor) logCursor = d.cursor;
       if (typeof refreshConsoleView === 'function') refreshConsoleView();
-      if (typeof syncConsoleControls === 'function') syncConsoleControls(Boolean(window.consoleServerRunning), busy);
+      if (typeof syncConsoleControls === 'function') syncConsoleControls(window.consoleServerRunning, busy);
       if (!d.more) break;
     }
   } catch(e) {

@@ -90,11 +90,7 @@ document.querySelectorAll('.panel-tab').forEach(tab => {
 });
 
 async function getFeature(url) {
-  const response = await fetch(url);
-  if (response.status === 401) { location.href = '/login'; throw new Error('Please sign in'); }
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Request failed');
-  return data;
+  return readJson(await fetch(url));
 }
 
 async function changeFeature(url, data) {

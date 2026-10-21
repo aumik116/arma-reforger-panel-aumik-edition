@@ -153,12 +153,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const known = servers.filter(s => s.players !== null && s.players !== undefined);
     document.getElementById('overview-players').textContent = !servers.length ? '0' : known.length ? known.reduce((total,s) => total+s.players,0) + (known.length < servers.length ? '+' : '') : '—';
   }
+  let navigationServers = [];
+  const switcher = document.getElementById('fleet-switcher');
+  function updateNavigation() {
+    const server = navigationServers.find(item => item.id === switcher.value);
+    document.querySelectorAll('[data-fleet-panel]').forEach(link => {
+      const allowed = server && (server.permissions || []).includes(link.dataset.fleetPermission);
+      link.hidden = !allowed;
+      if (allowed) link.href = workspace(server) + '#' + link.dataset.fleetPanel;
+      else link.removeAttribute('href');
+    });
+  }
+  switcher.onchange = updateNavigation;
+  document.getElementById('fleet-nav-toggle').onclick = event => {
+    const open = document.body.classList.toggle('navigation-open');
+    event.currentTarget.setAttribute('aria-expanded', String(open));
+  };
   async function refresh(report = true) {
     if (loading) return; loading = true;
     const button = document.getElementById('overview-refresh'); button.disabled = true;
     try {
       const data = await read('/api/servers');
       const servers = [...(data.legacy_server ? [{id:'',name:data.legacy_server.name,state:'ready',permissions:data.legacy_server.permissions}] : []),...data.servers];
+      const previousSelection = switcher.value;
+      navigationServers = servers.filter(server => server.state === 'ready');
+      switcher.replaceChildren();
+      for (const server of navigationServers) {
+        const option = element('option', server.name); option.value = server.id; switcher.append(option);
+      }
+      switcher.disabled = !navigationServers.length;
+      if (!navigationServers.length) switcher.append(element('option', 'No ready servers'));
+      else if (navigationServers.some(server => server.id === previousSelection)) switcher.value = previousSelection;
+      updateNavigation();
       const activityServer = servers.find(server => (server.permissions || []).includes('activity'));
       const canReadActivity = permissions.includes('activity') || !!activityServer;
       const hostResult = await Promise.allSettled([read('/api/host-metrics'), canReadActivity ? read('/api/activity', permissions.includes('activity') ? undefined : activityServer.id) : Promise.resolve(null)]);

@@ -6,8 +6,25 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/base.css"><link rel="stylesheet" href="/static/workspace.css"><link rel="stylesheet" href="/static/sharp.css"><link rel="stylesheet" href="/static/themes.css"><link rel="stylesheet" href="/static/manager-layout.css">
 <link rel="stylesheet" href="/static/ux.css">
-</head><body class="manager-page"><header class="manager-header"><span>SERVER MANAGER</span><div><a class="workspace-back" href="/account" aria-label="Account settings"><span id="overview-account"></span> · Account settings</a><button class="btn-logout" id="overview-logout">Logout ↗</button></div></header>
-<main class="manager-main"><div class="manager-heading"><div><div class="eyebrow">LOCAL HOST</div><h1>All servers</h1><p class="feature-note">Players, host health and alerts across your servers.</p></div><a class="btn-save manager-create" id="overview-create" href="/setup" hidden>+ New server</a></div>
+<link rel="stylesheet" href="/static/field.css">
+</head><body class="manager-page fleet-page"><header class="manager-header"><span>SERVER MANAGER</span><div><a class="workspace-back" href="/account" aria-label="Account settings"><span id="overview-account"></span> · Account settings</a><button class="btn-logout" id="overview-logout">Logout ↗</button></div></header>
+<main class="manager-main"><button type="button" class="mobile-nav-toggle" id="fleet-nav-toggle" aria-expanded="false" aria-controls="fleet-sidebar">☰ Menu · All servers</button>  <aside id="fleet-sidebar" class="sidebar" aria-label="Workspace navigation">
+  <div class="brand"><span class="brand-icon">AR</span><div>REFORGER<small>SERVER PANEL</small></div></div>
+  <div class="sidebar-instances"><label for="fleet-switcher" class="instance-label">Server</label><select id="fleet-switcher" aria-label="Select server"><option value="">Loading servers…</option></select><a class="btn-logout" href="/servers" aria-current="page">All servers →</a></div>
+<nav class="panel-tabs" aria-label="Panel sections"><span class="nav-label">OVERVIEW</span>
+    <a class="panel-tab" data-fleet-panel="dashboard" data-fleet-permission="view" hidden>Dashboard</a><span class="nav-label">OPERATIONS</span>
+    <a class="panel-tab" data-fleet-panel="console" data-fleet-permission="logs" hidden>Console</a>
+    <a class="panel-tab" data-fleet-panel="startup" data-fleet-permission="admin_config" hidden>Startup</a>
+    <a class="panel-tab" data-fleet-panel="players" data-fleet-permission="view" hidden>Players</a>
+    <a class="panel-tab" data-fleet-panel="scheduler" data-fleet-permission="admin_config" hidden>Scheduler</a>
+    <a class="panel-tab" data-fleet-panel="persistence" data-fleet-permission="configure" hidden>Persistence</a><span class="nav-label">CONFIGURATION</span>
+    <a class="panel-tab" data-fleet-panel="configuration" data-fleet-permission="view" hidden>Server config</a>
+    <a class="panel-tab" data-fleet-panel="mods" data-fleet-permission="view" hidden>Mods</a>
+    <a class="panel-tab" data-fleet-panel="files" data-fleet-permission="admin_config" hidden>Files</a>
+    <a class="panel-tab" data-fleet-panel="network" data-fleet-permission="view" hidden>Network</a><span class="nav-label">ADMINISTRATION</span>
+    <a class="panel-tab" data-fleet-panel="administration" data-fleet-permission="view" hidden>Administration</a></nav>
+  <div class="sidebar-bottom"><span class="brand-icon">AR</span><div>Arma Reforger<small>Dedicated server</small></div><a class="btn-logout appearance-link" href="/account">Account settings</a></div>
+  </aside><div class="manager-heading"><div><div class="eyebrow">LOCAL HOST</div><h1>All servers</h1><p class="feature-note">Players, host health and alerts across your servers.</p></div><a class="btn-save manager-create" id="overview-create" href="/setup" hidden>+ New server</a></div>
 <div class="manager-summary"><div><span>Servers</span><strong id="overview-total">—</strong></div><div><span>Online</span><strong id="overview-online">—</strong></div><div><span>Players online</span><strong id="overview-players">—</strong></div><div><span>Host CPU</span><strong id="overview-cpu">—</strong></div><div><span>Host memory</span><strong id="overview-ram">—</strong><small id="overview-ram-detail">Waiting for a reading</small></div><div><span>Needs attention</span><strong id="overview-alert-count">—</strong></div></div>
 <div class="fleet-filters"><label>Find a server<input id="overview-search" type="search" placeholder="Name, address or port"></label><label>Status<select id="overview-filter"><option value="all">All statuses</option><option value="online">Online</option><option value="offline">Offline</option><option value="attention">Needs attention</option><option value="installing">Installing</option></select></label><button id="overview-storage" class="btn-logout">Measure storage</button></div>
 <div class="manager-list-heading"><h2>This VM</h2><button class="btn-logout" id="overview-refresh">Refresh</button></div><p class="feature-note" id="overview-feedback" role="status">Loading servers…</p>

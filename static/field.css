@@ -1,0 +1,162 @@
+/* One shared Field Operations layout. Account preferences change colors only. */
+:root {
+  --field-nav:var(--text); --field-nav-muted:var(--muted);
+  --nav-border:var(--border); --nav-control:var(--surface2);
+  --nav-selected:var(--accent-soft); --nav-selected-text:var(--accent2);
+  --nav-hover:var(--surface2); --button-text:var(--bg);
+  --field-contours:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='440' height='170'%3E%3Cg fill='none' stroke='%23809070' stroke-opacity='.12'%3E%3Cpath d='M20 170C140 105 35 75 150 20S310 85 440 0M60 170C170 110 75 80 165 40S330 110 440 28M100 170C195 125 115 90 180 60S350 130 440 54M140 170C220 135 155 100 195 80S365 145 440 80M180 170C245 145 195 110 210 100S380 160 440 106'/%3E%3C/g%3E%3C/svg%3E");
+}
+:root[data-theme="light"] {--button-text:#fff}
+:root[data-theme="field"] {
+  color-scheme:light;
+  --bg:#eae9e1; --surface:#f8f7f1; --surface2:#efeee6;
+  --border:#cccfc1; --text:#30382c; --heading:#202a20; --muted:#626b59;
+  --accent:#456638; --accent2:#304e27; --accent-soft:#e0e7d6; --accent-border:#849774;
+  --chrome:#343f30; --console-bg:#f1f1e9;
+  --online:#397344; --offline:#ac3832; --warn:#895b15;
+  --cpu-color:#527e43; --ram-color:#697f83; --chart-grid:#d7dbcf;
+  --field-nav:#e9edde; --field-nav-muted:#c0c9b6;
+  --nav-border:#657258; --nav-control:#414e39; --nav-selected:#566b47; --nav-selected-text:#fff; --nav-hover:#48583d; --button-text:#fff;
+  --field-contours:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='440' height='170' viewBox='0 0 440 170'%3E%3Cg fill='none' stroke='%23bdc9ac' stroke-opacity='.14'%3E%3Cpath d='M20 170C140 105 35 75 150 20S310 85 440 0M60 170C170 110 75 80 165 40S330 110 440 28M100 170C195 125 115 90 180 60S350 130 440 54M140 170C220 135 155 100 195 80S365 145 440 80M180 170C245 145 195 110 210 100S380 160 440 106M0 35C75 10 95 60 40 90S15 150 65 170M0 56C45 35 65 65 30 82S0 140 25 170'/%3E%3C/g%3E%3C/svg%3E");
+}
+html[data-theme] body {font-family:'Barlow',system-ui,sans-serif;line-height:1.45}
+html[data-theme] :is(h1,h2,h3,h4,.mods-heading h2,.config-category-title,.chart-value,.stat-item .value){color:var(--heading)}
+html[data-theme] :is(button,input,select,textarea){font-family:inherit}
+html[data-theme] :is(.card,.chart-card,.log-viewer-card,.config-category,.files-workspace,.mods-card,.mods-dialog,.instances-dialog,.console-workspace,.network-chart,.config-code-block,.mods-toolbar,.mod-review-card,.operator-row,.operator-facts,.fleet-server-card,.fleet-chart-panel,.fleet-alert-panel,.dashboard-diagnostics){background:var(--surface);color:var(--text);border-color:var(--border);border-radius:6px;box-shadow:none;clip-path:none}
+html[data-theme] :is(input,select,textarea,pre){background:var(--console-bg);color:var(--text);border-color:var(--border)}
+html[data-theme] :is(button,.manager-link,.config-button,input,select,textarea){border-radius:4px;letter-spacing:normal;clip-path:none}
+html[data-theme] :is(button,.config-button,.manager-link){font-weight:500;text-transform:none}
+html[data-theme] :is(.layout,dialog) :is(button,select){background-color:var(--surface2);color:var(--text);border-color:var(--border)}
+html[data-theme] :is(.btn-save,.login-submit){background:var(--accent);color:var(--button-text);border:1px solid var(--accent);border-radius:4px;clip-path:none}
+html[data-theme] :is(.btn-save,.login-submit):hover:not(:disabled){background:var(--accent2);color:var(--button-text)}
+html[data-theme] :is(.section-tabs,.section-filter,.config-modes){background:var(--surface2);border-color:var(--border)}
+html[data-theme] :is(.layout,dialog) :is(button[aria-selected="true"],button[aria-pressed="true"]){background:var(--accent-soft);color:var(--accent2);border-color:var(--accent-border)}
+html[data-theme] :is(button,a,input,select,textarea,summary):focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+html[data-theme] :is(.chart-title,.card-label,.field label,.field-group label,.feature-note,.chart-sub,.stat-item .label,th){color:var(--muted)}
+html[data-theme] :is(header,.sidebar){background:var(--chrome);color:var(--field-nav);border-color:var(--nav-border)}
+html[data-theme] header{background-image:var(--field-contours);background-position:right center;background-repeat:repeat-x}
+html[data-theme] header :is(h1,span,a,button){color:var(--field-nav)}
+html[data-theme] header .btn-logout{border-color:var(--nav-border)}
+html[data-theme] .sidebar :is(.nav-label,.instance-label,small){color:var(--field-nav-muted)}
+html[data-theme] .sidebar :is(select,button,a){background:transparent;color:var(--field-nav);border-color:var(--nav-border);text-decoration:none}
+html[data-theme] .sidebar select{background:var(--nav-control);color:var(--field-nav)}
+html[data-theme] .sidebar .panel-tab{border-color:transparent;min-height:34px;padding:7px 10px;font-size:13px;border-radius:4px}
+html[data-theme] .sidebar .panel-tab:before{color:var(--field-nav-muted)}
+html[data-theme] .sidebar .panel-tab[aria-selected="true"],html[data-theme] .sidebar a[aria-current="page"]{background:var(--nav-selected);color:var(--nav-selected-text);border-color:var(--nav-border)}
+html[data-theme] .sidebar :is(.panel-tab,a):hover{background:var(--nav-hover);color:var(--field-nav)}
+html[data-theme] .sidebar .nav-label{font-size:9px;padding:12px 10px 5px;letter-spacing:.12em}
+html[data-theme] .sidebar-bottom{border-color:var(--nav-border)}
+html[data-theme] .sidebar-bottom .appearance-link{width:100%;text-align:left;font-size:12px}
+html[data-theme] .sidebar-bottom>div{display:none}
+html[data-theme] .sidebar :focus-visible,html[data-theme] header :focus-visible{outline-color:var(--field-nav)}
+html[data-theme] .page-heading{border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:18px}
+html[data-theme] :is(.page-heading h2,.manager-heading h1){font:600 28px/1.2 'Barlow',system-ui,sans-serif;letter-spacing:-.02em}
+html[data-theme] .eyebrow{font-size:10px;letter-spacing:.12em}
+html[data-theme] .dashboard-heading{border-bottom:1px solid var(--border);padding-bottom:16px!important}
+html[data-theme] .dashboard-heading .controls-grid .ctrl-btn{background:var(--surface);min-height:38px;border-color:var(--border)}
+html[data-theme] .ctrl-btn.start{color:var(--online)}
+html[data-theme] .ctrl-btn.stop{color:var(--offline)}
+html[data-theme] .dashboard-summary .card{padding:18px;border-top:3px solid var(--accent-border)}
+html[data-theme] .dashboard-summary .chart-value{font-size:25px}
+html[data-theme] :is(.card-label,.chart-title){letter-spacing:.03em;text-transform:none;font-weight:600}
+html[data-theme] :is(.card-corner,.login-corner){display:none}
+html[data-theme] .manager-summary{gap:0;background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+html[data-theme] .manager-summary>div{background:transparent;border:0;border-right:1px solid var(--border);padding:16px;gap:6px}
+html[data-theme] .manager-summary strong{color:var(--heading);font-size:24px}
+html[data-theme] .manager-summary span{font-size:11px;text-transform:none;letter-spacing:0}
+html[data-theme] .manager-list-heading{background:transparent;border:0;padding:4px 0}
+html[data-theme] .manager-list-heading h2{font-size:17px;font-weight:600;color:var(--heading)}
+html[data-theme] .fleet-cards{grid-template-columns:minmax(0,1fr);gap:9px}
+html[data-theme] .fleet-server-card{padding:16px;gap:8px 18px;display:grid;grid-template-columns:minmax(170px,1.3fr) minmax(220px,1fr) minmax(240px,1fr);align-items:center}
+html[data-theme] .fleet-card-heading{grid-column:1;grid-row:1;font-size:11px}
+html[data-theme] .fleet-server-card h3{grid-column:1;grid-row:2;font-size:18px;margin:0}
+html[data-theme] .fleet-server-card .fleet-map{grid-column:1;grid-row:3;font-size:12px}
+html[data-theme] .fleet-server-card>.fleet-address{grid-column:2;font-size:11px}
+html[data-theme] .fleet-card-stats{grid-column:2;grid-row:1/3;margin:0;padding:0;border:0;gap:14px}
+html[data-theme] .fleet-card-stats dt{font-size:10px;text-transform:none;letter-spacing:0}
+html[data-theme] .fleet-card-stats dd{font-size:18px}
+html[data-theme] .fleet-server-card .manager-actions{grid-column:3;grid-row:1/4;min-width:0;margin:0;padding:0;justify-content:flex-end;gap:6px}
+html[data-theme] .fleet-server-card .fleet-event-error{grid-column:1/-1}
+html[data-theme] .manager-link{background:var(--accent-soft);color:var(--accent2);border-color:var(--accent-border)}
+html[data-theme] .fleet-chart-panel .fleet-section-heading,html[data-theme] .fleet-alert-panel .fleet-section-heading{background:transparent}
+html[data-theme] :is(.fleet-section-heading h2,.fleet-server-title){color:var(--heading)}
+html[data-theme] .fleet-chart{height:190px}
+html[data-theme] .manager-footnote{font-size:11px;line-height:1.6}
+html[data-theme] .login-page:before{background-color:var(--chrome);background-image:var(--field-contours);background-size:440px 170px}
+html[data-theme] .login-box{clip-path:none;border-radius:8px;padding:36px;border:1px solid var(--border);box-shadow:0 16px 48px #17201533}
+html[data-theme] .login-box h1{font:600 30px/1.1 'Barlow',system-ui,sans-serif;letter-spacing:-.02em}
+html[data-theme] .login-box h1 span{color:var(--accent)}
+html[data-theme] .login-tag{letter-spacing:.12em}
+html[data-theme] .login-submit{font:600 14px 'Barlow',sans-serif;letter-spacing:0}
+html[data-theme] #panel-console :is(.console-log-output,#console-view-errors,#console-view-players,#console-command-form,#console-command-output,.console-broadcast,.console-workspace-filters){background:var(--console-bg);color:var(--text);border-color:var(--border)}
+html[data-theme] #panel-console :is(.console-row-message,.console-error-group strong,.console-tab-empty,.console-row-time,.console-row-source){color:var(--text)}
+html[data-theme] #panel-console .console-row.err .console-row-message{color:var(--offline)}
+html[data-theme] #panel-console .console-row.warn .console-row-message{color:var(--warn)}
+html[data-theme] #panel-console :is(.console-view-tabs button,.console-levels button,.console-filter-tools button,.console-server-actions button,.console-broadcast button,#console-command-form button){background:var(--surface2);color:var(--text);border-color:var(--border)}
+html[data-theme] #panel-console button[aria-pressed="true"],html[data-theme] #panel-console button[aria-selected="true"]{background:var(--accent-soft);color:var(--accent2);border-color:var(--accent-border)}
+html[data-theme] #panel-console #console-stop{color:var(--offline)}
+html[data-theme] :is(.mods-heading h2,.mods-name,.mod-name,.files-entry,.files-breadcrumb,.config-category h3,.network-workspace h3){color:var(--heading)}
+html[data-theme] :is(.mods-table,.mods-table td,.mods-table th,.mod-row,.mods-row,.files-list,.files-entry,.config-code-block,.config-modes,#config-json-text){background:var(--surface);color:var(--text);border-color:var(--border)}
+html[data-theme] :is(#panel-mods,#panel-files,#panel-network,#panel-configuration,#panel-persistence) :is([class*="toolbar"],[class*="savebar"],[class*="browser"],[class*="editor"],[class*="dialog"]){background:var(--surface);color:var(--text);border-color:var(--border)}
+html[data-theme] :is(table,th,td){border-color:var(--border)}
+html[data-theme] :is(thead,th){background:var(--surface2);color:var(--muted)}
+html[data-theme] tbody tr:hover{background:var(--accent-soft)}
+@media(min-width:701px){
+  html[data-theme] .sidebar{width:208px;padding:0 10px;top:52px}
+  html[data-theme] header{height:52px;left:0}
+  html[data-theme] .layout{margin-left:208px;padding:78px 24px 28px;max-width:none}
+  html[data-theme] .layout:has(#panel-console:not([hidden])){padding-top:78px}
+  html[data-theme] .dashboard-columns{grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:16px}
+  html[data-theme] .sidebar-instances{padding:16px 0 8px}
+}
+@media(max-width:1100px){
+  html[data-theme] .fleet-server-card{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+  html[data-theme] .fleet-server-card .manager-actions{grid-column:1/-1;grid-row:auto;justify-content:flex-start}
+  html[data-theme] .dashboard-columns{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:700px){
+  html[data-theme] .fleet-server-card{grid-template-columns:minmax(0,1fr);padding:16px}
+  html[data-theme] .fleet-server-card>:is(.fleet-card-heading,h3,.fleet-map,.fleet-address,.fleet-card-stats,.manager-actions){grid-column:1;grid-row:auto}
+  html[data-theme] .fleet-card-stats{border-top:1px solid var(--border);padding-top:12px}
+  html[data-theme] .manager-summary>div{padding:12px;border-bottom:1px solid var(--border)}
+  html[data-theme] .navigation-open .sidebar{background:var(--chrome);border-color:var(--nav-border)}
+  html[data-theme] header{background:var(--chrome);background-image:var(--field-contours)}
+  html[data-theme] .manager-heading{align-items:start;flex-wrap:wrap;gap:12px}
+}
+/* The overview uses the same complete, permission-aware navigation as a server. */
+@media(min-width:701px){html[data-theme] .fleet-page .manager-main{margin-left:208px;max-width:none;padding:78px 24px 28px}}
+html[data-theme] #fleet-sidebar .panel-tab{display:block}
+html[data-theme] .fleet-page .manager-header{z-index:45}
+@media(max-width:700px){html[data-theme] .fleet-page .manager-main{padding-top:76px}html[data-theme] .sidebar .nav-label{display:block}}
+/* Tactical is the mockup palette. Original retains the base.css colors. */
+:root[data-theme="tactical"]{--bg:#151917;--surface:#1e2420;--surface2:#252d27;--border:#394036;--chrome:#181e19;--console-bg:#131814;--text:#dedfd4;--heading:#f0f1e7;--muted:#a7afa0;--nav-selected:#47583b;--nav-selected-text:#f1f3e9;--nav-hover:#303c2a;--nav-border:#46513e;--chart-grid:#343f32}
+html[data-theme] .sidebar .sidebar-instances{display:grid;gap:8px}
+html[data-theme] .sidebar .sidebar-instances select{width:100%;min-width:0;background:var(--nav-control);color:var(--field-nav);border:1px solid var(--nav-border);padding:9px;font:12px 'Barlow',sans-serif}
+html[data-theme] .layout>header .header-left h1{color:var(--field-nav)}
+html[data-theme] .layout>header .btn-logout{background:transparent;color:var(--field-nav);border-color:var(--nav-border)}
+html[data-theme] :is(#panel-mods,#activity-mods) button{background:var(--surface2);color:var(--text);border-color:var(--border)}
+html[data-theme] :is(#panel-mods,#activity-mods) button:is([aria-selected="true"],[aria-pressed="true"],[aria-current="page"]){background:var(--accent-soft);color:var(--accent2);border-color:var(--accent-border);box-shadow:none}
+html[data-theme] :is(#panel-mods,#activity-mods) .mod-primary{background:var(--accent);color:var(--button-text);border-color:var(--accent)}
+html[data-theme] :is(.mods-notice,.mod-badge){background:var(--surface2);color:var(--text);border-color:var(--border)}
+html[data-theme] .mod-body h3{color:var(--heading)}
+html[data-theme] .mods-details-view .mods-details-heading{background:var(--surface2)}
+html[data-theme] :is(#panel-mods,#activity-mods) .mod-remove{background:var(--surface);color:var(--offline);border-color:var(--offline)}
+html[data-theme] .section-tabs button[aria-selected="true"]{background:var(--accent-soft);color:var(--accent2)}
+html[data-theme] .btn-save{background:var(--accent);color:var(--button-text)}
+html[data-theme] .field-resource-charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:0 0 18px}
+html[data-theme] .field-resource-charts>.charts-row{display:contents}
+html[data-theme] .field-resource-charts .chart-card{margin:0;padding:18px;min-width:0}
+html[data-theme] .field-resource-charts .chart-wrap{height:160px}
+html[data-theme] .field-resource-charts .chart-value{font-size:22px}
+html[data-theme] #fleet-sidebar [data-fleet-panel="console"]:before{content:'⌁'}
+html[data-theme] #fleet-sidebar [data-fleet-panel="startup"]:before{content:'▷'}
+html[data-theme] #fleet-sidebar [data-fleet-panel="players"]:before{content:'♙'}
+html[data-theme] #fleet-sidebar [data-fleet-panel="scheduler"]:before{content:'◷'}
+html[data-theme] #fleet-sidebar [data-fleet-panel="persistence"]:before{content:'▣'}
+html[data-theme] #fleet-sidebar [data-fleet-panel="configuration"]:before{content:'⚙'}
+html[data-theme] #fleet-sidebar [data-fleet-panel="mods"]:before{content:'◇'}
+html[data-theme] #fleet-sidebar [data-fleet-panel="files"]:before{content:'▤'}
+html[data-theme] #fleet-sidebar [data-fleet-panel="network"]:before{content:'⇄'}
+html[data-theme] #fleet-sidebar [data-fleet-panel="administration"]:before{content:'◈'}
+@media(max-width:900px){html[data-theme] .field-resource-charts{grid-template-columns:minmax(0,1fr)}}
+html[data-theme] #panel-dashboard>.field-resource-charts{margin-bottom:18px}

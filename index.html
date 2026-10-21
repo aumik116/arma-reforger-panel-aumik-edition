@@ -31,6 +31,7 @@
 <link rel="stylesheet" href="/static/manager-layout.css">
 <link rel="stylesheet" href="/static/workshop.css">
 <link rel="stylesheet" href="/static/ux.css">
+<link rel="stylesheet" href="/static/field.css">
 </head>
 <body>
 <div class="layout">
@@ -119,28 +120,7 @@
   <div class="card"><div class="card-label">Server CPU</div><div class="chart-value" id="summary-cpu">—</div><p class="feature-note">Game process usage</p></div>
   <div class="card"><div class="card-label">Server memory</div><div class="chart-value" id="summary-ram">—</div><p class="feature-note">Game process resident memory</p></div>
 </div>
-<div class="dashboard-columns"><div class="dashboard-performance">
-  <div class="charts-row" id="extra-metrics"></div>
-  <div class="charts-row">
-    <div class="chart-card">
-      <div class="chart-title">Network traffic — host interfaces</div>
-      <div class="traffic-values"><span class="traffic-first">↓ Receive <strong id="net-rx">—</strong></span><span class="traffic-second">↑ Send <strong id="net-tx">—</strong></span></div>
-      <div class="chart-sub" id="net-state">Waiting for sample</div>
-      <div class="chart-wrap"><canvas id="chart-network" aria-label="Host network receive and send rates"></canvas></div>
-    </div>
-
-  </div>
-
-  <div class="card" id="storage-card">
-    <div class="card-label">Server storage</div>
-    <div id="disk-space-text" role="status">Waiting for storage sample…</div><details id="storage-details"><summary>Storage breakdown</summary><p class="feature-note">Decimal GB/MB. File sizes may differ from allocated disk space. Refresh after deleting or uploading files.</p><button type="button" class="config-button" id="storage-refresh">Refresh breakdown</button><p id="storage-status" class="feature-note" role="status"></p><div id="storage-breakdown"></div></details>
-    <progress id="disk-space-gauge" max="100" value="0" aria-label="Disk space used" style="width:100%;margin-top:12px;accent-color:var(--accent)"></progress>
-    <p class="feature-note" id="disk-space-alert" role="status"></p>
-    <details class="metric-explanation"><summary>About these metrics</summary><p class="feature-note">Storage metrics cover the server filesystem device. Network metrics cover host interfaces except loopback. Charts retain the latest 60 samples while this dashboard is open; dashed lines mark panel server controls and mod changes.</p></details>
-    <p class="feature-note" id="metric-events">No recent panel events.</p>
-  </div>
-
-<details class="dashboard-diagnostics"><summary>More performance details <span>CPU, host memory, disk activity & latency</span></summary><div class="dashboard-diagnostics-content">  <!-- Charts -->
+<div class="field-resource-charts">  <!-- Charts -->
   <div class="charts-row">
     <div class="chart-card">
       <div class="chart-header">
@@ -174,7 +154,29 @@
         </div>
       </div>
       <div class="chart-wrap"><canvas id="chart-ram"></canvas></div>
-    </div><div class="chart-card">
+    </div></div>
+<div class="dashboard-columns"><div class="dashboard-performance">
+  <div class="charts-row" id="extra-metrics"></div>
+  <div class="charts-row">
+    <div class="chart-card">
+      <div class="chart-title">Network traffic — host interfaces</div>
+      <div class="traffic-values"><span class="traffic-first">↓ Receive <strong id="net-rx">—</strong></span><span class="traffic-second">↑ Send <strong id="net-tx">—</strong></span></div>
+      <div class="chart-sub" id="net-state">Waiting for sample</div>
+      <div class="chart-wrap"><canvas id="chart-network" aria-label="Host network receive and send rates"></canvas></div>
+    </div>
+
+  </div>
+
+  <div class="card" id="storage-card">
+    <div class="card-label">Server storage</div>
+    <div id="disk-space-text" role="status">Waiting for storage sample…</div><details id="storage-details"><summary>Storage breakdown</summary><p class="feature-note">Decimal GB/MB. File sizes may differ from allocated disk space. Refresh after deleting or uploading files.</p><button type="button" class="config-button" id="storage-refresh">Refresh breakdown</button><p id="storage-status" class="feature-note" role="status"></p><div id="storage-breakdown"></div></details>
+    <progress id="disk-space-gauge" max="100" value="0" aria-label="Disk space used" style="width:100%;margin-top:12px;accent-color:var(--accent)"></progress>
+    <p class="feature-note" id="disk-space-alert" role="status"></p>
+    <details class="metric-explanation"><summary>About these metrics</summary><p class="feature-note">Storage metrics cover the server filesystem device. Network metrics cover host interfaces except loopback. Charts retain the latest 60 samples while this dashboard is open; dashed lines mark panel server controls and mod changes.</p></details>
+    <p class="feature-note" id="metric-events">No recent panel events.</p>
+  </div>
+
+<details class="dashboard-diagnostics"><summary>More performance details <span>Disk activity & latency</span></summary><div class="dashboard-diagnostics-content"><div class="chart-card">
       <div class="chart-title">Disk activity — Arma process</div>
       <div class="traffic-values"><span class="traffic-first">Read <strong id="disk-read">—</strong></span><span class="traffic-second">Write <strong id="disk-write">—</strong></span></div>
       <div class="chart-sub" id="disk-state">Waiting for sample</div>

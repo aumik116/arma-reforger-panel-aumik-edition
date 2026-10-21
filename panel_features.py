@@ -287,12 +287,12 @@ def install(api):
     def account_preferences():
         with db() as conn:
             row = conn.execute('SELECT theme FROM user_preferences WHERE user_id=?', (g.user['id'],)).fetchone()
-        return jsonify(theme=row['theme'] if row else 'original')
+        return jsonify(theme=row['theme'] if row else 'tactical')
 
     @app.post('/api/preferences')
     def account_preferences_save():
         theme = (request.get_json(silent=True) or {}).get('theme')
-        if theme not in ('original', 'ocean', 'forest', 'light'):
+        if theme not in ('tactical', 'original', 'field', 'ocean', 'forest', 'light'):
             return jsonify(ok=False, error='Choose a supported theme'), 400
         with db() as conn:
             conn.execute('INSERT INTO user_preferences VALUES (?,?) ON CONFLICT(user_id) DO UPDATE SET theme=excluded.theme',

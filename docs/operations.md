@@ -4,9 +4,9 @@
 
 ## All servers dashboard
 
-The totals and cards cover servers your account can access. Search and status filters narrow the cards without changing totals. Click a card to open that server's dashboard; Start, Stop and Restart use that card's server and permissions. Stop and Restart ask for confirmation.
+The totals and rows cover servers your account can access. Search and status filters narrow the rows without changing totals. Click a server row to open that server's dashboard; Start, Stop and Restart use that row's server and permissions. Stop and Restart ask for confirmation.
 
-Player activity is the combined count from available rosters. A `+` on the total means some readings are missing; the chart leaves a gap rather than treating those servers as empty. Host CPU and memory cover the whole VM, while cards show individual game-process usage. Host CPU needs two samples after the panel starts.
+Player activity is the combined count from available rosters. A `+` on the total means some readings are missing; the chart leaves a gap rather than treating those servers as empty. Host CPU and memory cover the whole VM, while rows show individual game-process usage. Host CPU needs two samples after the panel starts.
 
 Charts keep up to 30 minutes of readings while this page is open and reset on reload. Alerts show current failures, status changes observed while the page is open, and the latest permitted administrative activity. An online-to-offline change records a stop or exit; it does not establish whether the process crashed. Player joins and leaves are not listed. If a refresh fails, the page marks the retained server readings as potentially out of date.
 
@@ -111,7 +111,9 @@ Dashboard shows the selected server's events and Discord delivery status. In **A
 
 Monitoring distinguishes panel-controlled stops from unexpected process changes. Initial observation establishes a baseline. Repeated failures are suppressed for five minutes. Delivery tries up to three times, observes rate-limit delays and records failures. Messages do not include passwords, logs or configuration values; only the configured role can be mentioned. Saving settings cancels queued messages. The database retains the latest 1,000 events per server; the UI shows 100. Monitoring and delivery require the Linux service. Use **Send test message** to check your webhook.
 
-**Account settings** changes your password and theme without requiring server access. Password changes require the current password, keep the current session signed in and invalidate other sessions. Staff/access management remains in Administration. Login uses the browser's remembered theme; signed-in pages load the account's saved preference.
+**Account settings** changes your password and theme without requiring server access. Password changes require the current password, keep the current session signed in and invalidate other sessions. Staff/access management remains in Administration. Login uses the browser's remembered theme; signed-in pages load the account's saved preference. The layout is shared by all accounts; the color picker changes only the palette. Tactical uses the charcoal/amber/olive mockup palette and is the default for accounts without a saved preference. Original retains the pre-refresh amber colors. Ocean, Forest, Light and Field (olive and parchment) complete the six color options. Existing saved colors remain selected.
+
+The interface before the field-layout refresh is saved at Git tag `backup/pre-field-operations-fb3c1d2`. Reverting the refresh commit restores that interface without changing server files or account data. Changing color themes does not revert the layout.
 
 | Role | Access |
 | --- | --- |

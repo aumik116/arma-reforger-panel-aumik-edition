@@ -1,7 +1,5 @@
-/* Square panel chrome and a compact, terminal-first console. */
-:where(.layout, .layout *, .sidebar, .sidebar *, header, header *, .mods-dialog, .mods-dialog *):not(.dot):not(.log-live-dot):not([role="switch"]) {
-  border-radius:0 !important;
-}
+/* Compact, terminal-first console. Shared chrome lives in field.css. */
+
 
 .layout:has(#panel-console:not([hidden])) { max-width:none; padding-top:78px; }
 .layout:has(#panel-console:not([hidden])) .page-heading { display:none; }

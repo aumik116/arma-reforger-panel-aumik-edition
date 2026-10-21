@@ -19,3 +19,22 @@ assert.equal(chart.data.datasets[0].data.length,181);
 assert.equal(chart.options.scales.x.max-chart.options.scales.x.min,1800000);
 context.sample(null,[1],1); // Missing chart assets do not break current readings.
 console.log('Fleet charts preserve gaps, zero readings and a bounded 30-minute window');
+
+// Overview links always follow the selected server and its current permissions.
+const links = ['view','admin_config','mods'].map(permission => ({
+  dataset:{fleetPermission:permission,fleetPanel:permission==='view'?'dashboard':permission==='mods'?'mods':'startup'},
+  removeAttribute(name){delete this[name];}
+}));
+const navigation = vm.createContext({
+  navigationServers:[{id:'alpha',permissions:['view','mods']},{id:'beta',permissions:['view','admin_config']}],
+  switcher:{value:'alpha'}, document:{querySelectorAll:()=>links},
+  workspace:server=>'/?server='+encodeURIComponent(server.id)
+});
+vm.runInContext(source.slice(source.indexOf('  function updateNavigation()'), source.indexOf('  switcher.onchange')),navigation);
+navigation.updateNavigation();
+assert.equal(links[2].href,'/?server=alpha#mods');assert.equal(links[1].hidden,true);
+navigation.switcher.value='beta';navigation.updateNavigation();
+assert.equal(links[1].href,'/?server=beta#startup');assert.equal(links[2].hidden,true);assert.equal(links[2].href,undefined);
+navigation.switcher.value='removed';navigation.updateNavigation();
+assert.equal(links.every(link=>link.hidden&&link.href===undefined),true);
+console.log('Overview navigation follows server selection and revokes unavailable links');

@@ -2,16 +2,16 @@
 const modLibrary = {mods:[], signature:null, page:1, size:8, sort:'order', reorder:false, edit:null, historyCursor:null, metadata:new Map()};
 const modEl = id => document.getElementById(id);
 const modUpdates = {selected:new Set(), draft:null};
-let modView = 'cards';
+let modView = 'details';
 function setModView(view) {
-  modView = ['cards','list','details'].includes(view) ? view : 'cards';
+  modView = ['cards','list','details'].includes(view) ? view : 'details';
   modEl('mods-list').classList.toggle('mods-list-view', modView === 'list');
   modEl('mods-list').classList.toggle('mods-details-view', modView === 'details');
   ['cards','list','details'].forEach(mode => modEl('mods-view-' + mode).setAttribute('aria-pressed', String(modView === mode)));
   try { localStorage.setItem('mods-view', modView); } catch (_) {}
 }
-let savedModView = 'cards';
-try { savedModView = localStorage.getItem('mods-view') || 'cards'; } catch (_) {}
+let savedModView = 'details';
+try { savedModView = localStorage.getItem('mods-view') || 'details'; } catch (_) {}
 setModView(savedModView);
 try { const size = Number(localStorage.getItem('mods-page-size')); if ([8,16,24,48].includes(size)) modLibrary.size = size; } catch (_) {}
 modEl('mods-per-page').value = String(modLibrary.size);

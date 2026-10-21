@@ -1,14 +1,14 @@
 // The account is authoritative; this cache avoids a flash during page reloads.
 (() => {
-  const themes = ['original', 'ocean', 'forest', 'light'];
-  let current = 'original';
+  const themes = ['tactical', 'original', 'field', 'ocean', 'forest', 'light'];
+  let current = 'tactical';
   function apply(theme) {
-    current = themes.includes(theme) ? theme : 'original';
+    current = themes.includes(theme) ? theme : 'tactical';
     document.documentElement.dataset.theme = current;
     try { localStorage.setItem('panel-theme', current); } catch (_) {}
     document.dispatchEvent(new Event('panel-theme-change'));
   }
-  try { apply(localStorage.getItem('panel-theme')); } catch (_) { apply('original'); }
+  try { apply(localStorage.getItem('panel-theme')); } catch (_) { apply('tactical'); }
   document.addEventListener('DOMContentLoaded', async () => {
     if (document.body.hasAttribute('data-login-page')) return;
     const picker = document.getElementById('theme-choice');

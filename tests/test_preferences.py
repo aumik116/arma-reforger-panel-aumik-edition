@@ -13,12 +13,15 @@ class PreferenceTests(unittest.TestCase):
     def test_preferences_are_per_account_and_require_csrf(self):
         self.create('viewer', 'viewer')
         viewer = self.login('viewer')
-        self.assertEqual(self.admin.get('/api/preferences').json['theme'], 'original')
+        self.assertEqual(self.admin.get('/api/preferences').json['theme'], 'tactical')
         self.assertEqual(self.admin.post('/api/preferences', json={'theme':'ocean'}).status_code, 403)
         self.assertEqual(self.post(self.admin, '/api/preferences', {'theme':'ocean'}).status_code, 200)
-        self.assertEqual(viewer.get('/api/preferences').json['theme'], 'original')
+        self.assertEqual(viewer.get('/api/preferences').json['theme'], 'tactical')
         self.assertEqual(self.post(viewer, '/api/preferences', {'theme':'forest'}).status_code, 200)
         self.assertEqual(self.admin.get('/api/preferences').json['theme'], 'ocean')
+        for theme in ('tactical', 'original', 'field', 'ocean', 'forest', 'light'):
+            self.assertEqual(self.post(viewer, '/api/preferences', {'theme':theme}).status_code, 200)
+            self.assertEqual(viewer.get('/api/preferences').json['theme'], theme)
         self.assertEqual(self.post(viewer, '/api/preferences', {'theme':'arbitrary'}).status_code, 400)
         self.assertEqual(self.module.app.test_client().get('/api/preferences').status_code, 401)
 

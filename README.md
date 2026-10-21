@@ -44,7 +44,7 @@ Updates create recovery snapshots under `/var/backups/arma-panel/`. A failed upd
 
 ## Find your tools
 
-**All servers** shows summary totals, compact server cards, player and host CPU/memory charts, and recent alerts. Live charts cover up to 30 minutes collected while the page is open; they reset on reload. Start, Stop and Restart are available on cards when your role permits them, with confirmation before Stop or Restart. Open a server or use the selector at the **top of the sidebar** to switch. Switching reloads the workspace and clears its previous drafts and console cursor.
+**All servers** shows summary totals, compact server rows, player and host CPU/memory charts, and recent alerts. Live charts cover up to 30 minutes collected while the page is open; they reset on reload. Start, Stop and Restart are available on each row when your role permits them, with confirmation before Stop or Restart. Open a server or use the selector at the **top of the sidebar** to switch. Switching reloads the workspace and clears its previous drafts and console cursor.
 
 | Workspace | What you use it for |
 | --- | --- |
@@ -60,7 +60,7 @@ Updates create recovery snapshots under `/var/backups/arma-panel/`. A failed upd
 | Network | Listeners, ports, network settings and host traffic |
 | Administration | Staff access, activity, Discord notifications and maintenance |
 
-**Account settings** is a separate page for your password and theme. Original, Ocean, Forest and Light themes are available; the login page uses the last theme remembered by that browser.
+**Account settings** is a separate page for your password and theme. Everyone uses the same layout. Color choices are Tactical (the charcoal/amber/olive default), Original (classic amber), Ocean, Forest, Light and Field (olive and parchment); the login page uses the last palette remembered by that browser.
 
 Stop and restart ask for confirmation. Controls block repeated clicks while an action runs and show failures. Unavailable status is distinct from a stopped server.
 

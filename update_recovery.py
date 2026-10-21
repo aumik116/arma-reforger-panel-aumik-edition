@@ -29,8 +29,15 @@ def backup(panel, source, config_root='/etc', backup_root='/var/backups/arma-pan
     names = {p.name for folder in (panel, source) for p in folder.glob('*.py')}
     names.update(p.name for folder in (panel, source) for p in folder.glob('*.html'))
     names.update(('config.env', '.panel-secret'))
-    names.update('static/' + p.name for folder in (panel, source)
-                 for p in (folder / 'static').glob('*') if p.is_file())
+    for folder in (panel, source):
+        static = folder / 'static'
+        if static.is_symlink():
+            raise ValueError(f'Update recovery requires a regular static directory: {static}')
+        for asset in static.rglob('*'):
+            if asset.is_symlink():
+                raise ValueError(f'Update recovery requires regular static assets: {asset}')
+            if asset.is_file():
+                names.add(asset.relative_to(folder).as_posix())
     targets = [panel / name for name in sorted(names)] + [config_root / name for name in SERVICE_FILES]
     records = []
     for index, target in enumerate(targets):

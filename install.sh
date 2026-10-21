@@ -33,7 +33,7 @@ copy_panel_files() {
     for file in "${PANEL_PY_FILES[@]}" index.html login.html setup.html servers.html account.html; do
         cp "$SCRIPT_DIR/$file" "$destination/"
     done
-    cp "$SCRIPT_DIR/static/"* "$destination/static/"
+    cp -R "$SCRIPT_DIR/static/." "$destination/static/"
 }
 
 # These helpers can be sourced by tests without running the installer.
@@ -188,7 +188,7 @@ update_panel_with_recovery() (
     for file in "${PANEL_PY_FILES[@]}" index.html login.html setup.html servers.html account.html; do
         chown "$panel_user:$panel_user" "$panel_dir/$file"
     done
-    chown "$panel_user:$panel_user" "$panel_dir/static" "$panel_dir/static/"*
+    chown -R "$panel_user:$panel_user" "$panel_dir/static"
     if ! grep -q "^PANEL_MODE=manager$" "$panel_dir/config.env"; then
         configure_server_control "$panel_dir" "$panel_user"
     fi

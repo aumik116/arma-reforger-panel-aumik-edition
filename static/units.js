@@ -2,7 +2,12 @@
 (() => {
   const el=id=>document.getElementById(id), esc=escHtml;
   let listing, detail, unitId, dialogSave, baseline='', loading=false, dialogSaving=false;
-  let rosterView='',rosterUnit=null;
+  let rosterView='',rosterUnit=null,activeTab='roster';
+  const areas={overview:['dashboard','analytics'],people:['roster','qualifications','promotions','awards'],operations:['events','attendance','campaigns','servers'],resources:['references','catalog'],administration:['structure','staff']};
+  const areaNames={overview:'Overview',people:'Roster',operations:'Operations',resources:'Resources',administration:'Administration'};
+  const pageNotes={dashboard:'Staffing, upcoming operations and work awaiting review.',analytics:'Recorded strength, retention and finalized attendance trends.',roster:'Members, primary billets and individual records.',qualifications:'Who holds each qualification, and where coverage is missing.',promotions:'Review readiness and approve promotions manually.',awards:'Medals, citations and issue history.',events:'Schedule operations and review event evidence.',attendance:'Monthly attendance decisions and exports.',campaigns:'Group operations and review campaign participation.',servers:'Basic health for this unit’s linked servers. Server control access is separate.',references:'Unit SOPs and role-specific kit references.',catalog:'Configure rank paths, qualification names and position suggestions.',structure:'Manage roster groups, sections and billet slots.',staff:'Create or assign staff logins and unit permissions.'};
+  const areaPages={};
+
   const dialog=el('unit-dialog'), form=el('unit-form');
   async function read(url) { return readJson(await fetch(url)); }
   async function write(url,data) { return readJson(await postJson(url,data)); }
@@ -16,16 +21,17 @@
   function closeDialog() { if(dialogSaving)return;if(signature()!==baseline&&!confirm('Discard unsaved changes?'))return;dialog.close(); }
   function openDialog(title,html,save) {
     dialog.dataset.record='';el('unit-dialog-title').textContent=title;el('unit-dialog-body').innerHTML=html;
-    el('unit-dialog-error').textContent='';const saveButton=form.querySelector('[type="submit"]');saveButton.hidden=false;saveButton.textContent='Save changes';dialogSave=save;dialog.showModal();baseline=signature();
-    form.querySelector('input,select,textarea')?.focus();
+    el('unit-dialog-error').textContent='';const saveButton=form.querySelector('[type="submit"]');saveButton.hidden=false;saveButton.disabled=false;saveButton.textContent='Save changes';dialogSave=save;dialog.showModal();baseline=signature();
+    UnitUX.open(dialog);
   }
   dialog.addEventListener('cancel',e=>{e.preventDefault();closeDialog();});el('unit-dialog-close').onclick=closeDialog;
   form.onsubmit=async e=>{
     e.preventDefault();if(dialogSaving)return;dialogSaving=true;const button=form.querySelector('[type="submit"]');button.disabled=true;
     try { const close=await dialogSave();if(close!==false){dialog.close();await loadListing(unitId);feedback('Changes saved.');}else{baseline=signature();} }
     catch(error) { el('unit-dialog-error').textContent=error.message; }
-    finally { button.disabled=false;dialogSaving=false; }
+    finally { dialogSaving=false;button.disabled=!!dialog.dataset.record&&!form.elements.record_note?.value.trim(); }
   };
+  form.addEventListener('input',()=>{if(dialog.dataset.record)form.querySelector('[type="submit"]').disabled=dialogSaving||!form.elements.record_note?.value.trim();});
   function unitSettings(create=false) {
     const unit=create?{}:detail.unit, selected=create?[]:listing.units.find(u=>u.id===unitId).servers;
     openDialog(create?'Create unit':'Unit settings',`<div class="unit-form-grid">${field('Unit name','name',unit.name||'')}${field('Short tag','tag',unit.tag||'')}</div><h3>Linked servers</h3><p class="feature-note">Linking a server provides basic health visibility. Server control roles are assigned separately.</p>${checks('servers',listing.servers.map(s=>s.id),selected)}`,async()=>{
@@ -42,30 +48,34 @@
       for(const unit of listing.units){const option=document.createElement('option');option.value=unit.id;option.textContent=unit.name;el('unit-select').append(option);}
       unitId=listing.units.some(u=>u.id===Number(preferred))?Number(preferred):listing.units[0]?.id;
       el('unit-workspace').hidden=!unitId;el('unit-select').disabled=!unitId;
-      if(!unitId){feedback(listing.panel_admin?'Create your first unit to start building its roster.':'No units assigned. Ask a panel administrator or unit administrator to add your account.');return;}
+      if(!unitId){el('unit-page-title').textContent='Units & rosters';el('unit-page-subtitle').textContent='Choose a unit to manage its people and operations.';el('unit-access-description').hidden=true;feedback(listing.panel_admin?'Create your first unit to start building its roster.':'No units assigned. Ask a panel administrator or unit administrator to add your account.');return;}
       el('unit-select').value=unitId;await loadUnit();
     }catch(error){feedback(error.message);el('unit-workspace').hidden=true;}
     finally{loading=false;}
   }
   async function loadUnit(){
     const requested=unitId;
-    el('unit-workspace').hidden=true;
+    if(detail?.unit.id!==requested)el('unit-workspace').hidden=true;
+    el('unit-workspace').setAttribute('aria-busy','true');
     try{
       const result=await read('/api/units/'+requested);
       if(requested!==unitId)return;
       detail=result;el('unit-workspace').hidden=false;
       const selected=listing.units.find(u=>u.id===unitId);
       el('unit-access-description').hidden=false;
-      el('unit-access-description').textContent=(listing.panel_admin?'Panel administrator':detail.can_staff?'Unit administrator':'Unit staff')+' · '+(detail.can_edit?'Can edit roster and add staff notes':'View roster and member records')+' · '+detail.unit.name;
+      const labels={roster:'Edit roster',events:'Manage events',attendance:'Review attendance',references:'Manage references',awards:'Manage awards',campaigns:'Manage campaigns'};
+      el('unit-access-description').textContent=(listing.panel_admin?'Panel administrator · Full access':detail.can_staff?'Unit administrator · Full unit access':'Unit staff · '+(selected.capabilities.filter(c=>labels[c]).map(c=>labels[c]).join(' · ')||'View unit records'));
       el('unit-settings').hidden=!detail.can_settings;el('roster-add').hidden=!detail.can_edit;
       el('catalog-edit').hidden=!detail.can_staff;el('position-rename').hidden=!detail.can_staff;el('unit-tab-staff').hidden=!detail.can_staff;
       el('unit-tab-structure').hidden=!detail.can_staff;el('roster-structure').hidden=!detail.can_staff;
-      if(!detail.can_staff&&(!el('unit-staff').hidden||!el('unit-structure').hidden))selectTab('roster');
+      for(const key of ['staff','structure'])el('unit-tab-'+key).dataset.restricted=String(!detail.can_staff);
       el('roster-export').href='/api/units/'+unitId+'/roster.csv';
-      renderRoster();renderStructure();renderCatalog();renderStaff();renderServers(selected);feedback('');
+      el('unit-page-title').textContent=detail.unit.name;el('unit-page-subtitle').textContent='Unit workspace · people, operations and resources';
+      selectTab(new URLSearchParams(location.search).get('tab')||activeTab,false);feedback('');
       document.dispatchEvent(new CustomEvent('unit-loaded',{detail:{unitId,detail,listing}}));
       const params=new URLSearchParams(location.search);params.set('unit',unitId);history.replaceState(null,'','/units?'+params);
     }catch(error){if(requested===unitId){el('unit-workspace').hidden=true;feedback(error.message);}}
+    finally{if(requested===unitId)el('unit-workspace').setAttribute('aria-busy','false');}
   }
   function renderRoster(){
     const query=el('roster-search').value.trim().toLowerCase(),status=el('roster-status').value;
@@ -74,7 +84,8 @@
     el('roster-summary').innerHTML=['active','reserve','loa'].map(s=>`<span>${s==='loa'?'LOA':s[0].toUpperCase()+s.slice(1)} <strong>${current.filter(m=>m.status===s).length}</strong></span>`).join('')+`<span>Current roster <strong>${current.length}</strong></span>`;
     const eligible=current.filter(m=>m.promotion.eligible);
     el('promotion-notice').hidden=!eligible.length;
-    el('promotion-notice').innerHTML=`<strong>${eligible.length} member${eligible.length===1?'':'s'} eligible for promotion review</strong><p>${eligible.map(m=>esc(m.game_name)+' → '+esc(m.promotion.next_rank)).join(' · ')}</p><small>Staff approval required. No ranks or promotion dates have been changed.</small>`;
+    el('promotion-notice').innerHTML=`<div class="promotion-notice-summary"><strong>${eligible.length} member${eligible.length===1?'':'s'} eligible for promotion review</strong><button type="button" id="promotion-open-queue">Open review queue</button></div><small>Staff approval required. No automatic promotions.</small>`;
+    el('promotion-open-queue').onclick=()=>selectTab('promotions');
     const structured=!['all','unassigned'].includes(rosterView);
     el('roster-member-list').hidden=structured;el('roster-hierarchy').hidden=!structured;el('roster-sort').hidden=structured;
     if(structured){renderStructuredRoster(query,status);return;}
@@ -184,7 +195,7 @@
       const record=await read(url);
       if(requestedUnit!==unitId||dialog.open)return;
       const m=record.member,p=m.promotion;
-      openDialog(`${m.game_name} — member record`,`<div class="member-record-facts"><div><span>Status</span><strong>${m.archived?'Former member':m.status==='loa'?'LOA':m.status==='reserve'?'Reserve':'Active'}</strong></div><div><span>Rank / section</span><strong>${esc([m.rank,m.billet_path||m.section].filter(Boolean).join(' · ')||'Not assigned')}</strong></div><div><span>Rank structure</span><strong>${esc(m.rank_track||'Not assigned')}</strong></div><div><span>Discord</span><strong>${esc(m.discord||'Not set')}</strong></div><div><span>Panel account</span><strong>${esc(m.panel_username||'Not linked')}</strong></div><div><span>Recorded UUID</span><strong>${esc(m.identity||'Not linked')}</strong></div></div><div class="unit-block"><h3>Primary billet & qualifications</h3><p>${esc(m.billet_path||'No primary billet assigned')}</p>${!m.billet_id&&m.position?`<p class="feature-note">Previous position labels: ${esc(m.position.split(';').join(', '))}</p>`:''}<p>${esc(m.certificates.split(';').join(', ')||'No qualifications recorded')}</p></div>${m.notes?`<div class="unit-block"><h3>Roster summary</h3><p class="member-record-note">${esc(m.notes)}</p></div>`:''}${p.next_rank?`<p class="feature-note">Next rank: ${esc(p.next_rank)} · ${p.next_date?esc(p.next_date):'Last promotion date not set'}${p.missing.length?' · Needs '+esc(p.missing.join(', ')):p.eligible?' · Eligible for staff review':''}</p>`:''}<details class="unit-block" open><summary>Medals & campaign awards</summary><div id="member-award-history">Loading awards…</div><button type="button" id="member-award-more" hidden>Load older awards</button>${record.can_award?'<button type="button" id="member-issue-award">Issue award…</button>':''}</details><details class="unit-block"><summary>Event attendance · latest 50 events</summary><div id="member-attendance-history">Loading attendance…</div></details><details class="unit-block" open><summary>Rank, billet & qualification timeline</summary><label class="unit-field">History filter<select id="member-timeline-filter"><option value="all">All changes</option><option value="rank">Rank / promotion dates</option><option value="billet">Billet assignments / transfers</option><option value="qualification">Qualification awards / revocations</option><option value="status">Membership status</option></select></label><div id="member-change-timeline"></div><button type="button" id="member-timeline-more" hidden>Load older changes</button></details>${record.can_write?'<button type="button" id="member-manage-qualifications">Manage qualifications…</button>':''}<h3>Staff record</h3><p class="feature-note">Dated notes stay with this unit’s member record, including after they leave. Authors use their linked name in this unit. Add a follow-up note to correct an earlier entry.</p><div id="member-record-history"></div><button type="button" id="member-record-more" hidden>Load older notes</button>${record.can_write?'<label class="unit-field">Add a staff note<textarea name="record_note" maxlength="4000" rows="5" placeholder="Training, promotion review, administrative notes…"></textarea></label>':'<p class="feature-note">Your unit role can view this record. Roster editing permission is required to add notes.</p>'}<p id="member-record-status" class="feature-note" role="status"></p>`,async()=>{
+      openDialog(`${m.game_name} — member record`,`<div class="member-record-facts"><div><span>Status</span><strong>${m.archived?'Former member':m.status==='loa'?'LOA':m.status==='reserve'?'Reserve':'Active'}</strong></div><div><span>Rank / section</span><strong>${esc([m.rank,m.billet_path||m.section].filter(Boolean).join(' · ')||'Not assigned')}</strong></div><div><span>Rank structure</span><strong>${esc(m.rank_track||'Not assigned')}</strong></div><div><span>Discord</span><strong>${esc(m.discord||'Not set')}</strong></div><div><span>Panel account</span><strong>${esc(m.panel_username||'Not linked')}</strong></div><div><span>Recorded UUID</span><strong>${esc(m.identity||'Not linked')}</strong></div></div><div class="unit-block"><h3>Primary billet & qualifications</h3><p>${esc(m.billet_path||'No primary billet assigned')}</p>${!m.billet_id&&m.position?`<p class="feature-note">Previous position labels: ${esc(m.position.split(';').join(', '))}</p>`:''}<p>${esc(m.certificates.split(';').join(', ')||'No qualifications recorded')}</p></div>${m.notes?`<div class="unit-block"><h3>Roster summary</h3><p class="member-record-note">${esc(m.notes)}</p></div>`:''}${p.next_rank?`<p class="feature-note">Next rank: ${esc(p.next_rank)} · ${p.next_date?esc(p.next_date):'Last promotion date not set'}${p.missing.length?' · Needs '+esc(p.missing.join(', ')):p.eligible?' · Eligible for staff review':''}</p>`:''}<details class="unit-block"><summary>Medals & campaign awards</summary><div id="member-award-history">Loading awards…</div><button type="button" id="member-award-more" hidden>Load older awards</button>${record.can_award?'<button type="button" id="member-issue-award">Issue award…</button>':''}</details><details class="unit-block"><summary>Event attendance · latest 50 events</summary><div id="member-attendance-history">Loading attendance…</div></details><details class="unit-block"><summary>Rank, billet & qualification timeline</summary><label class="unit-field">History filter<select id="member-timeline-filter"><option value="all">All changes</option><option value="rank">Rank / promotion dates</option><option value="billet">Billet assignments / transfers</option><option value="qualification">Qualification awards / revocations</option><option value="status">Membership status</option></select></label><div id="member-change-timeline"></div><button type="button" id="member-timeline-more" hidden>Load older changes</button></details>${record.can_write?'<button type="button" id="member-manage-qualifications">Manage qualifications…</button>':''}<h3>Staff record</h3><p class="feature-note">Dated notes stay with this unit’s member record, including after they leave. Authors use their linked name in this unit. Add a follow-up note to correct an earlier entry.</p><div id="member-record-history"></div><button type="button" id="member-record-more" hidden>Load older notes</button>${record.can_write?'<label class="unit-field">Add a staff note<textarea name="record_note" maxlength="4000" rows="5" placeholder="Training, promotion review, administrative notes…"></textarea></label>':'<p class="feature-note">Your unit role can view this record. Roster editing permission is required to add notes.</p>'}<p id="member-record-status" class="feature-note" role="status"></p>`,async()=>{
         await write(url,{note:form.elements.record_note.value});
         form.elements.record_note.value='';
         try{showNotes(await read(url),false);el('member-record-status').textContent='Note saved.';}
@@ -192,7 +203,7 @@
         return false;
       });
       const button=form.querySelector('[type="submit"]');button.textContent='Add note';button.hidden=!record.can_write;
-      dialog.dataset.record=requestedUnit+':'+memberId;
+      dialog.dataset.record=requestedUnit+':'+memberId;button.disabled=true;
       read(`/api/units/${requestedUnit}/roster/${memberId}/attendance`).then(data=>{
         if(!dialog.open||dialog.dataset.record!==requestedUnit+':'+memberId||!el('member-attendance-history'))return;
         el('member-attendance-history').innerHTML=data.records.map(r=>`<p><strong>${esc(r.name)}</strong><small>${esc(new Date(r.starts*1000).toLocaleString())} · ${esc(r.outcome)} · ${r.state==='finalized'?'Finalized':'Pending'}${r.exemption?' · '+esc(r.exemption):''}</small></p>`).join('')||'<p>No event attendance recorded.</p>';
@@ -346,7 +357,7 @@
       form.elements.password.value='';
     });
     form.elements.username.required=true;form.elements.username.minLength=3;form.elements.username.maxLength=32;
-    form.elements.username.pattern='[A-Za-z0-9_.-]{3,32}';form.elements.username.autocomplete='off';
+    form.elements.username.pattern='[A-Za-z0-9_.\\-]{3,32}';form.elements.username.title='3–32 letters, numbers, underscores, dots or hyphens';form.elements.username.autocomplete='off';
     if(editing)form.elements.username.readOnly=true;
     let accountKey='';
     function links(){
@@ -375,7 +386,23 @@
       el('unit-server-list').innerHTML=data.servers.map(s=>`<div class="unit-block"><strong>${esc(listing.servers.find(item=>item.id===s.id)?.name||'Unavailable server')}</strong><p>${s.unavailable?'Unavailable':s.running?'Online':'Offline'}${!s.unavailable?' · CPU '+Number(s.cpu).toFixed(1)+'% · '+(s.ram_process/1024).toFixed(2)+' GiB':''}</p>${s.can_open?`<a class="manager-link" href="${s.id?'/?server='+encodeURIComponent(s.id):'/?legacy=1'}">Open server</a>`:''}</div>`).join('')||'<p>No servers linked. A panel administrator can assign them in Unit settings.</p>';
     }catch(error){el('unit-server-list').textContent=error.message;}
   }
-  function selectTab(key){document.querySelectorAll('[data-unit-tab]').forEach(b=>{const active=b.dataset.unitTab===key;b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;el('unit-'+b.dataset.unitTab).hidden=!active;});}
+  function selectTab(key,notify=true){
+    const target=el('unit-tab-'+key);
+    if(!target||target.dataset.restricted==='true')key='roster';
+    activeTab=key;
+    const area=Object.keys(areas).find(group=>areas[group].includes(key));areaPages[area]=key;
+    document.querySelectorAll('[data-unit-tab]').forEach(b=>{const selected=b.dataset.unitTab===key;b.hidden=b.dataset.restricted==='true'||!areas[area].includes(b.dataset.unitTab);b.setAttribute('aria-selected',String(selected));b.tabIndex=selected?0:-1;el('unit-'+b.dataset.unitTab).hidden=!selected;});
+    const mobile=el('unit-mobile-group');mobile.replaceChildren();
+    document.querySelectorAll('[data-unit-group]').forEach(b=>{const group=b.dataset.unitGroup,available=areas[group].some(k=>el('unit-tab-'+k).dataset.restricted!=='true');b.hidden=!available;b.setAttribute('aria-pressed',String(group===area));if(available)mobile.add(new Option(areaNames[group],group));});mobile.value=area;
+    el('unit-section-title').textContent=el('unit-tab-'+key).textContent;el('unit-section-note').textContent=pageNotes[key];
+    const params=new URLSearchParams(location.search);params.set('tab',key);if(unitId)params.set('unit',unitId);history.replaceState(null,'','/units?'+params);
+    if(detail){if(key==='roster')renderRoster();if(key==='structure')renderStructure();if(key==='catalog')renderCatalog();if(key==='staff')renderStaff();if(key==='servers')renderServers(listing.units.find(u=>u.id===unitId));}
+    if(notify)document.dispatchEvent(new CustomEvent('unit-section-changed',{detail:{tab:key}}));
+  }
+  function selectArea(area){const pages=areas[area].filter(k=>el('unit-tab-'+k).dataset.restricted!=='true');selectTab(pages.includes(areaPages[area])?areaPages[area]:pages[0]);}
+  document.querySelectorAll('[data-unit-group]').forEach(b=>b.onclick=()=>selectArea(b.dataset.unitGroup));
+  el('unit-mobile-group').onchange=()=>selectArea(el('unit-mobile-group').value);
+
   document.querySelectorAll('[data-unit-tab]').forEach(b=>{
     b.onclick=()=>selectTab(b.dataset.unitTab);
     b.onkeydown=e=>{const tabs=[...document.querySelectorAll('[data-unit-tab]')].filter(t=>!t.hidden);let i=tabs.indexOf(b);if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();i=e.key==='Home'?0:e.key==='End'?tabs.length-1:(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;tabs[i].click();tabs[i].focus();};

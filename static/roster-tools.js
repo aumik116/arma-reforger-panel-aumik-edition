@@ -26,7 +26,7 @@
     el('roster-tools-save').textContent = button;
     el('roster-tools-save').hidden = !handler;
     save = handler; dialog.showModal(); baseline = sign();
-    form.querySelector('input,select,textarea')?.focus();
+    UnitUX.open(dialog);
   }
   form.onsubmit = async e => {
     e.preventDefault(); if (saving || !save) return;
@@ -198,15 +198,16 @@
       if ([...el(id).options].some(o => o.value === previous)) el(id).value = previous;
     }
     el('qualification-matrix').textContent = 'Loading award records…';
-    renderPromotions();
+    if(!el('unit-promotions').hidden)renderPromotions();
     try {
       const result = await read(`${base()}/roster-tools`);
       if (token !== generation) return;
       if (result.revision !== context.detail.unit.revision) { feedback('This unit changed while loading. Refresh to see the current roster.'); return; }
-      metadata = result; el('roster-bulk').disabled = false; renderMatrix(); renderPromotions();
-    } catch (error) { if (token === generation) feedback(error.message); }
+      metadata = result; el('roster-bulk').disabled = false; if(!el('unit-qualifications').hidden)renderMatrix(); if(!el('unit-promotions').hidden)renderPromotions();
+    } catch (error) { if (token === generation) {feedback(error.message);const retry=()=>document.dispatchEvent(new Event('unit-access-changed'));UnitUX.error(el('qualification-matrix'),error,retry);UnitUX.error(el('promotion-queue'),error,retry);} }
   }
   document.addEventListener('unit-loaded', loaded);
+  document.addEventListener('unit-section-changed',event=>{if(event.detail.tab==='qualifications')renderMatrix();if(event.detail.tab==='promotions')renderPromotions();});
   document.addEventListener('unit-manage-qualification', e => qualificationEditor(e.detail));
   el('roster-bulk').onclick = () => bulkEditor();
   for (const id of ['matrix-search', 'matrix-status', 'matrix-section', 'matrix-certificate', 'matrix-held', 'matrix-sort', 'matrix-checks']) el(id).addEventListener(id === 'matrix-search' ? 'input' : 'change', renderMatrix);

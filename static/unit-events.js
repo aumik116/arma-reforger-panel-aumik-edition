@@ -23,7 +23,7 @@
   function open(title,html,handler=null){
     if(dialog.open)dialog.close();
     el('event-dialog-title').textContent=title;el('event-dialog-body').innerHTML=html;el('event-dialog-error').textContent='';
-    el('event-save').hidden=!handler;el('event-save').textContent='Save changes';save=handler;dialog.showModal();baseline=sign();
+    el('event-save').hidden=!handler;el('event-save').textContent='Save changes';save=handler;dialog.showModal();baseline=sign();UnitUX.open(dialog);
   }
   form.onsubmit=async e=>{e.preventDefault();if(saving||!save)return;saving=true;el('event-save').disabled=true;
     try{await save();dialog.close();await refresh();message('Changes saved.');}catch(error){el('event-dialog-error').textContent=error.message;}
@@ -64,7 +64,15 @@
     el('attendance-report').innerHTML=`<table><thead><tr><th>Member</th>${data.events.map(e=>`<th><button type="button" data-event="${e.id}">${esc(e.name)}</button><small>${esc(format(e.starts))}</small><small>${e.state==='finalized'?'Finalized':'Pending'}</small></th>`).join('')}<th>Attendance rate</th><th>Last attended (all time)</th></tr></thead><tbody>${data.members.map(m=>`<tr><td>${esc(m.game_name)}</td>${data.events.map(e=>{const c=m.cells[e.id];return `<td>${c?`<span class="attendance-outcome outcome-${c.outcome}">${c.outcome[0].toUpperCase()+c.outcome.slice(1)}</span><small>${c.finalized?'':'Pending · '}${esc(c.exemption||'')}${c.expected?'':' · Optional / excused'}</small>`:'—'}</td>`;}).join('')}<td>${m.rate===null?'—':m.rate+'%'}<small>${m.counted_events} counted event${m.counted_events===1?'':'s'}</small></td><td>${m.last_attended?esc(format(m.last_attended)):'Never recorded'}</td></tr>`).join('')||'<tr><td>No members or attendance records in this month.</td></tr>'}</tbody></table>`;
     bindEvents(el('attendance-report'));
   }
-  async function refresh(){if(!context)return;await Promise.all([loadOperations(),loadReport()]);}
+  async function refresh(){
+    if(!context)return;const tab=document.querySelector('[data-unit-tab][aria-selected="true"]')?.dataset.unitTab;
+    const region=el(tab==='dashboard'?'unit-dashboard-content':tab==='events'?'operations-calendar':'attendance-report');
+    if(!['dashboard','events','attendance'].includes(tab))return;
+    const current=context.unitId;region.setAttribute('aria-busy','true');
+    try{if(tab==='attendance')await loadReport();else await loadOperations();}
+    catch(error){if(current===context.unitId)UnitUX.error(region,error,refresh);}
+    finally{if(current===context.unitId)region.setAttribute('aria-busy','false');}
+  }
   function eventEditor(event=null){
     if(saving)return;const futureVersions=eventDetail?.future_versions;
     const editing=!!event, tz=event?.timezone||zone(), start=event?.starts||Math.ceil((Date.now()/1000+3600)/300)*300;
@@ -105,8 +113,9 @@
     open(action==='cancel'?'Cancel event':action==='finalize'?'Finalize attendance':'Reopen attendance',`<p>${action==='cancel'?'Cancellation preserves the event and its history.':action==='finalize'?`${unknown} member outcome(s) are Unknown. Unknown and Excused outcomes stay outside attendance percentages. Finalizing preserves all outcomes until staff reopen the event.`:'Reopening preserves previous outcomes and requires a reason. Save corrections and finalize again afterward.'}</p>${action==='cancel'&&event.recurrence!=='none'?'<label class="unit-field">Cancel<select name="scope"><option value="occurrence">This occurrence only</option><option value="future">This and later scheduled occurrences</option></select></label>':''}<label class="unit-field">Reason<textarea name="reason" required maxlength="1000"></textarea></label>`,async()=>{const values=Object.fromEntries(new FormData(form));await write(`${base()}/events/${event.id}/change`,{...values,action,version:event.version,future_versions:futureVersions});});
   }
   document.addEventListener('unit-loaded',event=>{if(dialog.open)dialog.close();context=event.detail;el('attendance-server').innerHTML='<option value="__all__">All linked / historical servers</option>'+(context.listing.units.find(u=>u.id===context.unitId)?.servers||[]).map(id=>`<option value="${esc(id)}">${esc(serverName(id))}</option>`).join('');refresh().catch(error=>message(error.message));});
+  document.addEventListener('unit-section-changed',()=>refresh().catch(error=>message(error.message)));
   el('event-new').onclick=()=>eventEditor();el('operations-refresh').onclick=()=>refresh().catch(error=>message(error.message));
-  el('attendance-refresh').onclick=()=>loadReport().catch(error=>message(error.message));el('attendance-server').onchange=()=>loadReport().catch(error=>message(error.message));
-  el('operations-month').onchange=()=>loadOperations().catch(error=>message(error.message));el('attendance-month').onchange=()=>loadReport().catch(error=>message(error.message));
+  el('attendance-refresh').onclick=()=>loadReport().catch(error=>UnitUX.error(el('attendance-report'),error,loadReport));el('attendance-server').onchange=()=>loadReport().catch(error=>UnitUX.error(el('attendance-report'),error,loadReport));
+  el('operations-month').onchange=()=>loadOperations().catch(error=>UnitUX.error(el('operations-calendar'),error,loadOperations));el('attendance-month').onchange=()=>loadReport().catch(error=>UnitUX.error(el('attendance-report'),error,loadReport));
   setInterval(()=>{if(context&&!document.hidden&&!dialog.open)refresh().catch(error=>message(error.message));},30000);
 })();

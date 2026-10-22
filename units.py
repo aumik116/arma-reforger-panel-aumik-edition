@@ -207,6 +207,8 @@ def install(api):
     endpoints = {'units_list','units_save','unit_detail','unit_roster_save','unit_staff_save',
                  'unit_identities','unit_roster_export','unit_health','units_page','unit_catalog_save','unit_position_rename','unit_member_record','unit_member_note_save','unit_roster_delete','unit_structure_save','unit_structure_delete','unit_structure_order','unit_primary_assign'}
     api.PANEL_WIDE_ENDPOINTS.update(endpoints)
+    from panel_features import MUTATIONS
+    MUTATIONS['unit_staff_save']='view'
 
     @api.app.errorhandler(400)
     @api.app.errorhandler(403)
@@ -714,7 +716,18 @@ def install(api):
                 conn.execute('BEGIN IMMEDIATE')
                 access(conn,unit_id,'staff')
                 revision(conn,unit_id,data)
-                user = conn.execute('SELECT * FROM users WHERE username=? COLLATE NOCASE',(text(data.get('username'),'Username',32,True),)).fetchone()
+                username=text(data.get('username'),'Username',32,True)
+                if type(data.get('create_account',False)) is not bool:
+                    raise ValueError('Choose a new or existing account')
+                if data.get('create_account'):
+                    if not panel_admin():
+                        abort(403,description='Only panel administrators can create login accounts')
+                    if data.get('role') not in ('staff','admin'):
+                        raise ValueError('Choose Staff or Unit administrator')
+                    user_id=api.create_unit_login(conn,username,data.get('password'))
+                    user=conn.execute('SELECT * FROM users WHERE id=?',(user_id,)).fetchone()
+                else:
+                    user = conn.execute('SELECT * FROM users WHERE username=? COLLATE NOCASE',(username,)).fetchone()
                 if not user:
                     raise ValueError('No matching panel account. Ask a panel administrator to create it first.')
                 role, capabilities = data.get('role'),data.get('capabilities',[])
@@ -726,10 +739,23 @@ def install(api):
                 conn.execute('DELETE FROM unit_staff WHERE unit_id=? AND user_id=?',(unit_id,user['id']))
                 if role != 'remove':
                     conn.execute('INSERT INTO unit_staff VALUES(?,?,?,?)',(unit_id,user['id'],role,json.dumps(capabilities)))
-            g.audit_details = dict(unit_id=unit_id,username=user['username'],role=role,capabilities=capabilities)
+                    if 'link_member_id' in data:
+                        member_id=data['link_member_id']
+                        if member_id is not None:
+                            if type(member_id) is not int:
+                                raise ValueError('Choose a roster member or leave unlinked')
+                            member=find_member(conn,unit_id,member_id)
+                            if member['panel_user_id'] not in (None,user['id']):
+                                raise ValueError('That member is already linked to another account')
+                            if member['archived'] and member['panel_user_id']!=user['id']:
+                                raise ValueError('Restore the roster member before linking a new account')
+                        conn.execute('UPDATE unit_roster SET panel_user_id=NULL WHERE unit_id=? AND panel_user_id=?',(unit_id,user['id']))
+                        if member_id is not None:
+                            conn.execute('UPDATE unit_roster SET panel_user_id=? WHERE unit_id=? AND id=?',(user['id'],unit_id,member_id))
+            g.audit_details = dict(unit_id=unit_id,username=user['username'],role=role,capabilities=capabilities,created_account=bool(data.get('create_account')),linked_member=data.get('link_member_id'))
             return jsonify(ok=True)
-        except ValueError as exc:
-            return jsonify(ok=False,error=str(exc)),400
+        except (ValueError,sqlite3.IntegrityError) as exc:
+            return jsonify(ok=False,error='Username is already in use; select Existing account instead' if isinstance(exc,sqlite3.IntegrityError) else str(exc)),400
 
     @api.app.get('/api/units/<int:unit_id>/health')
     def unit_health(unit_id):

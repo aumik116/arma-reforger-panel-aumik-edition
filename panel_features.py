@@ -11,7 +11,7 @@ import bcrypt
 import config_backups
 import player_query
 from config_editor import revision
-from flask import g, jsonify, request, session, redirect
+from flask import abort, g, jsonify, request, session, redirect
 
 ROLES = {
     "viewer": {"view"},
@@ -338,6 +338,16 @@ def install(api):
         if not isinstance(value, str) or len(value) < 10 or len(value.encode()) > 72:
             raise ValueError("Passwords must contain at least 10 characters and at most 72 UTF-8 bytes")
         return bcrypt.hashpw(value.encode(), bcrypt.gensalt()).decode()
+
+    def create_unit_login(conn, username, password):
+        if 'users' not in g.panel_permissions:
+            abort(403, description='Only panel administrators can create login accounts')
+        if not isinstance(username, str) or not re.fullmatch(r'[A-Za-z0-9_.-]{3,32}', username):
+            raise ValueError('Use a 3–32 character username: letters, numbers, _, . or -')
+        return conn.execute("INSERT INTO users(username,password,role,enabled,access_all,panel_admin) VALUES(?,?,'viewer',1,0,0)",
+                            (username, password_hash(password))).lastrowid
+
+    api.create_unit_login = create_unit_login
 
     @app.post("/api/account/password")
     def account_password():

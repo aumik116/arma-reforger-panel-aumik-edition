@@ -324,8 +324,35 @@
     el('staff-list').querySelectorAll('[data-staff]').forEach(b=>b.onclick=()=>staffEditor(detail.staff.find(s=>s.user_id===Number(b.dataset.staff))));
   }
   function staffEditor(staff={}){
-    openDialog('Unit staff access',`${field('Existing panel username','username',staff.username||'')}<label class="unit-field">Unit role<select name="role"><option value="staff">Staff</option><option value="admin" ${staff.role==='admin'?'selected':''}>Unit administrator</option>${staff.user_id?'<option value="remove">Remove from this unit</option>':''}</select></label><label><input type="checkbox" name="roster_permission" ${staff.capabilities?.includes('roster')?'checked':''}> Staff may edit roster</label>${['events','attendance'].map(cap=>`<label><input type="checkbox" name="${cap}_permission" ${staff.capabilities?.includes(cap)?'checked':''}> Staff may ${cap==='events'?'manage events':'review attendance'}</label>`).join('')}<p class="feature-note">Unit administrators can manage members, ranks, qualifications and staff access. This does not grant server controls or panel administration.</p>`,async()=>{const data=values();await write(`/api/units/${unitId}/staff`,{username:data.username,role:data.role,capabilities:data.role==='staff'?['roster','events','attendance'].filter(cap=>data[cap+'_permission']):[],revision:detail.unit.revision});});
-    if(staff.username)form.elements.username.readOnly=true;
+    const editing=!!staff.user_id, mayCreate=listing.panel_admin&&!editing;
+    openDialog(editing?'Edit unit staff':'Add staff to '+detail.unit.name,`${mayCreate?'<label class="unit-field">Account<select name="account_mode"><option value="new">Create new login</option><option value="existing">Use existing account</option></select></label>':''}${field('Username','username',staff.username||'')}<label class="unit-field" id="staff-password-field" ${mayCreate?'':'hidden'}>Initial password<input name="password" type="password" autocomplete="new-password" minlength="10"><small>At least 10 characters; give these credentials to the staff member.</small></label><label class="unit-field">Unit role<select name="role"><option value="staff">Staff</option><option value="admin" ${staff.role==='admin'?'selected':''}>Unit administrator</option>${editing?'<option value="remove">Remove from this unit</option>':''}</select></label><div id="staff-capability-fields">${[['roster','Edit roster'],['events','Manage events'],['attendance','Review attendance']].map(([cap,label])=>`<label><input type="checkbox" name="${cap}_permission" ${staff.capabilities?.includes(cap)?'checked':''}> ${label}</label>`).join('')}</div><label class="unit-field" id="staff-member-field">Link roster member (optional)<select name="link_member_id"></select><small>Uses their game name when recording notes and changes in this unit.</small></label><p id="staff-mode-note" class="feature-note"></p><p class="feature-note">Login: ${esc(new URL('/login',location.origin).href)}. Unit-only staff land in Units & rosters. Server access is assigned separately.</p>`,async()=>{
+      const data=values(),creating=data.account_mode==='new';
+      await write(`/api/units/${unitId}/staff`,{username:data.username,role:data.role,create_account:creating,...(creating?{password:data.password}:{}),capabilities:data.role==='staff'?['roster','events','attendance'].filter(cap=>data[cap+'_permission']):[],...(data.role==='remove'?{}:{link_member_id:data.link_member_id?Number(data.link_member_id):null}),revision:detail.unit.revision});
+      form.elements.password.value='';
+    });
+    form.elements.username.required=true;form.elements.username.minLength=3;form.elements.username.maxLength=32;
+    form.elements.username.pattern='[A-Za-z0-9_.-]{3,32}';form.elements.username.autocomplete='off';
+    if(editing)form.elements.username.readOnly=true;
+    let accountKey='';
+    function links(){
+      const key=form.elements.username.value.trim().toLowerCase(),select=form.elements.link_member_id,previous=select.value;
+      const own=m=>m.panel_username?.toLowerCase()===key;
+      select.replaceChildren(new Option('Not linked',''));
+      for(const member of detail.roster.filter(m=>(!m.archived||own(m))&&(!m.panel_user_id||own(m))))select.add(new Option(member.game_name+(member.archived?' · Former member':''),member.id));
+      const linked=detail.roster.find(own);
+      select.value=accountKey===key&&[...select.options].some(o=>o.value===previous)?previous:String(linked?.id||'');accountKey=key;
+    }
+    function mode(){
+      const creating=mayCreate&&form.elements.account_mode.value==='new',role=form.elements.role.value;
+      el('staff-password-field').hidden=!creating;form.elements.password.disabled=!creating;form.elements.password.required=creating;
+      if(!creating)form.elements.password.value='';
+      el('staff-capability-fields').hidden=role!=='staff';el('staff-member-field').hidden=role==='remove';
+      el('staff-mode-note').textContent=role==='remove'?'Removes unit staff access. Their login, roster record and direct server permissions remain.':role==='admin'?'Unit administrators manage this unit’s members, structure, events, attendance and staff.':creating?'Creates a staff-only login and assigns this unit in one step. Tick the permissions they need.':'Assigns an existing login to this unit. Unit administrators can assign existing accounts; panel administrators can create new ones.';
+      form.querySelector('[type="submit"]').textContent=editing?'Save membership':creating?'Create account & assign':'Assign staff';
+    }
+    form.elements.username.oninput=links;form.elements.role.onchange=mode;
+    if(mayCreate)form.elements.account_mode.onchange=()=>{mode();links();};
+    mode();links();baseline=signature();
   }
   async function renderServers(unit){
     el('unit-server-list').textContent='Loading health…';

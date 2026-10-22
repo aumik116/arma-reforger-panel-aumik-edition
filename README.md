@@ -27,7 +27,7 @@ Additional servers can start from defaults or copy a managed server's settings a
 
 ## Units and rosters
 
-Open **Units & rosters** from the navigation. Panel administrators create units, link servers and create staff accounts. Unit administrators manage their own staff and rosters. Other staff see only their assigned units; hosting roles remain separate.
+Open **Units & rosters** from the navigation. Panel administrators create units, link servers and create staff accounts. Use **Staff access → Add staff** inside a unit to create a login and assign its permissions in one popup (panel administrators), or assign an existing account (unit administrators). An optional roster link sets their name for unit notes and history. New logins have no server access. Unit administrators manage their own staff and rosters. Other staff see only their assigned units; hosting roles remain separate.
 
 Create the unit's qualifications, position suggestions and independent rank structures in **Ranks & qualifications**, then add roster members manually. Members need no login account. Game name, Discord handle, Active/Reserve/LOA status, optional rank, qualifications and promotion dates stay separate for each unit. Marine, Medical and Officer structures can each define their own ranks, advancement times and required qualifications; paygrade is only an optional label. Promotion eligibility is a staff notice, never an automatic promotion. Define groups, sections and billet slots, then place each member in one primary billet. Empty slots and staffing counts remain visible. UUIDs can be selected from recorded players on linked servers.
 

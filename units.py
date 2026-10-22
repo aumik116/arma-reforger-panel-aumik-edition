@@ -11,7 +11,7 @@ import time
 from flask import abort, g, jsonify, request, send_from_directory
 
 UUID = re.compile(r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}')
-CAPABILITIES = ('roster', 'staff')
+CAPABILITIES = ('roster', 'events', 'attendance', 'staff')
 FIELDS = ('game_name', 'discord', 'identity', 'status', 'rank', 'section', 'position', 'joined_on', 'loa_until', 'notes', 'last_promo', 'certificates', 'rank_track')
 
 
@@ -262,6 +262,9 @@ def install(api):
                     access(conn,unit_id)
                     revision(conn,unit_id,data)
                     conn.execute('UPDATE units SET name=?,tag=? WHERE id=?',(name,tag,unit_id))
+                for event in conn.execute("SELECT server_id FROM unit_events WHERE unit_id=? AND ends>? AND state='scheduled'",(unit_id,time.time())):
+                    if event['server_id'] not in links:
+                        raise ValueError('Move or cancel upcoming/active events before unlinking their server')
                 conn.execute('DELETE FROM unit_servers WHERE unit_id=?',(unit_id,))
                 conn.executemany('INSERT INTO unit_servers VALUES(?,?)',[(unit_id,s) for s in set(links)])
             g.audit_details = dict(unit_id=unit_id,name=name,servers=links)
@@ -661,6 +664,7 @@ def install(api):
                     conn.execute('DELETE FROM unit_primary_slots WHERE unit_id=? AND member_id=?',(unit_id,member_id))
                 elif 'billet_id' in data:
                     assign_slot(conn,unit_id,member_id,data['billet_id'])
+                api.sync_unit_event_roster(conn,unit_id)
             g.audit_details = dict(unit_id=unit_id,member_id=member_id,billet_id=data.get('billet_id'),before={f:existing[f] for f in (*FIELDS,'archived','panel_user_id')} if existing else None,after=dict(values,archived=data.get('archived',False),panel_user_id=account_id))
             return jsonify(ok=True,id=member_id)
         except (ValueError,sqlite3.IntegrityError) as exc:
@@ -682,6 +686,7 @@ def install(api):
                 conn.execute('DELETE FROM unit_member_notes WHERE unit_id=? AND member_id=?',(unit_id,member_id))
                 conn.execute('DELETE FROM unit_primary_slots WHERE unit_id=? AND member_id=?',(unit_id,member_id))
                 conn.execute('DELETE FROM unit_roster WHERE unit_id=? AND id=?',(unit_id,member_id))
+                api.sync_unit_event_roster(conn,unit_id)
             g.audit_details=dict(unit_id=unit_id,member_id=member_id,game_name=member['game_name'],deleted_notes=notes)
             return jsonify(ok=True)
         except ValueError as exc:
@@ -748,3 +753,6 @@ def install(api):
             writer.writerow([export_cell(row[f]) for f in (*FIELDS,'archived')]+[export_cell(row['billet_name']),export_cell(row['billet_path']),export_cell(result['next_rank']),result['next_date'],export_cell(';'.join(result['missing']))])
         return api.Response('\ufeff'+output.getvalue(),mimetype='text/csv',headers={'Content-Disposition':f'attachment; filename="unit-{unit_id}-roster.csv"'})
 
+
+    from unit_events import install as install_events
+    install_events(api, db, access, panel_admin, promotion, endpoints)

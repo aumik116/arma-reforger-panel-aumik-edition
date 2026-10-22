@@ -31,7 +31,21 @@ Open **Units & rosters** from the navigation. Panel administrators create units,
 
 Create the unit's qualifications, position suggestions and independent rank structures in **Ranks & qualifications**, then add roster members manually. Members need no login account. Game name, Discord handle, Active/Reserve/LOA status, optional rank, qualifications and promotion dates stay separate for each unit. Marine, Medical and Officer structures can each define their own ranks, advancement times and required qualifications; paygrade is only an optional label. Promotion eligibility is a staff notice, never an automatic promotion. Define groups, sections and billet slots, then place each member in one primary billet. Empty slots and staffing counts remain visible. UUIDs can be selected from recorded players on linked servers.
 
-Promotion readiness shows a calculated date and missing qualifications, with a notice when someone is eligible for staff review. It never promotes anyone automatically. Link a panel account to its roster member to use that unit’s name when writing notes. Open a member record to read or add dated staff notes with author history. Unit administrators can archive members or permanently delete a record and its notes after confirmation. Former members retain their records, and CSV export is available. Events and automatic attendance are a later addition; casual server logins do not create attendance records.
+Promotion readiness shows a calculated date and missing qualifications, with a notice when someone is eligible for staff review. It never promotes anyone automatically. Link a panel account to its roster member to use that unit’s name when writing notes. Open a member record to read or add dated staff notes with author history. Unit administrators can archive members or permanently delete a record and its notes after confirmation. Former members retain their records, and CSV export is available. The unit **Dashboard** shows staffing, promotion readiness, upcoming events and attendance awaiting review. **Events** provides a monthly calendar with timezone-aware weekly, biweekly and monthly recurrence. **Attendance** provides a monthly member/event grid and CSV export.
+
+
+### Events and attendance
+
+1. Link each member’s recorded UUID in their roster record.
+2. Open **Events**, choose **New event**, select the unit’s server, local start time/timezone and duration, and enable attendance tracking. Recurring events create separate occurrences; staff can edit one or the remaining series.
+3. During the event, the panel observes the server’s live RCON player list automatically. Seeing a linked UUID once is enough for Present; connections outside events do not count.
+4. Open the event to review UUID evidence and collector gaps, save corrections with a reason, then finalize after it ends. Finalized records can be reopened with a reason. Cancelled events are excluded from reports.
+5. Open **Attendance** to view a month, filter by server, or export CSV. Member records also show their latest 50 event records.
+
+Event lists follow roster changes until the start, then preserve the member’s name, UUID and attendance expectation. Active members are expected; Reserve members are optional and LOA members are excused. Joined dates exclude events before membership. Only finalized, expected Present/Absent decisions enter the percentage; Unknown, Excused and pending outcomes are excluded.
+
+RCON must be configured and reachable. Background player sampling runs about every 30 seconds while the panel service is running; very brief connections between samples can be missed and require staff confirmation. Unlinked UUIDs and collector gaps are visible. Missing evidence **never automatically marks a member absent**. Staff can receive separate **Manage events** and **Review attendance** permissions without roster editing or server control access.
+
 
 ## Update an existing installation
 

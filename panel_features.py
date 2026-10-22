@@ -585,14 +585,25 @@ def install(api):
     def players_list():
         return jsonify(player_snapshot())
 
+    def record_unit_attendance(snapshot):
+        observer = getattr(api, 'observe_unit_attendance', None)
+        if observer:
+            try:
+                observer(api.selected_instance().id if api.selected_instance() else '', snapshot)
+            except Exception:
+                app.logger.exception('Unit attendance sample could not be saved')
+
     def player_snapshot():
         if not api.get_server_pid():
             query.clear()
-            return dict(available=True, players=[], message="Server is offline")
+            snapshot = dict(available=True, players=[], message="Server is offline", checked_at=time.time())
+            record_unit_attendance(dict(snapshot, available=False))
+            return snapshot
         snapshot = query.read(api.read_config().get("rcon", {}), api._cfg)
         tools = getattr(api, 'operator_tools', None)
         if tools:
             tools.store.observe(api.selected_instance().id if api.selected_instance() else '',snapshot)
+        record_unit_attendance(snapshot)
         return snapshot
 
     api.player_snapshot = player_snapshot

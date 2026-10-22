@@ -203,6 +203,71 @@ class UnitTests(unittest.TestCase):
         self.assertGreater(replacement,member)
         self.assertEqual(self.admin.get(record).status_code,404)
 
+    def test_structure_primary_slots_permissions_and_safe_removal(self):
+        unit=self.unit();other=self.unit('Other')
+        def node(kind,name,parent=None):
+            result=self.change(unit,'structure',dict(kind=kind,name=name,parent_id=parent))
+            self.assertEqual(result.status_code,200,result.json)
+            return result.json['id']
+        group=node('group','Platoon')
+        section=node('section','1st Squad',group)
+        team=node('section','Alpha',section)
+        first=node('billet','Team Leader',team)
+        second=node('billet','Rifleman',team)
+        reserve=node('group','Reserve')
+        member=self.member(unit,notes='Keep this profile').json['id']
+        another=self.member(unit).json['id']
+        self.assertEqual(self.admin.post(f'/api/units/{unit}/assignment',json=dict(member_id=member,billet_id=first,revision=self.detail(unit)['unit']['revision'])).status_code,403)
+        self.assertTrue(self.change(unit,'assignment',dict(member_id=member,billet_id=first)).json['ok'])
+        count=len(self.detail(unit)['roster'])
+        self.assertEqual(self.member(unit,billet_id=first).status_code,409)
+        self.assertEqual(len(self.detail(unit)['roster']),count)
+        exported=self.admin.get(f'/api/units/{unit}/roster.csv').text
+        self.assertIn('primary_billet_path',exported)
+        self.assertIn('Platoon / 1st Squad / Alpha / Team Leader',exported)
+        self.assertEqual(self.post(self.admin,f'/api/units/{unit}/assignment',dict(member_id=member,billet_id=second,revision=0)).status_code,409)
+        row=next(r for r in self.detail(unit)['roster'] if r['id']==member)
+        self.assertEqual(row['billet_path'],'Platoon / 1st Squad / Alpha / Team Leader')
+        # Assignment is independent of rank and qualifications, and moves free the old billet.
+        self.assertEqual(self.change(unit,'assignment',dict(member_id=another,billet_id=first)).status_code,409)
+        self.assertTrue(self.change(unit,'assignment',dict(member_id=member,billet_id=second)).json['ok'])
+        self.assertTrue(self.change(unit,'assignment',dict(member_id=another,billet_id=first)).json['ok'])
+        self.assertEqual(self.change(other,'assignment',dict(member_id=member,billet_id=second)).status_code,404)
+        self.assertEqual(self.change(unit,'structure',dict(id=section,kind='section',name='Cycle',parent_id=team)).status_code,400)
+        self.assertEqual(self.change(unit,'structure',dict(kind='billet',name='Invalid',parent_id=group)).status_code,400)
+        self.assertTrue(self.change(unit,f'structure/{reserve}/order',dict(direction='up')).json['ok'])
+        self.assertEqual(next(n for n in self.detail(unit)['structure'] if n['kind']=='group')['id'],reserve)
+        self.create('structure-staff','viewer')
+        self.assertTrue(self.change(unit,'staff',dict(username='structure-staff',role='staff',capabilities=['roster'])).json['ok'])
+        staff=self.login('structure-staff')
+        self.assertEqual(self.change(unit,'structure',dict(kind='group',name='Denied'),staff).status_code,403)
+        self.assertEqual(self.change(unit,f'structure/{group}/delete',dict(confirm_name='Platoon'),staff).status_code,403)
+        record=f'/api/units/{unit}/roster/{member}/record'
+        self.assertTrue(self.post(self.admin,record,dict(note='Preserve this note')).json['ok'])
+        self.assertEqual(self.change(unit,f'structure/{group}/delete',dict(confirm_name='wrong')).status_code,400)
+        self.assertTrue(self.change(unit,f'structure/{group}/delete',dict(confirm_name='Platoon')).json['ok'])
+        self.assertEqual([n['id'] for n in self.detail(unit)['structure']],[reserve])
+        self.assertTrue(all(r['billet_id'] is None for r in self.detail(unit)['roster']))
+        self.assertEqual(self.admin.get(record).json['notes'][0]['note'],'Preserve this note')
+        self.assertEqual(self.admin.get(record).json['member']['notes'],'Keep this profile')
+        # Archiving releases a billet, and a stale save cannot steal it back.
+        section=node('section','Reserve pool',reserve);slot=node('billet','Standby',section)
+        row=next(r for r in self.detail(unit)['roster'] if r['id']==member)
+        row.update(archived=False,billet_id=slot)
+        self.assertTrue(self.change(unit,'roster',row).json['ok'])
+        self.assertEqual(self.admin.get(record).json['member']['billet_id'],slot)
+        row['archived']=True
+        self.assertTrue(self.change(unit,'roster',row).json['ok'])
+        self.assertIsNone(self.admin.get(record).json['member']['billet_id'])
+        self.assertEqual(self.change(unit,'assignment',dict(member_id=member,billet_id=slot)).status_code,400)
+        self.assertTrue(self.change(unit,'staff',dict(username='structure-staff',role='staff',capabilities=[])).json['ok'])
+        self.assertEqual(self.change(unit,'assignment',dict(member_id=another,billet_id=slot),staff).status_code,403)
+        self.assertTrue(self.change(unit,'staff',dict(username='structure-staff',role='staff',capabilities=['roster'])).json['ok'])
+        self.assertTrue(self.change(unit,'assignment',dict(member_id=another,billet_id=slot),staff).json['ok'])
+        self.assertTrue(self.change(unit,f'roster/{another}/delete',dict(confirm_name='Ranger')).json['ok'])
+        with self.module.operator_tools.store.connect() as conn:
+            self.assertFalse(conn.execute('SELECT 1 FROM unit_primary_slots WHERE billet_id=?',(slot,)).fetchone())
+
     def test_account_unit_changes_are_atomic_and_last_admin_is_protected(self):
         unit=self.unit();user=self.create('unit-lead','viewer')
         self.assertTrue(self.change(unit,'staff',dict(username='unit-lead',role='admin')).json['ok'])

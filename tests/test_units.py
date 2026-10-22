@@ -132,6 +132,69 @@ class UnitTests(unittest.TestCase):
         self.assertTrue(self.change(a,'staff',dict(username='record-viewer',role='remove')).json['ok'])
         self.assertEqual(viewer.get(path).status_code,404)
 
+    def test_account_links_and_note_authors_are_scoped_to_each_unit(self):
+        a=self.unit();b=self.unit('Bravo')
+        account=self.create('linked-staff','viewer')
+        self.assertTrue(self.change(a,'staff',dict(username='linked-staff',role='staff',capabilities=['roster'])).json['ok'])
+        self.assertTrue(self.change(b,'staff',dict(username='linked-staff',role='staff',capabilities=['roster'])).json['ok'])
+        first=self.change(a,'roster',dict(game_name='Sgt. Ranger',status='active',panel_user_id=account['id'])).json['id']
+        second=self.change(b,'roster',dict(game_name='HM2. Ranger',status='active',panel_user_id=account['id'])).json['id']
+        self.assertEqual(self.member(a,panel_user_id=account['id']).status_code,400)
+        self.assertEqual(self.member(a,panel_user_id=True).status_code,400)
+        self.assertEqual(self.member(a,panel_user_id=999999).status_code,400)
+        linked=self.login('linked-staff')
+        for unit,member,name in ((a,first,'Sgt. Ranger'),(b,second,'HM2. Ranger')):
+            path=f'/api/units/{unit}/roster/{member}/record'
+            self.assertTrue(self.post(linked,path,dict(note='Unit-specific note')).json['ok'])
+            self.assertEqual(linked.get(path).json['notes'][0]['author_name'],name)
+            self.assertEqual(linked.get(path).json['member']['panel_username'],'linked-staff')
+        member=self.detail(a)['roster'][0];member['game_name']='Renamed';member['archived']=False
+        self.assertTrue(self.change(a,'roster',member).json['ok'])
+        path=f'/api/units/{a}/roster/{first}/record'
+        self.assertEqual(linked.get(path).json['notes'][0]['author_name'],'Sgt. Ranger')
+        self.assertTrue(self.post(linked,path,dict(note='New name')).json['ok'])
+        self.assertEqual(linked.get(path).json['notes'][0]['author_name'],'Renamed')
+        member=self.detail(a,linked)['roster'][0];member['archived']=False;member['discord']='new_handle'
+        self.assertTrue(self.change(a,'roster',member,linked).json['ok'])
+        member['panel_user_id']=None
+        self.assertEqual(self.change(a,'roster',member,linked).status_code,403)
+        outsider=self.create('outside-account','viewer')
+        self.assertNotIn(outsider['id'],[u['id'] for u in linked.get(f'/api/units/{a}').json['accounts']])
+        self.assertEqual(self.change(a,'roster',dict(game_name='Other',status='active',panel_user_id=outsider['id']),linked).status_code,403)
+        self.assertFalse(next(u for u in self.admin.get('/api/users').json['users'] if u['id']==outsider['id'])['units'])
+        # Account deletion clears links without removing roster records or old note names.
+        for unit in (a,b):
+            self.assertTrue(self.change(unit,'staff',dict(username='linked-staff',role='remove')).json['ok'])
+        self.assertTrue(self.post(self.admin,'/api/users/delete',dict(id=account['id'])).json['ok'])
+        self.assertIsNone(self.detail(a)['roster'][0]['panel_user_id'])
+        self.assertEqual(self.admin.get(path).json['notes'][0]['author_name'],'Renamed')
+
+    def test_member_deletion_removes_notes_keeps_accounts_and_never_reuses_record_ids(self):
+        unit=self.unit()
+        self.create('roster-editor','viewer')
+        self.assertTrue(self.change(unit,'staff',dict(username='roster-editor',role='staff',capabilities=['roster'])).json['ok'])
+        editor=self.login('roster-editor')
+        member=self.member(unit,panel_user_id=1).json['id']
+        record=f'/api/units/{unit}/roster/{member}/record'
+        endpoint=f'/api/units/{unit}/roster/{member}/delete'
+        self.assertTrue(self.post(self.admin,record,dict(note='Saved note')).json['ok'])
+        revision=self.detail(unit)['unit']['revision']
+        payload=dict(confirm_name='Ranger',revision=revision)
+        self.assertEqual(self.post(editor,endpoint,payload).status_code,403)
+        self.assertEqual(self.admin.post(endpoint,json=payload).status_code,403)
+        self.assertEqual(self.post(self.admin,endpoint,dict(payload,confirm_name='wrong')).status_code,400)
+        self.assertEqual(self.post(self.admin,endpoint,dict(payload,revision=0)).status_code,409)
+        self.assertEqual(len(self.admin.get(record).json['notes']),1)
+        self.assertTrue(self.post(self.admin,endpoint,payload).json['ok'])
+        self.assertEqual(self.admin.get(record).status_code,404)
+        self.assertEqual(self.detail(unit)['roster'],[])
+        self.assertTrue(next(u for u in self.admin.get('/api/users').json['users'] if u['id']==1)['is_owner'])
+        with self.module.operator_tools.store.connect() as conn:
+            self.assertEqual(conn.execute('SELECT count(*) FROM unit_member_notes WHERE member_id=?',(member,)).fetchone()[0],0)
+        replacement=self.member(unit).json['id']
+        self.assertGreater(replacement,member)
+        self.assertEqual(self.admin.get(record).status_code,404)
+
     def test_account_unit_changes_are_atomic_and_last_admin_is_protected(self):
         unit=self.unit();user=self.create('unit-lead','viewer')
         self.assertTrue(self.change(unit,'staff',dict(username='unit-lead',role='admin')).json['ok'])

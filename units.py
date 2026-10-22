@@ -59,6 +59,7 @@ def install(api):
                 created_at REAL NOT NULL, updated_at REAL NOT NULL);
             CREATE UNIQUE INDEX IF NOT EXISTS unit_roster_identity ON unit_roster(unit_id,identity) WHERE identity!='';
             CREATE INDEX IF NOT EXISTS unit_roster_unit ON unit_roster(unit_id,archived);
+            CREATE TABLE IF NOT EXISTS unit_roster_deleted_ids (id INTEGER PRIMARY KEY);
             CREATE TABLE IF NOT EXISTS unit_member_notes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, unit_id INTEGER NOT NULL,
                 member_id INTEGER NOT NULL, author_id INTEGER NOT NULL,
@@ -66,9 +67,10 @@ def install(api):
             CREATE INDEX IF NOT EXISTS unit_member_notes_member ON unit_member_notes(unit_id,member_id,id);
 
         ''')
-        for table, column, definition in [('units','catalog',"TEXT NOT NULL DEFAULT '{}'"),('unit_roster','last_promo',"TEXT NOT NULL DEFAULT ''"),('unit_roster','certificates',"TEXT NOT NULL DEFAULT ''")]:
+        for table, column, definition in [('units','catalog',"TEXT NOT NULL DEFAULT '{}'"),('unit_roster','last_promo',"TEXT NOT NULL DEFAULT ''"),('unit_roster','certificates',"TEXT NOT NULL DEFAULT ''"),('unit_roster','panel_user_id','INTEGER')]:
             if column not in {r['name'] for r in conn.execute(f'PRAGMA table_info({table})')}:
                 conn.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
+        conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS unit_roster_panel_user ON unit_roster(unit_id,panel_user_id) WHERE panel_user_id IS NOT NULL')
         owner_id = conn.execute('SELECT user_id FROM panel_owner WHERE singleton=1').fetchone()[0]
 
     def panel_admin():
@@ -146,7 +148,7 @@ def install(api):
     api.protect_unit_account = protect_account
 
     endpoints = {'units_list','units_save','unit_detail','unit_roster_save','unit_staff_save',
-                 'unit_identities','unit_roster_export','unit_health','units_page','unit_catalog_save','unit_position_rename','unit_member_record','unit_member_note_save'}
+                 'unit_identities','unit_roster_export','unit_health','units_page','unit_catalog_save','unit_position_rename','unit_member_record','unit_member_note_save','unit_roster_delete'}
     api.PANEL_WIDE_ENDPOINTS.update(endpoints)
 
     @api.app.errorhandler(400)
@@ -320,17 +322,18 @@ def install(api):
     def unit_detail(unit_id):
         with db() as conn:
             unit = access(conn,unit_id)
-            roster = [dict(r) for r in conn.execute('SELECT * FROM unit_roster WHERE unit_id=? ORDER BY archived,game_name COLLATE NOCASE,id',(unit_id,))]
+            roster = [dict(r) for r in conn.execute('SELECT r.*,u.username AS panel_username,u.enabled AS panel_user_enabled FROM unit_roster r LEFT JOIN users u ON u.id=r.panel_user_id WHERE r.unit_id=? ORDER BY r.archived,r.game_name COLLATE NOCASE,r.id',(unit_id,))]
             membership = conn.execute('SELECT role,capabilities FROM unit_staff WHERE unit_id=? AND user_id=?',(unit_id,g.user['id'])).fetchone()
             catalog=json.loads(unit['catalog'])
             for member in roster:
                 member['promotion']=promotion(member,catalog)
             admin = panel_admin() or membership['role']=='admin'
+            accounts = [dict(r) for r in conn.execute('SELECT id,username,enabled FROM users ORDER BY username')] if panel_admin() else [dict(r) for r in conn.execute('SELECT u.id,u.username,u.enabled FROM users u JOIN unit_staff s ON s.user_id=u.id WHERE s.unit_id=? ORDER BY u.username',(unit_id,))]
             staff = [dict(r,capabilities=json.loads(r['capabilities'])) for r in conn.execute('SELECT s.*,u.username,u.enabled FROM unit_staff s JOIN users u ON u.id=s.user_id WHERE unit_id=? ORDER BY username',(unit_id,))] if admin else []
-        return jsonify(unit=dict(unit,catalog=catalog),roster=roster,staff=staff,can_edit=admin or 'roster' in json.loads(membership['capabilities']),can_staff=admin,can_settings=panel_admin())
+        return jsonify(unit=dict(unit,catalog=catalog),roster=roster,staff=staff,can_edit=admin or 'roster' in json.loads(membership['capabilities']),can_staff=admin,can_delete=admin,accounts=accounts,can_settings=panel_admin())
 
     def find_member(conn, unit_id, member_id):
-        member=conn.execute('SELECT * FROM unit_roster WHERE unit_id=? AND id=?',(unit_id,member_id)).fetchone()
+        member=conn.execute('SELECT r.*,u.username AS panel_username,u.enabled AS panel_user_enabled FROM unit_roster r LEFT JOIN users u ON u.id=r.panel_user_id WHERE r.unit_id=? AND r.id=?',(unit_id,member_id)).fetchone()
         if not member:
             abort(404,description='Member not found in this unit')
         return member
@@ -349,7 +352,7 @@ def install(api):
             rows=[dict(r) for r in conn.execute('SELECT id,author_name,created_at,note FROM unit_member_notes WHERE unit_id=? AND member_id=? AND (?=0 OR id<?) ORDER BY id DESC LIMIT 51',(unit_id,member_id,before,before))]
             membership=conn.execute('SELECT role,capabilities FROM unit_staff WHERE unit_id=? AND user_id=?',(unit_id,g.user['id'])).fetchone()
             can_write=panel_admin() or membership['role']=='admin' or 'roster' in json.loads(membership['capabilities'])
-        return jsonify(member=dict(member,promotion=promotion(member,json.loads(unit['catalog']))),notes=rows[:50],next_before=rows[49]['id'] if len(rows)>50 else None,can_write=can_write)
+        return jsonify(member=dict(member,promotion=promotion(member,json.loads(unit['catalog']))),notes=rows[:50],next_before=rows[49]['id'] if len(rows)>50 else None,can_write=can_write,can_delete=panel_admin() or membership['role']=='admin')
 
     @api.app.post('/api/units/<int:unit_id>/roster/<int:member_id>/record')
     def unit_member_note_save(unit_id,member_id):
@@ -360,7 +363,9 @@ def install(api):
                 conn.execute('BEGIN IMMEDIATE')
                 access(conn,unit_id,'roster')
                 find_member(conn,unit_id,member_id)
-                identity=conn.execute('INSERT INTO unit_member_notes(unit_id,member_id,author_id,author_name,created_at,note) VALUES(?,?,?,?,?,?)',(unit_id,member_id,g.user['id'],g.user['username'],time.time(),note)).lastrowid
+                linked=conn.execute('SELECT game_name FROM unit_roster WHERE unit_id=? AND panel_user_id=?',(unit_id,g.user['id'])).fetchone()
+                author_name=linked['game_name'] if linked else g.user['username']
+                identity=conn.execute('INSERT INTO unit_member_notes(unit_id,member_id,author_id,author_name,created_at,note) VALUES(?,?,?,?,?,?)',(unit_id,member_id,g.user['id'],author_name,time.time(),note)).lastrowid
             g.audit_details=dict(unit_id=unit_id,member_id=member_id,note_id=identity)
             return jsonify(ok=True,id=identity)
         except ValueError as exc:
@@ -431,14 +436,47 @@ def install(api):
                 if type(data.get('archived',False)) is not bool:
                     raise ValueError('Choose a valid membership state')
                 values = member_values(conn,unit_id,data,existing)
+                account_id=data.get('panel_user_id',existing['panel_user_id'] if existing else None)
+                if account_id != (existing['panel_user_id'] if existing else None):
+                    access(conn,unit_id,'staff')
+                if account_id is not None:
+                    if type(account_id) is not int or not conn.execute('SELECT 1 FROM users WHERE id=?',(account_id,)).fetchone():
+                        raise ValueError('Choose an existing panel account, or leave the member unlinked')
+                    unchanged=existing and existing['panel_user_id']==account_id
+                    if not unchanged and not panel_admin() and not conn.execute('SELECT 1 FROM unit_staff WHERE unit_id=? AND user_id=?',(unit_id,account_id)).fetchone():
+                        raise ValueError('Choose a staff account already assigned to this unit')
+                    if conn.execute('SELECT 1 FROM unit_roster WHERE unit_id=? AND panel_user_id=? AND id!=?',(unit_id,account_id,member_id or 0)).fetchone():
+                        raise ValueError('That panel account is already linked to a roster member in this unit')
                 if existing:
-                    conn.execute('UPDATE unit_roster SET '+','.join(f'{k}=?' for k in FIELDS)+',archived=?,updated_at=? WHERE id=? AND unit_id=?',(*values.values(),int(data.get('archived',False)),time.time(),member_id,unit_id))
+                    conn.execute('UPDATE unit_roster SET '+','.join(f'{k}=?' for k in FIELDS)+',archived=?,panel_user_id=?,updated_at=? WHERE id=? AND unit_id=?',(*values.values(),int(data.get('archived',False)),account_id,time.time(),member_id,unit_id))
                 else:
-                    member_id = conn.execute('INSERT INTO unit_roster(unit_id,'+','.join(FIELDS)+',archived,created_at,updated_at) VALUES('+','.join('?' for _ in range(len(FIELDS)+4))+')',(unit_id,*values.values(),int(data.get('archived',False)),time.time(),time.time())).lastrowid
-            g.audit_details = dict(unit_id=unit_id,member_id=member_id,before={f:existing[f] for f in (*FIELDS,'archived')} if existing else None,after=dict(values,archived=data.get('archived',False)))
+                    # Deleted record URLs must never resolve to a different person.
+                    member_id=conn.execute('SELECT COALESCE(MAX(id),0)+1 FROM (SELECT id FROM unit_roster UNION ALL SELECT id FROM unit_roster_deleted_ids)').fetchone()[0]
+                    conn.execute('INSERT INTO unit_roster(id,unit_id,'+','.join(FIELDS)+',archived,panel_user_id,created_at,updated_at) VALUES('+','.join('?' for _ in range(len(FIELDS)+6))+')',(member_id,unit_id,*values.values(),int(data.get('archived',False)),account_id,time.time(),time.time()))
+            g.audit_details = dict(unit_id=unit_id,member_id=member_id,before={f:existing[f] for f in (*FIELDS,'archived','panel_user_id')} if existing else None,after=dict(values,archived=data.get('archived',False),panel_user_id=account_id))
             return jsonify(ok=True,id=member_id)
         except (ValueError,sqlite3.IntegrityError) as exc:
-            return jsonify(ok=False,error='That UUID already has a roster record in this unit; edit or restore it instead' if isinstance(exc,sqlite3.IntegrityError) else str(exc)),400
+            return jsonify(ok=False,error='That UUID or panel account already has a roster record in this unit; edit or restore it instead' if isinstance(exc,sqlite3.IntegrityError) else str(exc)),400
+
+    @api.app.post('/api/units/<int:unit_id>/roster/<int:member_id>/delete')
+    def unit_roster_delete(unit_id,member_id):
+        data=request.get_json()
+        try:
+            with db() as conn:
+                conn.execute('BEGIN IMMEDIATE')
+                access(conn,unit_id,'staff')
+                member=find_member(conn,unit_id,member_id)
+                revision(conn,unit_id,data)
+                if data.get('confirm_name')!=member['game_name']:
+                    raise ValueError('Type the member’s game name exactly to confirm deletion')
+                notes=conn.execute('SELECT count(*) FROM unit_member_notes WHERE unit_id=? AND member_id=?',(unit_id,member_id)).fetchone()[0]
+                conn.execute('INSERT INTO unit_roster_deleted_ids VALUES(?)',(member_id,))
+                conn.execute('DELETE FROM unit_member_notes WHERE unit_id=? AND member_id=?',(unit_id,member_id))
+                conn.execute('DELETE FROM unit_roster WHERE unit_id=? AND id=?',(unit_id,member_id))
+            g.audit_details=dict(unit_id=unit_id,member_id=member_id,game_name=member['game_name'],deleted_notes=notes)
+            return jsonify(ok=True)
+        except ValueError as exc:
+            return jsonify(ok=False,error=str(exc)),400
 
     @api.app.post('/api/units/<int:unit_id>/staff')
     def unit_staff_save(unit_id):

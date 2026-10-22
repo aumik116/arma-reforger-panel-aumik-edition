@@ -8,3 +8,5 @@
 .unit-dialog,.user-editor{margin:auto}html[data-theme] :is(.unit-dialog,.user-editor) .btn-save{background:var(--accent);color:var(--button-text);border-color:var(--accent)}
 
 .units-page .member-record-link{padding:0;border:0;background:none;color:var(--accent);font-weight:600;text-align:left}.unit-table td:last-child button{display:block;margin-bottom:6px;white-space:nowrap}.member-record-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:20px 0}.member-record-facts span,.member-record-facts strong{display:block;overflow-wrap:anywhere}.member-record-facts span{color:var(--muted);font-size:12px}.member-record-note{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;margin-top:10px}.member-record-note-heading{display:flex;gap:12px;justify-content:space-between;flex-wrap:wrap}.member-record-note-heading time{color:var(--muted);font-size:12px}@media(max-width:700px){.member-record-facts{grid-template-columns:1fr}}
+
+html[data-theme] .unit-dialog .member-delete-button{margin-top:20px;color:var(--offline);border-color:var(--offline);background:transparent}

@@ -453,6 +453,8 @@ def install(api):
             if conn.execute("SELECT 1 FROM unit_staff WHERE user_id=? LIMIT 1",(user["id"],)).fetchone():
                 return jsonify(ok=False,error="Remove this account from its units before deleting it"),400
             conn.execute("DELETE FROM user_server_roles WHERE user_id=?", (user["id"],))
+            conn.execute('UPDATE units SET revision=revision+1 WHERE id IN (SELECT unit_id FROM unit_roster WHERE panel_user_id=?)',(user['id'],))
+            conn.execute('UPDATE unit_roster SET panel_user_id=NULL WHERE panel_user_id=?',(user['id'],))
             conn.execute("DELETE FROM users WHERE id=?", (user["id"],))
         g.audit_details = {"username": user["username"]}
         return jsonify(ok=True)

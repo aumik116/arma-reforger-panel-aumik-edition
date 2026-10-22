@@ -857,6 +857,8 @@ def index():
     if not session.get("logged_in"):
         return redirect("/login")
     _ensure_csrf()
+    if not request.args.get('server') and unit_only_user():
+        return redirect('/units')
     if not request.args.get('server') and (manager_mode or request.args.get('legacy') != '1'):
         return redirect('/servers')
     with open(os.path.join(os.path.dirname(__file__), "index.html"), encoding="utf-8") as f:
@@ -864,6 +866,8 @@ def index():
 
 @app.get('/servers')
 def servers_page():
+    if unit_only_user():
+        return redirect('/units')
     _ensure_csrf()
     with open(os.path.join(_BASE_DIR, 'servers.html'), encoding='utf-8') as stream:
         return stream.read()

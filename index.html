@@ -45,7 +45,7 @@
   <button type="button" class="config-button mobile-nav-toggle" id="mobile-nav-toggle" aria-expanded="false" aria-controls="workspace-sidebar">☰ Menu · <span id="mobile-nav-current">Dashboard</span></button>
   <aside id="workspace-sidebar" class="sidebar" aria-label="Workspace navigation">
   <div class="brand"><span class="brand-icon">AR</span><div>REFORGER<small>SERVER PANEL</small></div></div>
-  <div class="sidebar-instances"><label for="instance-switcher" class="instance-label">Server</label><select id="instance-switcher" aria-label="Select server"><option value="">Existing server</option></select><a class="btn-logout" href="/servers">All servers →</a></div>
+  <div class="sidebar-instances"><label for="instance-switcher" class="instance-label">Server</label><select id="instance-switcher" aria-label="Select server"><option value="">Existing server</option></select><a class="btn-logout" href="/servers">All servers →</a><a class="workspace-unit-link" href="/units"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#players"></use></svg><span>Units &amp; rosters<small>Members · records · qualifications</small></span></a></div>
 <nav class="panel-tabs" role="tablist" aria-label="Panel sections" aria-orientation="vertical"><span class="nav-label">OVERVIEW</span>
     <button class="panel-tab" id="tab-dashboard" role="tab" aria-selected="true" aria-controls="panel-dashboard" tabindex="0"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#dashboard"></use></svg>Dashboard</button><span class="nav-label">OPERATIONS</span>
     <button class="panel-tab" id="tab-console" role="tab" aria-selected="false" aria-controls="panel-console" tabindex="-1" data-permission="logs" hidden><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#console"></use></svg>Console</button>
@@ -58,9 +58,9 @@
     <button class="panel-tab" id="tab-files" role="tab" aria-selected="false" aria-controls="panel-files" tabindex="-1" data-permission="admin_config" hidden><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#files"></use></svg>Files</button>
     <button class="panel-tab" id="tab-network" role="tab" aria-selected="false" aria-controls="panel-network" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#network"></use></svg>Network</button><span class="nav-label">ADMINISTRATION</span>
     <button class="panel-tab" id="tab-administration" role="tab" aria-selected="false" aria-controls="panel-administration" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#administration"></use></svg>Administration</button></nav>
-  <div class="sidebar-bottom"><span class="brand-icon">AR</span><div>Arma Reforger<small>Dedicated server</small></div><a class="btn-logout" href="/units">Units & rosters</a><a class="btn-logout appearance-link" href="/account"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#account"></use></svg>Account settings</a></div>
+  <div class="sidebar-bottom"><span class="brand-icon">AR</span><div>Arma Reforger<small>Dedicated server</small></div><a class="btn-logout appearance-link" href="/account"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#account"></use></svg>Account settings</a></div>
   </aside>
-  <div class="page-heading"><div><div class="eyebrow">SERVER WORKSPACE</div><h2 id="page-title">Dashboard</h2><p id="page-description">Monitor your server and manage the action.</p></div></div>
+  <div class="page-heading"><div><div class="eyebrow">SERVER WORKSPACE</div><h2 id="page-title">Dashboard</h2><p id="page-description">Monitor your server and manage the action.</p></div><a class="btn-save manager-create unit-primary-link" href="/units"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#players"></use></svg>Units &amp; rosters</a></div>
 
 
   <section class="tab-panel" id="panel-dashboard" role="tabpanel" aria-labelledby="tab-dashboard">

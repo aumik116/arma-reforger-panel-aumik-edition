@@ -76,6 +76,15 @@ def install(api):
     def panel_admin():
         return g.user['id'] == owner_id or bool(g.user['panel_admin'])
 
+    def hosting_access(conn):
+        return panel_admin() or bool(g.user['access_all']) or bool(conn.execute('SELECT 1 FROM user_server_roles WHERE user_id=? LIMIT 1',(g.user['id'],)).fetchone())
+
+    def unit_only_user():
+        with db() as conn:
+            return not hosting_access(conn) and bool(conn.execute('SELECT 1 FROM unit_staff WHERE user_id=? LIMIT 1',(g.user['id'],)).fetchone())
+
+    api.unit_only_user=unit_only_user
+
     def access(conn, unit_id, capability=None):
         unit = conn.execute('SELECT * FROM units WHERE id=?', (unit_id,)).fetchone()
         if not unit:
@@ -178,7 +187,8 @@ def install(api):
             servers = [dict(id=s.id,name=s.name) for s in api.server_registry.list() if panel_admin() or s.id in visible or api.server_permissions(g.user,s.id)]
             if not api.manager_mode and (panel_admin() or '' in visible or api.server_permissions(g.user,'')):
                 servers.insert(0,dict(id='',name='Existing server'))
-        return jsonify(units=result,servers=servers,panel_admin=panel_admin(),user_id=g.user['id'])
+            has_hosting_access=hosting_access(conn)
+        return jsonify(units=result,servers=servers,panel_admin=panel_admin(),hosting_access=has_hosting_access,user_id=g.user['id'])
 
     @api.app.post('/api/units')
     def units_save():

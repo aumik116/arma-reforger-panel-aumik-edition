@@ -61,6 +61,14 @@ class UnitTests(unittest.TestCase):
         self.assertEqual(staff.get('/api/servers').json['servers'],[])
         self.assertEqual(staff.get(f'/api/units/{a}').status_code,200)
         self.assertFalse(staff.get(f'/api/units/{a}/health').json['servers'][0]['can_open'])
+        self.assertEqual(staff.get('/').location,'/units')
+        self.assertEqual(staff.get('/servers').location,'/units')
+        self.assertFalse(staff.get('/api/units').json['hosting_access'])
+        # A separate server grant preserves the hosting landing page.
+        self.assertTrue(self.post(self.admin,'/api/users',dict(id=user['id'],username=user['username'],role='viewer',access_all=False,server_roles={'__existing__':'viewer'},panel_admin=False)).json['ok'])
+        staff=self.login('alpha-staff')
+        self.assertEqual(staff.get('/').location,'/servers')
+        self.assertTrue(staff.get('/api/units').json['hosting_access'])
 
     def test_rank_paygrade_paths_certificates_positions_and_archival(self):
         unit=self.unit()

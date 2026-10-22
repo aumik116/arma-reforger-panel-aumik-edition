@@ -36,7 +36,7 @@
   async function loadListing(preferred=unitId) {
     if(loading)return;loading=true;
     try {
-      listing=await read('/api/units');el('unit-new').hidden=!listing.panel_admin;el('unit-users').hidden=!listing.panel_admin;
+      listing=await read('/api/units');el('units-server-navigation').hidden=listing.hosting_access===false;el('unit-new').hidden=!listing.panel_admin;el('unit-users').hidden=!listing.panel_admin;
       el('unit-select').replaceChildren();
       for(const unit of listing.units){const option=document.createElement('option');option.value=unit.id;option.textContent=unit.name;el('unit-select').append(option);}
       unitId=listing.units.some(u=>u.id===Number(preferred))?Number(preferred):listing.units[0]?.id;
@@ -54,6 +54,8 @@
       if(requested!==unitId)return;
       detail=result;el('unit-workspace').hidden=false;
       const selected=listing.units.find(u=>u.id===unitId);
+      el('unit-access-description').hidden=false;
+      el('unit-access-description').textContent=(listing.panel_admin?'Panel administrator':detail.can_staff?'Unit administrator':'Unit staff')+' · '+(detail.can_edit?'Can edit roster and add staff notes':'View roster and member records')+' · '+detail.unit.name;
       el('unit-settings').hidden=!detail.can_settings;el('roster-add').hidden=!detail.can_edit;
       el('catalog-edit').hidden=!detail.can_staff;el('position-rename').hidden=!detail.can_staff;el('unit-tab-staff').hidden=!detail.can_staff;
       if(!detail.can_staff&&!el('unit-staff').hidden)selectTab('roster');

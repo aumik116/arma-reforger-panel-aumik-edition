@@ -34,6 +34,16 @@ Create the unit's qualifications, position suggestions and independent rank stru
 Promotion readiness shows a calculated date and missing qualifications, with a notice when someone is eligible for staff review. It never promotes anyone automatically. Link a panel account to its roster member to use that unit’s name when writing notes. Open a member record to read or add dated staff notes with author history. Unit administrators can archive members or permanently delete a record and its notes after confirmation. Former members retain their records, and CSV export is available. The unit **Dashboard** shows staffing, promotion readiness, upcoming events and attendance awaiting review. **Events** provides a monthly calendar with timezone-aware weekly, biweekly and monthly recurrence. **Attendance** provides a monthly member/event grid and CSV export.
 
 
+### Qualifications and promotion review
+
+The **Qualifications** tab shows a member-by-qualification matrix. Search members, filter by status/group/section, show who holds or lacks a qualification, and compare filtered coverage with the whole unit. Open a cell to see its award date, issuer and notes. Roster editors can grant, correct details or revoke an award. Existing qualifications retain unknown original dates/issuers until staff enter those details. The timeline separately records who entered or corrected them.
+
+The **Promotions** tab lists eligible members and unmet requirements. **Review promotion** shows the proposed rank and date; a staff note and explicit confirmation are required. The server rechecks eligibility and the unit revision before changing the rank. Promotions are never automatic.
+
+Member records include a filterable, paginated timeline for ranks/promotion dates, primary billets, qualifications and membership status. Changes made in the regular member editor, assignment controls, Structure, promotion review and bulk editor all use this history. Earlier records receive an upgrade baseline; past changes are not reconstructed. Archiving preserves history; permanent member deletion removes their timeline and award records along with their notes, while existing event attendance snapshots remain.
+
+Choose **Bulk edit…** on the Roster tab to select up to 500 current members and grant/revoke a qualification, change status, move to open billets in a section, or remove primary assignments. Review the server-generated before/after list and confirm before applying. A section move keeps members already in that section in place and allocates its open billets to others. Insufficient vacancies or a stale roster reject the whole change. Existing awards keep their dates and issuers when a bulk grant includes someone who already holds the qualification.
+
 ### Events and attendance
 
 1. Link each member’s recorded UUID in their roster record.

@@ -426,6 +426,7 @@ def install(api):
             with db() as conn:
                 conn.execute('BEGIN IMMEDIATE');access(conn,unit_id,'staff');revision(conn,unit_id,data)
                 identity=data.get('id');old=structure_node(conn,unit_id,identity) if identity is not None else None
+                previous_states={r[0]:api.roster_state(conn,unit_id,r[0]) for r in conn.execute('SELECT member_id FROM unit_primary_slots WHERE unit_id=?',(unit_id,)).fetchall()} if old else {}
                 if old and old['kind']!=kind:
                     raise ValueError('The item type cannot be changed')
                 parent=data.get('parent_id')
@@ -454,6 +455,8 @@ def install(api):
                         raise ValueError('Keep at most 2000 structure items per unit')
                     order=conn.execute('SELECT COALESCE(MAX(sort_order),-1)+1 FROM unit_structure WHERE unit_id=? AND parent_id IS ?',(unit_id,parent)).fetchone()[0]
                     identity=conn.execute('INSERT INTO unit_structure(unit_id,parent_id,kind,name,sort_order) VALUES(?,?,?,?,?)',(unit_id,parent,kind,name,order)).lastrowid
+                for member_id,before in previous_states.items():
+                    api.record_roster_change(conn,unit_id,member_id,before,dict(history_reason='Roster structure renamed or moved'))
             g.audit_details=dict(unit_id=unit_id,structure_id=identity,kind=kind,name=name,parent_id=parent,before=dict(old) if old else None)
             return jsonify(ok=True,id=identity)
         except ValueError as exc:
@@ -471,8 +474,11 @@ def install(api):
                 ids=[row[0] for row in conn.execute('WITH RECURSIVE tree(id) AS (SELECT id FROM unit_structure WHERE unit_id=? AND id=? UNION ALL SELECT n.id FROM unit_structure n JOIN tree t ON n.parent_id=t.id WHERE n.unit_id=?) SELECT id FROM tree',(unit_id,node_id,unit_id))]
                 marks=','.join('?' for _ in ids)
                 released=[row[0] for row in conn.execute(f'SELECT member_id FROM unit_primary_slots WHERE unit_id=? AND billet_id IN ({marks})',(unit_id,*ids))]
+                previous_states={member_id:api.roster_state(conn,unit_id,member_id) for member_id in released}
                 conn.execute(f'DELETE FROM unit_primary_slots WHERE unit_id=? AND billet_id IN ({marks})',(unit_id,*ids))
                 conn.execute(f'DELETE FROM unit_structure WHERE unit_id=? AND id IN ({marks})',(unit_id,*ids))
+                for member_id,before in previous_states.items():
+                    api.record_roster_change(conn,unit_id,member_id,before,dict(history_reason='Roster structure removed: '+node['name']))
             g.audit_details=dict(unit_id=unit_id,removed_structure=ids,released_members=released,name=node['name'])
             return jsonify(ok=True)
         except ValueError as exc:
@@ -505,12 +511,16 @@ def install(api):
                 conn.execute('BEGIN IMMEDIATE');access(conn,unit_id,'roster');revision(conn,unit_id,data)
                 billet=data.get('billet_id');member=data.get('member_id')
                 structure_node(conn,unit_id,billet,'billet')
+                if member is not None and type(member) is not int:
+                    raise ValueError('Choose a roster member')
+                affected=member if member is not None else next((r[0] for r in conn.execute('SELECT member_id FROM unit_primary_slots WHERE unit_id=? AND billet_id=?',(unit_id,billet))),None)
+                before=api.roster_state(conn,unit_id,affected) if affected is not None else None
                 if member is None:
                     conn.execute('DELETE FROM unit_primary_slots WHERE unit_id=? AND billet_id=?',(unit_id,billet))
                 else:
-                    if type(member) is not int:
-                        raise ValueError('Choose a roster member')
                     assign_slot(conn,unit_id,member,billet)
+                if affected is not None:
+                    api.record_roster_change(conn,unit_id,affected,before,dict(history_reason='Primary billet assignment'))
             g.audit_details=dict(unit_id=unit_id,billet_id=billet,member_id=member)
             return jsonify(ok=True)
         except ValueError as exc:
@@ -642,6 +652,7 @@ def install(api):
                     abort(404,description='Member not found in this unit')
                 if type(data.get('archived',False)) is not bool:
                     raise ValueError('Choose a valid membership state')
+                previous_state=api.roster_state(conn,unit_id,member_id) if existing else None
                 values = member_values(conn,unit_id,data,existing)
                 account_id=data.get('panel_user_id',existing['panel_user_id'] if existing else None)
                 if account_id != (existing['panel_user_id'] if existing else None):
@@ -664,6 +675,7 @@ def install(api):
                     conn.execute('DELETE FROM unit_primary_slots WHERE unit_id=? AND member_id=?',(unit_id,member_id))
                 elif 'billet_id' in data:
                     assign_slot(conn,unit_id,member_id,data['billet_id'])
+                api.record_roster_change(conn,unit_id,member_id,previous_state,data)
                 api.sync_unit_event_roster(conn,unit_id)
             g.audit_details = dict(unit_id=unit_id,member_id=member_id,billet_id=data.get('billet_id'),before={f:existing[f] for f in (*FIELDS,'archived','panel_user_id')} if existing else None,after=dict(values,archived=data.get('archived',False),panel_user_id=account_id))
             return jsonify(ok=True,id=member_id)
@@ -685,6 +697,8 @@ def install(api):
                 conn.execute('INSERT INTO unit_roster_deleted_ids VALUES(?)',(member_id,))
                 conn.execute('DELETE FROM unit_member_notes WHERE unit_id=? AND member_id=?',(unit_id,member_id))
                 conn.execute('DELETE FROM unit_primary_slots WHERE unit_id=? AND member_id=?',(unit_id,member_id))
+                conn.execute('DELETE FROM unit_qualification_awards WHERE unit_id=? AND member_id=?',(unit_id,member_id))
+                conn.execute('DELETE FROM unit_roster_history WHERE unit_id=? AND member_id=?',(unit_id,member_id))
                 conn.execute('DELETE FROM unit_roster WHERE unit_id=? AND id=?',(unit_id,member_id))
                 api.sync_unit_event_roster(conn,unit_id)
             g.audit_details=dict(unit_id=unit_id,member_id=member_id,game_name=member['game_name'],deleted_notes=notes)
@@ -756,3 +770,6 @@ def install(api):
 
     from unit_events import install as install_events
     install_events(api, db, access, panel_admin, promotion, endpoints)
+
+    from roster_tools import install as install_roster_tools
+    install_roster_tools(api, db, access, revision, promotion, decorate_slots, assign_slot, structure_rows, endpoints)

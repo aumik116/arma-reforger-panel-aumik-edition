@@ -12,7 +12,7 @@ from flask import abort, g, jsonify, request, send_from_directory
 
 UUID = re.compile(r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}')
 CAPABILITIES = ('roster', 'staff')
-FIELDS = ('game_name', 'discord', 'identity', 'status', 'rank', 'section', 'position', 'joined_on', 'loa_until', 'notes', 'last_promo', 'certificates')
+FIELDS = ('game_name', 'discord', 'identity', 'status', 'rank', 'section', 'position', 'joined_on', 'loa_until', 'notes', 'last_promo', 'certificates', 'rank_track')
 
 
 def text(value, name, limit=120, required=False):
@@ -22,6 +22,39 @@ def text(value, name, limit=120, required=False):
     if required and not value:
         raise ValueError(f'{name} is required')
     return value
+
+
+def rank_structures_catalog(catalog):
+    """Preserve existing rank rules when upgrading the former shared-paygrade catalog."""
+    if 'rank_structures' in catalog:
+        return catalog
+    result=dict(catalog)
+    old_grades=result.pop('paygrades',[]);old_ranks=result.pop('ranks',[])
+    if not isinstance(old_grades,list) or not isinstance(old_ranks,list) or len(old_grades)>50 or len(old_ranks)>100:
+        raise ValueError('Choose valid existing ranks and paygrades')
+    grades={}
+    for grade in old_grades:
+        if not isinstance(grade,dict) or type(grade.get('days')) is not int or not 0<=grade['days']<=36500:
+            raise ValueError('Choose valid existing paygrade requirements')
+        name=text(grade.get('name'),'Paygrade',40,True)
+        requirements=grade.get('certificates',[])
+        if not isinstance(requirements,list) or any(not isinstance(c,str) for c in requirements):
+            raise ValueError('Choose valid existing qualification requirements')
+        grades[name]=grade
+    ranks=[]
+    for rank in old_ranks:
+        if not isinstance(rank,dict):
+            raise ValueError('Choose valid existing ranks')
+        name=text(rank.get('name'),'Rank',80,True)
+        grade_name=text(rank.get('paygrade',''),'Paygrade',40)
+        if grade_name not in grades:
+            raise ValueError('Existing ranks must reference defined paygrades')
+        grade=grades[grade_name];requirements=rank.get('certificates',[])
+        if not isinstance(requirements,list) or any(not isinstance(c,str) for c in requirements):
+            raise ValueError('Choose valid existing qualification requirements')
+        ranks.append(dict(name=name,paygrade=grade_name,days=grade['days'],next_rank=rank.get('next_rank',''),certificates=sorted(set(grade.get('certificates',[]))|set(requirements))))
+    result['rank_structures']=[dict(name='Existing ranks',ranks=ranks)] if ranks else []
+    return result
 
 
 def install(api):
@@ -75,9 +108,16 @@ def install(api):
             CREATE INDEX IF NOT EXISTS unit_member_notes_member ON unit_member_notes(unit_id,member_id,id);
 
         ''')
-        for table, column, definition in [('units','catalog',"TEXT NOT NULL DEFAULT '{}'"),('unit_roster','last_promo',"TEXT NOT NULL DEFAULT ''"),('unit_roster','certificates',"TEXT NOT NULL DEFAULT ''"),('unit_roster','panel_user_id','INTEGER')]:
+        for table, column, definition in [('units','catalog',"TEXT NOT NULL DEFAULT '{}'"),('unit_roster','last_promo',"TEXT NOT NULL DEFAULT ''"),('unit_roster','certificates',"TEXT NOT NULL DEFAULT ''"),('unit_roster','panel_user_id','INTEGER'),('unit_roster','rank_track',"TEXT NOT NULL DEFAULT ''")]:
             if column not in {r['name'] for r in conn.execute(f'PRAGMA table_info({table})')}:
                 conn.execute(f'ALTER TABLE {table} ADD COLUMN {column} {definition}')
+        for unit in conn.execute('SELECT id,catalog FROM units').fetchall():
+            old=json.loads(unit['catalog'])
+            if 'rank_structures' not in old:
+                catalog=rank_structures_catalog(old)
+                conn.execute('UPDATE units SET catalog=?,revision=revision+1 WHERE id=?',(json.dumps(catalog),unit['id']))
+                if catalog['rank_structures']:
+                    conn.execute("UPDATE unit_roster SET rank_track='Existing ranks' WHERE unit_id=? AND rank!='' AND rank_track=''",(unit['id'],))
         conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS unit_roster_panel_user ON unit_roster(unit_id,panel_user_id) WHERE panel_user_id IS NOT NULL')
         owner_id = conn.execute('SELECT user_id FROM panel_owner WHERE singleton=1').fetchone()[0]
 
@@ -248,36 +288,39 @@ def install(api):
             if not isinstance(values,list) or any(c not in certificates for c in values):
                 raise ValueError('Select qualifications from this unit’s catalog')
             return sorted(set(values))
-        paygrades = raw.get('paygrades',[]); ranks = raw.get('ranks',[])
-        if not isinstance(paygrades,list) or not isinstance(ranks,list) or len(paygrades)>50 or len(ranks)>100:
-            raise ValueError('Keep at most 50 paygrades and 100 ranks')
-        grades = []
-        for item in paygrades:
-            if not isinstance(item,dict) or type(item.get('days')) is not int or not 0<=item['days']<=36500:
-                raise ValueError('Time in grade must be 0–36500 whole days')
-            grades.append(dict(name=text(item.get('name'),'Paygrade',40,True),days=item['days'],certificates=requirements(item.get('certificates',[]))))
-        grade_names = {r['name'] for r in grades}
-        if len(grade_names)!=len(grades):
-            raise ValueError('Paygrade names must be unique')
-        result = []
-        for item in ranks:
-            if not isinstance(item,dict):
-                raise ValueError('Choose valid ranks')
-            name = text(item.get('name'),'Rank',80,True)
-            grade = text(item.get('paygrade'),'Paygrade',40,True)
-            if grade not in grade_names:
-                raise ValueError('Every rank needs a defined paygrade')
-            result.append(dict(name=name,paygrade=grade,next_rank=text(item.get('next_rank',''),'Next rank',80),certificates=requirements(item.get('certificates',[]))))
-        by_name = {r['name']:r for r in result}
-        if len(by_name)!=len(result):
-            raise ValueError('Rank names must be unique')
-        for rank in result:
-            seen = {rank['name']}; target = rank['next_rank']
-            while target:
-                if target not in by_name or target in seen:
-                    raise ValueError('Next-rank paths must reference existing ranks without cycles')
-                seen.add(target); target=by_name[target]['next_rank']
-        return dict(certificates=certificates,positions=positions,paygrades=grades,ranks=result)
+        raw=rank_structures_catalog(raw)
+        structures=raw.get('rank_structures',[])
+        if not isinstance(structures,list) or len(structures)>20:
+            raise ValueError('Keep at most 20 rank structures per unit')
+        result=[];total=0
+        for structure in structures:
+            if not isinstance(structure,dict):
+                raise ValueError('Choose valid rank structures')
+            structure_name=text(structure.get('name'),'Rank structure name',80,True)
+            entries=structure.get('ranks',[])
+            if not isinstance(entries,list):
+                raise ValueError('Choose valid ranks for each structure')
+            total+=len(entries)
+            if total>200:
+                raise ValueError('Keep at most 200 ranks across the unit’s structures')
+            ranks=[]
+            for item in entries:
+                if not isinstance(item,dict) or type(item.get('days',0)) is not int or not 0<=item.get('days',0)<=36500:
+                    raise ValueError('Advancement time must be 0–36500 whole days')
+                ranks.append(dict(name=text(item.get('name'),'Rank',80,True),paygrade=text(item.get('paygrade',''),'Paygrade label',40),days=item.get('days',0),next_rank=text(item.get('next_rank',''),'Next rank',80),certificates=requirements(item.get('certificates',[]))))
+            by_name={rank['name']:rank for rank in ranks}
+            if len({rank['name'].casefold() for rank in ranks})!=len(ranks):
+                raise ValueError('Rank names must be unique within their structure')
+            for rank in ranks:
+                seen={rank['name']};target=rank['next_rank']
+                while target:
+                    if target not in by_name or target in seen:
+                        raise ValueError('Next ranks must exist in the same structure and cannot form a cycle')
+                    seen.add(target);target=by_name[target]['next_rank']
+            result.append(dict(name=structure_name,ranks=ranks))
+        if len({s['name'].casefold() for s in result})!=len(result):
+            raise ValueError('Rank structure names must be unique')
+        return dict(certificates=certificates,positions=positions,rank_structures=result)
 
     @api.app.post('/api/units/<int:unit_id>/catalog')
     def unit_catalog_save(unit_id):
@@ -286,11 +329,12 @@ def install(api):
             catalog=catalog_values(data.get('catalog'))
             with db() as conn:
                 conn.execute('BEGIN IMMEDIATE'); access(conn,unit_id,'staff'); revision(conn,unit_id,data)
-                used=[dict(r) for r in conn.execute('SELECT rank,certificates,position FROM unit_roster WHERE unit_id=?',(unit_id,))]
-                names={r['name'] for r in catalog['ranks']}
+                used=[dict(r) for r in conn.execute('SELECT rank,rank_track,certificates,position FROM unit_roster WHERE unit_id=?',(unit_id,))]
+                names={(structure['name'],rank['name']) for structure in catalog['rank_structures'] for rank in structure['ranks']}
+                tracks={structure['name'] for structure in catalog['rank_structures']}
                 for row in used:
-                    if row['rank'] and row['rank'] not in names or any(c not in catalog['certificates'] for c in row['certificates'].split(';') if c):
-                        raise ValueError('A rank or qualification is used by a roster record. Update those records before removing it.')
+                    if row['rank_track'] and row['rank_track'] not in tracks or row['rank'] and (row['rank_track'],row['rank']) not in names or any(c not in catalog['certificates'] for c in row['certificates'].split(';') if c):
+                        raise ValueError('A rank structure, rank or qualification is used by a roster record. Update those records before removing or renaming it.')
                 conn.execute('UPDATE units SET catalog=? WHERE id=?',(json.dumps(catalog),unit_id))
             g.audit_details=dict(unit_id=unit_id,change='rank and qualification catalog')
             return jsonify(ok=True)
@@ -324,14 +368,14 @@ def install(api):
             return jsonify(ok=False,error=str(exc)),400
 
     def promotion(member,catalog):
-        ranks={r['name']:r for r in catalog.get('ranks',[])}
+        structure=next((s for s in catalog.get('rank_structures',[]) if s['name']==member['rank_track']),{})
+        ranks={r['name']:r for r in structure.get('ranks',[])}
         current=ranks.get(member['rank'],{}); target=ranks.get(current.get('next_rank'))
         if not target:
             return dict(next_rank='',next_date='',missing=[],eligible=False)
-        grade=next(g for g in catalog['paygrades'] if g['name']==target['paygrade'])
         held=set(member['certificates'].split(';'))
-        missing=sorted((set(grade['certificates'])|set(target['certificates']))-held)
-        due=(date.fromisoformat(member['last_promo'])+timedelta(days=grade['days'])).isoformat() if member['last_promo'] else ''
+        missing=sorted(set(target['certificates'])-held)
+        due=(date.fromisoformat(member['last_promo'])+timedelta(days=target['days'])).isoformat() if member['last_promo'] else ''
         return dict(next_rank=target['name'],next_date=due,missing=missing,eligible=bool(due and due<=date.today().isoformat() and not missing and not member['archived']))
 
     def structure_rows(conn,unit_id):
@@ -563,8 +607,14 @@ def install(api):
         if any(p not in catalog.get('positions',[]) for p in positions) and values['position']!=(existing['position'] if existing else ''):
             raise ValueError('Choose positions from the unit catalog')
         values['position']=';'.join(sorted(set(positions)))
-        if values['rank'] and values['rank'] not in {r['name'] for r in catalog.get('ranks',[])}:
-            raise ValueError('Choose a rank from the unit catalog, or leave it blank')
+        structures=catalog.get('rank_structures',[])
+        if values['rank'] and not values['rank_track'] and len(structures)==1:
+            values['rank_track']=structures[0]['name']
+        structure=next((s for s in structures if s['name']==values['rank_track']),None)
+        if values['rank_track'] and not structure:
+            raise ValueError('Choose a rank structure from this unit')
+        if values['rank'] and (not structure or values['rank'] not in {r['name'] for r in structure['ranks']}):
+            raise ValueError('Choose a rank from the selected structure, or leave it blank')
         for field in ('joined_on','loa_until','last_promo'):
             if values[field]:
                 try:

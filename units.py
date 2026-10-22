@@ -11,7 +11,7 @@ import time
 from flask import abort, g, jsonify, request, send_from_directory
 
 UUID = re.compile(r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}')
-CAPABILITIES = ('roster', 'events', 'attendance', 'staff')
+CAPABILITIES = ('roster', 'events', 'attendance', 'references', 'awards', 'campaigns', 'staff')
 FIELDS = ('game_name', 'discord', 'identity', 'status', 'rank', 'section', 'position', 'joined_on', 'loa_until', 'notes', 'last_promo', 'certificates', 'rank_track')
 
 
@@ -258,6 +258,7 @@ def install(api):
                 if unit_id is None:
                     unit_id = conn.execute('INSERT INTO units(name,tag) VALUES(?,?)',(name,tag)).lastrowid
                     conn.execute("INSERT INTO unit_staff(unit_id,user_id,role) VALUES(?,?,'admin')",(unit_id,g.user['id']))
+                    api.record_unit_strength(conn,unit_id,baseline=True)
                 else:
                     if type(unit_id) is not int:
                         raise ValueError('Choose a valid unit')
@@ -565,7 +566,7 @@ def install(api):
             rows=[dict(r) for r in conn.execute('SELECT id,author_name,created_at,note FROM unit_member_notes WHERE unit_id=? AND member_id=? AND (?=0 OR id<?) ORDER BY id DESC LIMIT 51',(unit_id,member_id,before,before))]
             membership=conn.execute('SELECT role,capabilities FROM unit_staff WHERE unit_id=? AND user_id=?',(unit_id,g.user['id'])).fetchone()
             can_write=panel_admin() or membership['role']=='admin' or 'roster' in json.loads(membership['capabilities'])
-        return jsonify(member=dict(member,promotion=promotion(member,json.loads(unit['catalog']))),notes=rows[:50],next_before=rows[49]['id'] if len(rows)>50 else None,can_write=can_write,can_delete=panel_admin() or membership['role']=='admin')
+        return jsonify(member=dict(member,promotion=promotion(member,json.loads(unit['catalog']))),notes=rows[:50],next_before=rows[49]['id'] if len(rows)>50 else None,can_write=can_write,can_delete=panel_admin() or membership['role']=='admin',can_award=panel_admin() or membership['role']=='admin' or 'awards' in json.loads(membership['capabilities']))
 
     @api.app.post('/api/units/<int:unit_id>/roster/<int:member_id>/record')
     def unit_member_note_save(unit_id,member_id):
@@ -695,13 +696,17 @@ def install(api):
                 revision(conn,unit_id,data)
                 if data.get('confirm_name')!=member['game_name']:
                     raise ValueError('Type the member’s game name exactly to confirm deletion')
+                previous_state=api.roster_state(conn,unit_id,member_id)
                 notes=conn.execute('SELECT count(*) FROM unit_member_notes WHERE unit_id=? AND member_id=?',(unit_id,member_id)).fetchone()[0]
                 conn.execute('INSERT INTO unit_roster_deleted_ids VALUES(?)',(member_id,))
                 conn.execute('DELETE FROM unit_member_notes WHERE unit_id=? AND member_id=?',(unit_id,member_id))
                 conn.execute('DELETE FROM unit_primary_slots WHERE unit_id=? AND member_id=?',(unit_id,member_id))
                 conn.execute('DELETE FROM unit_qualification_awards WHERE unit_id=? AND member_id=?',(unit_id,member_id))
                 conn.execute('DELETE FROM unit_roster_history WHERE unit_id=? AND member_id=?',(unit_id,member_id))
+                conn.execute('DELETE FROM unit_member_awards WHERE unit_id=? AND member_id=?',(unit_id,member_id))
+                conn.execute('DELETE FROM unit_resource_audit WHERE unit_id=? AND member_id=?',(unit_id,member_id))
                 conn.execute('DELETE FROM unit_roster WHERE unit_id=? AND id=?',(unit_id,member_id))
+                api.record_unit_strength(conn,unit_id,previous_state,None)
                 api.sync_unit_event_roster(conn,unit_id)
             g.audit_details=dict(unit_id=unit_id,member_id=member_id,game_name=member['game_name'],deleted_notes=notes)
             return jsonify(ok=True)
@@ -799,3 +804,6 @@ def install(api):
 
     from roster_tools import install as install_roster_tools
     install_roster_tools(api, db, access, revision, promotion, decorate_slots, assign_slot, structure_rows, endpoints)
+
+    from unit_resources import install as install_resources
+    install_resources(api, db, access, revision, panel_admin, endpoints)

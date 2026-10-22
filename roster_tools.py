@@ -62,6 +62,8 @@ def install(api, db, access, revision, promotion, decorate_slots, assign_slot, s
             conn.execute('INSERT INTO unit_qualification_awards VALUES(?,?,?,?,?,?)', (unit_id, member_id, certificate, awarded_on, issuer, notes))
             history(conn, unit_id, member_id, 'qualification_granted', None, dict(certificate=certificate, awarded_on=awarded_on, issuer=issuer, notes=notes), reason)
 
+        api.record_unit_strength(conn,unit_id,before,after)
+
     api.roster_state = state
     api.record_roster_change = record_change
     with db() as conn:

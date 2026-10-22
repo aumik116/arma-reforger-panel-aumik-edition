@@ -44,6 +44,15 @@ Member records include a filterable, paginated timeline for ranks/promotion date
 
 Choose **Bulk edit…** on the Roster tab to select up to 500 current members and grant/revoke a qualification, change status, move to open billets in a section, or remove primary assignments. Review the server-generated before/after list and confirm before applying. A section move keeps members already in that section in place and allocates its open billets to others. Insufficient vacancies or a stale roster reject the whole change. Existing awards keep their dates and issuers when a bulk grant includes someone who already holds the qualification.
 
+### Analytics, SOPs, loadouts, awards and campaigns
+
+- **Analytics:** choose a date range and timezone for recorded strength, roster additions/archive/removal/restoration counts, cohort retention and finalized attendance trends. Daily chart data is also available as a table. Strength and retention start when this feature is installed; earlier history is not invented. Rank distribution shows the current roster.
+- **SOPs & loadouts:** search references by category, role or content. SOPs support full text and external reference links. Loadouts add an image URL and editable kit slots with standard items, alternatives and notes. References can be archived/restored; edits retain an audit history.
+- **Awards:** create a unit medal/badge catalog, then issue awards with a date and citation. Each issue records the staff member’s unit name. Repeated medals require explicit confirmation; revocations require a reason and retain the original issue. Member records show medals and campaign awards. Award names/images are preserved at issue time when the catalog later changes.
+- **Campaigns:** group this unit’s events by a timezone-aware date window or explicit event selection. Set a participation threshold and optionally link a catalog award. Progress uses confirmed Present outcomes divided by eligible finalized events: Reserve events count, LOA and Excused events are exempt, and Unknown means unconfirmed rather than absent. This differs from normal attendance percentages, which only count required Present/Absent decisions. Complete the campaign and finalize its tracked events before individually approving awards. Date-window campaigns must also reach the end of their window. Nothing grants or revokes campaign awards automatically.
+
+All unit staff can view these areas. Unit administrators and panel administrators can manage them; other staff can receive **Manage SOPs / loadouts**, **Manage awards** and **Manage campaigns** independently through Add staff or the user editor. These permissions grant no hosting access. Recruiting remains deferred.
+
 ### Events and attendance
 
 1. Link each member’s recorded UUID in their roster record.

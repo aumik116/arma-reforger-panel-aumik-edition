@@ -59,6 +59,12 @@ def install(api):
                 created_at REAL NOT NULL, updated_at REAL NOT NULL);
             CREATE UNIQUE INDEX IF NOT EXISTS unit_roster_identity ON unit_roster(unit_id,identity) WHERE identity!='';
             CREATE INDEX IF NOT EXISTS unit_roster_unit ON unit_roster(unit_id,archived);
+            CREATE TABLE IF NOT EXISTS unit_member_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, unit_id INTEGER NOT NULL,
+                member_id INTEGER NOT NULL, author_id INTEGER NOT NULL,
+                author_name TEXT NOT NULL, created_at REAL NOT NULL, note TEXT NOT NULL);
+            CREATE INDEX IF NOT EXISTS unit_member_notes_member ON unit_member_notes(unit_id,member_id,id);
+
         ''')
         for table, column, definition in [('units','catalog',"TEXT NOT NULL DEFAULT '{}'"),('unit_roster','last_promo',"TEXT NOT NULL DEFAULT ''"),('unit_roster','certificates',"TEXT NOT NULL DEFAULT ''")]:
             if column not in {r['name'] for r in conn.execute(f'PRAGMA table_info({table})')}:
@@ -140,7 +146,7 @@ def install(api):
     api.protect_unit_account = protect_account
 
     endpoints = {'units_list','units_save','unit_detail','unit_roster_save','unit_staff_save',
-                 'unit_identities','unit_roster_export','unit_health','units_page','unit_catalog_save','unit_position_rename'}
+                 'unit_identities','unit_roster_export','unit_health','units_page','unit_catalog_save','unit_position_rename','unit_member_record','unit_member_note_save'}
     api.PANEL_WIDE_ENDPOINTS.update(endpoints)
 
     @api.app.errorhandler(400)
@@ -322,6 +328,43 @@ def install(api):
             admin = panel_admin() or membership['role']=='admin'
             staff = [dict(r,capabilities=json.loads(r['capabilities'])) for r in conn.execute('SELECT s.*,u.username,u.enabled FROM unit_staff s JOIN users u ON u.id=s.user_id WHERE unit_id=? ORDER BY username',(unit_id,))] if admin else []
         return jsonify(unit=dict(unit,catalog=catalog),roster=roster,staff=staff,can_edit=admin or 'roster' in json.loads(membership['capabilities']),can_staff=admin,can_settings=panel_admin())
+
+    def find_member(conn, unit_id, member_id):
+        member=conn.execute('SELECT * FROM unit_roster WHERE unit_id=? AND id=?',(unit_id,member_id)).fetchone()
+        if not member:
+            abort(404,description='Member not found in this unit')
+        return member
+
+    @api.app.get('/api/units/<int:unit_id>/roster/<int:member_id>/record')
+    def unit_member_record(unit_id,member_id):
+        try:
+            before=int(request.args.get('before','0'))
+            if not 0<=before<=9223372036854775807:
+                raise ValueError()
+        except ValueError:
+            return jsonify(ok=False,error='Choose a valid record history cursor'),400
+        with db() as conn:
+            unit=access(conn,unit_id)
+            member=find_member(conn,unit_id,member_id)
+            rows=[dict(r) for r in conn.execute('SELECT id,author_name,created_at,note FROM unit_member_notes WHERE unit_id=? AND member_id=? AND (?=0 OR id<?) ORDER BY id DESC LIMIT 51',(unit_id,member_id,before,before))]
+            membership=conn.execute('SELECT role,capabilities FROM unit_staff WHERE unit_id=? AND user_id=?',(unit_id,g.user['id'])).fetchone()
+            can_write=panel_admin() or membership['role']=='admin' or 'roster' in json.loads(membership['capabilities'])
+        return jsonify(member=dict(member,promotion=promotion(member,json.loads(unit['catalog']))),notes=rows[:50],next_before=rows[49]['id'] if len(rows)>50 else None,can_write=can_write)
+
+    @api.app.post('/api/units/<int:unit_id>/roster/<int:member_id>/record')
+    def unit_member_note_save(unit_id,member_id):
+        data=request.get_json()
+        try:
+            note=text(data.get('note'),'Record note',4000,True)
+            with db() as conn:
+                conn.execute('BEGIN IMMEDIATE')
+                access(conn,unit_id,'roster')
+                find_member(conn,unit_id,member_id)
+                identity=conn.execute('INSERT INTO unit_member_notes(unit_id,member_id,author_id,author_name,created_at,note) VALUES(?,?,?,?,?,?)',(unit_id,member_id,g.user['id'],g.user['username'],time.time(),note)).lastrowid
+            g.audit_details=dict(unit_id=unit_id,member_id=member_id,note_id=identity)
+            return jsonify(ok=True,id=identity)
+        except ValueError as exc:
+            return jsonify(ok=False,error=str(exc)),400
 
     def recorded(conn, unit_id):
         links = [r['server_id'] for r in conn.execute('SELECT server_id FROM unit_servers WHERE unit_id=?',(unit_id,))]

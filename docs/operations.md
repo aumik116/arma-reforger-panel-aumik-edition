@@ -208,3 +208,7 @@ Paygrades define the number of days since the last promotion needed to enter tha
 Account, membership, roster and catalog writes use transactions; roster/catalog editors reject stale unit revisions. Roster edits record before/after values in the activity log, scoped to the unit. Back up the panel SQLite database as part of regular panel backups; game-file backups alone do not include these records.
 
 This release is the roster foundation. Event management and automatic event attendance are not yet included. Future attendance must use recorded UUIDs during an event only; casual server connections must not count as event attendance.
+
+### Member records
+
+Click a member's name or **Open record** to view their unit-specific profile and staff note history. Staff can read records only in their own units; adding a note requires roster-editing permission or unit/panel administration. Notes have a server timestamp and the author's username captured at creation. They are retained when the member is archived or the author's account is removed. Notes are append-only: add a follow-up correction rather than overwriting an earlier entry. Older entries load in pages of 50 without replacing an unsaved note. The roster summary remains editable separately. Staff record notes are stored in the panel SQLite database and are not included in the general roster CSV export.

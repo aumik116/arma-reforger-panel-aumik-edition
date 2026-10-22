@@ -100,6 +100,38 @@ class UnitTests(unittest.TestCase):
         self.assertEqual(len(self.detail(unit)['roster']),1)
         self.assertEqual(self.detail(unit)['roster'][0]['identity'],'')
 
+    def test_member_records_keep_unit_boundaries_permissions_and_note_history(self):
+        a=self.unit();b=self.unit('Bravo')
+        first=self.member(a,notes='Existing summary').json['id']
+        second=self.member(b).json['id']
+        path=f'/api/units/{a}/roster/{first}/record'
+        self.create('record-viewer','viewer')
+        self.assertTrue(self.change(a,'staff',dict(username='record-viewer',role='staff')).json['ok'])
+        viewer=self.login('record-viewer')
+        self.assertEqual(viewer.get(path).json['member']['notes'],'Existing summary')
+        self.assertFalse(viewer.get(path).json['can_write'])
+        self.assertEqual(self.post(viewer,path,dict(note='Not allowed')).status_code,403)
+        self.assertEqual(viewer.get(f'/api/units/{b}/roster/{second}/record').status_code,404)
+        self.assertEqual(self.admin.get(f'/api/units/{a}/roster/{second}/record').status_code,404)
+        self.assertEqual(self.post(self.admin,f'/api/units/{a}/roster/{second}/record',dict(note='Wrong member')).status_code,404)
+        self.assertEqual(self.admin.post(path,json=dict(note='Missing CSRF')).status_code,403)
+        for note in ('  ', 'x'*4001, ['invalid']):
+            self.assertEqual(self.post(self.admin,path,dict(note=note)).status_code,400)
+        self.assertTrue(self.change(a,'staff',dict(username='record-viewer',role='staff',capabilities=['roster'])).json['ok'])
+        self.assertTrue(self.post(viewer,path,dict(note='Completed vehicle qualification.\nReviewed by staff.')).json['ok'])
+        self.assertTrue(self.post(self.admin,path,dict(note='<script>literal text</script>')).json['ok'])
+        result=viewer.get(path).json
+        self.assertEqual([r['author_name'] for r in result['notes']],['admin','record-viewer'])
+        self.assertEqual(result['notes'][1]['note'],'Completed vehicle qualification.\nReviewed by staff.')
+        cursor=result['notes'][0]['id']
+        self.assertEqual(len(viewer.get(path+'?before='+str(cursor)).json['notes']),1)
+        self.assertEqual(viewer.get(path+'?before=-1').status_code,400)
+        member=self.detail(a)['roster'][0];member['archived']=True
+        self.assertTrue(self.change(a,'roster',member).json['ok'])
+        self.assertEqual(len(viewer.get(path).json['notes']),2)
+        self.assertTrue(self.change(a,'staff',dict(username='record-viewer',role='remove')).json['ok'])
+        self.assertEqual(viewer.get(path).status_code,404)
+
     def test_account_unit_changes_are_atomic_and_last_admin_is_protected(self):
         unit=self.unit();user=self.create('unit-lead','viewer')
         self.assertTrue(self.change(unit,'staff',dict(username='unit-lead',role='admin')).json['ok'])

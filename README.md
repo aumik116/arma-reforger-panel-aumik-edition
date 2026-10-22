@@ -31,7 +31,7 @@ Open **Units & rosters** from the navigation. Panel administrators create units,
 
 Create the unit's qualifications, positions, paygrades and named ranks in **Ranks & qualifications**, then add roster members manually. Members need no login account. Game name, Discord handle, Active/Reserve/LOA status, optional rank/section, multiple positions and qualifications, and promotion dates stay separate for each unit. UUIDs can be selected from recorded players on linked servers.
 
-Promotion readiness shows a calculated date and missing qualifications, with a notice when someone is eligible for staff review. It never promotes anyone automatically. Former members retain their records, and CSV export is available. Events and automatic attendance are a later addition; casual server logins do not create attendance records.
+Promotion readiness shows a calculated date and missing qualifications, with a notice when someone is eligible for staff review. It never promotes anyone automatically. Open a member record to read or add dated staff notes with author history. Former members retain their records, and CSV export is available. Events and automatic attendance are a later addition; casual server logins do not create attendance records.
 
 ## Update an existing installation
 

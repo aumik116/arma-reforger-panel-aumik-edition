@@ -1496,6 +1496,9 @@ install_mod_inventory(sys.modules[__name__])
 from moderation import install as install_moderation
 install_moderation(sys.modules[__name__])
 
+from units import install as install_units
+install_units(sys.modules[__name__])
+
 from live_metrics import install as install_live_metrics
 install_live_metrics(sys.modules[__name__])
 

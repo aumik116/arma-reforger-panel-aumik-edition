@@ -356,14 +356,17 @@ def install(api):
     @app.get("/api/users")
     def users_list():
         with db() as conn:
-            rows = conn.execute("SELECT id,username,role,enabled,access_all,panel_admin FROM users ORDER BY username").fetchall()
+            rows = conn.execute("SELECT id,username,role,enabled,access_all,panel_admin,version FROM users ORDER BY username").fetchall()
         with db() as conn:
+            unit_assignments = [dict(row,capabilities=json.loads(row['capabilities'])) for row in conn.execute('SELECT * FROM unit_staff')]
+            unit_choices = [dict(row) for row in conn.execute('SELECT id,name,revision FROM units ORDER BY name')]
             assignments = [dict(row) for row in conn.execute('SELECT * FROM user_server_roles')]
         servers = [dict(id=server.id, name=server.name) for server in api.server_registry.list()]
         if not api.manager_mode:
             servers.insert(0, dict(id='__existing__', name='Existing server'))
         return jsonify(users=[dict(row, is_owner=row['id'] == owner_id, access_all=bool(row['access_all']), panel_admin=bool(row['panel_admin']) or row['id']==owner_id,
-            server_roles={item['server_id']:item['role'] for item in assignments if item['user_id'] == row['id']}) for row in rows], roles=list(ROLES), servers=servers)
+            units=[item for item in unit_assignments if item['user_id']==row['id']],
+            server_roles={item['server_id']:item['role'] for item in assignments if item['user_id'] == row['id']}) for row in rows], roles=list(ROLES), servers=servers, units=unit_choices)
 
     @app.post("/api/users")
     def users_save():
@@ -393,6 +396,8 @@ def install(api):
                 if data.get("id") is not None and not existing:
                     return jsonify(ok=False, error="Account not found"), 404
                 if existing:
+                    if 'version' in data and data['version'] != existing['version']:
+                        return jsonify(ok=False,error='Account changed. Reopen the editor before saving.'),409
                     if existing['id'] == owner_id and (access_all is False or server_roles or panel_admin is False):
                         return jsonify(ok=False,error='Owner access cannot be restricted'),400
                     if existing['id'] == owner_id:
@@ -409,8 +414,6 @@ def install(api):
                     hashed = password_hash(data["password"]) if data.get("password") else existing["password"]
                     conn.execute("UPDATE users SET username=?,role=?,enabled=?,password=?,version=version+1 WHERE id=?",
                                  (username, role, enabled, hashed, existing["id"]))
-                    if existing["id"] == g.user["id"]:
-                        session["user_version"] += 1
                 else:
                     conn.execute("INSERT INTO users(username,password,role,enabled,access_all) VALUES(?,?,?,?,?)",
                                  (username, password_hash(data.get("password")), role, enabled, int(access_all is True)))
@@ -422,8 +425,13 @@ def install(api):
                 if server_roles is not None:
                     conn.execute('DELETE FROM user_server_roles WHERE user_id=?', (saved_id,))
                     conn.executemany('INSERT INTO user_server_roles VALUES(?,?,?)', [(saved_id,key,value) for key,value in server_roles.items()])
+                if 'units' in data:
+                    api.save_user_units(conn,saved_id,data['units'],data.get('unit_revisions'))
+                api.protect_unit_account(conn,saved_id)
         except (ValueError, sqlite3.IntegrityError) as exc:
             return jsonify(ok=False, error="Username is already in use" if isinstance(exc, sqlite3.IntegrityError) else str(exc)), 400
+        if existing and existing["id"] == g.user["id"]:
+            session["user_version"] += 1
         g.audit_details = {"username": username, "role": role, "enabled": bool(enabled), "access_all":access_all, "server_roles":server_roles, "panel_admin":panel_admin}
         return jsonify(ok=True)
 
@@ -442,6 +450,8 @@ def install(api):
                 count = conn.execute("SELECT count(*) FROM users WHERE enabled=1 AND (panel_admin=1 OR id=?)",(owner_id,)).fetchone()[0]
                 if count <= 1:
                     return jsonify(ok=False, error="Keep at least one enabled administrator"), 400
+            if conn.execute("SELECT 1 FROM unit_staff WHERE user_id=? LIMIT 1",(user["id"],)).fetchone():
+                return jsonify(ok=False,error="Remove this account from its units before deleting it"),400
             conn.execute("DELETE FROM user_server_roles WHERE user_id=?", (user["id"],))
             conn.execute("DELETE FROM users WHERE id=?", (user["id"],))
         g.audit_details = {"username": user["username"]}
@@ -560,8 +570,10 @@ def install(api):
                 if not api.manager_mode and server_permissions(g.user,''):
                     visible.append(None)
                 marks = ','.join('?' for _ in visible) or 'NULL'
-                rows = conn.execute(f"SELECT * FROM activity WHERE (?=0 OR id<?) AND (actor=? OR json_extract(details,'$.server_id') IN ({marks}) OR (? AND json_extract(details,'$.server_id') IS NULL AND action NOT IN ('users_save','users_delete','account_password'))) ORDER BY id DESC LIMIT 51",
-                    (before,before,g.user['username'],*visible,None in visible)).fetchall()
+                visible_units = [row['unit_id'] for row in conn.execute('SELECT unit_id FROM unit_staff WHERE user_id=?',(g.user['id'],))]
+                unit_marks = ','.join('?' for _ in visible_units) or 'NULL'
+                rows = conn.execute(f"SELECT * FROM activity WHERE (?=0 OR id<?) AND (json_extract(details,'$.unit_id') IS NULL OR json_extract(details,'$.unit_id') IN ({unit_marks})) AND (actor=? OR json_extract(details,'$.server_id') IN ({marks}) OR (? AND json_extract(details,'$.server_id') IS NULL AND action NOT IN ('users_save','users_delete','account_password'))) ORDER BY id DESC LIMIT 51",
+                    (before,before,*visible_units,g.user['username'],*visible,None in visible)).fetchall()
         return jsonify(events=[dict(row, details=json.loads(row["details"])) for row in rows[:50]],
                        next_before=rows[49]["id"] if len(rows) > 50 else None)
 

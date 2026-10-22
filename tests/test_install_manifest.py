@@ -1,4 +1,6 @@
 import re
+import subprocess
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -18,9 +20,12 @@ class InstallerManifestTests(unittest.TestCase):
         self.assertIn('copy_panel_files "$PANEL_DIR"', installer)
 
     def test_referenced_static_assets_exist_and_are_copied(self):
-        installer = (ROOT / 'install.sh').read_text(encoding='utf-8')
-        self.assertIn('cp "$SCRIPT_DIR/static/"* "$destination/static/"', installer)
-        for page in ('index.html', 'login.html', 'setup.html', 'servers.html', 'account.html'):
+        with tempfile.TemporaryDirectory() as directory:
+            destination=Path(directory)/'panel'
+            subprocess.run(['bash','-c','source "$1/install.sh"; SCRIPT_DIR="$1"; copy_panel_files "$2"','_',str(ROOT),str(destination)],check=True,capture_output=True)
+            self.assertTrue((destination/'units.html').is_file())
+            self.assertEqual((destination/'static/fonts/Barlow-Regular.ttf').read_bytes(),(ROOT/'static/fonts/Barlow-Regular.ttf').read_bytes())
+        for page in ('index.html', 'login.html', 'setup.html', 'servers.html', 'account.html', 'units.html'):
             html = (ROOT / page).read_text(encoding='utf-8')
             for asset in re.findall(r'/static/([\w.-]+)', html):
                 self.assertTrue((ROOT / 'static' / asset).is_file(), f'{page} references missing {asset}')

@@ -29,7 +29,7 @@
 <link rel="stylesheet" href="/static/manager-layout.css">
 <link rel="stylesheet" href="/static/workshop.css">
 <link rel="stylesheet" href="/static/ux.css">
-<link rel="stylesheet" href="/static/field.css">
+<link rel="stylesheet" href="/static/field.css"><link rel="stylesheet" href="/static/units.css">
 </head>
 <body>
 <div class="layout">
@@ -58,7 +58,7 @@
     <button class="panel-tab" id="tab-files" role="tab" aria-selected="false" aria-controls="panel-files" tabindex="-1" data-permission="admin_config" hidden><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#files"></use></svg>Files</button>
     <button class="panel-tab" id="tab-network" role="tab" aria-selected="false" aria-controls="panel-network" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#network"></use></svg>Network</button><span class="nav-label">ADMINISTRATION</span>
     <button class="panel-tab" id="tab-administration" role="tab" aria-selected="false" aria-controls="panel-administration" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#administration"></use></svg>Administration</button></nav>
-  <div class="sidebar-bottom"><span class="brand-icon">AR</span><div>Arma Reforger<small>Dedicated server</small></div><a class="btn-logout appearance-link" href="/account"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#account"></use></svg>Account settings</a></div>
+  <div class="sidebar-bottom"><span class="brand-icon">AR</span><div>Arma Reforger<small>Dedicated server</small></div><a class="btn-logout" href="/units">Units & rosters</a><a class="btn-logout appearance-link" href="/account"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#account"></use></svg>Account settings</a></div>
   </aside>
   <div class="page-heading"><div><div class="eyebrow">SERVER WORKSPACE</div><h2 id="page-title">Dashboard</h2><p id="page-description">Monitor your server and manage the action.</p></div></div>
 
@@ -591,18 +591,7 @@
     <p class="feature-note">Server roles control actions on an assigned server: Viewer can check status and players; Operator can also start/stop/restart and read logs; Manager can also edit configuration and mods; Server administrator can also manage player moderation, startup, scheduling, files and RCON. Panel administrators manage accounts and access across the panel. The Owner always has full access.</p>
     <fieldset class="account-controls" id="users-controls" aria-describedby="users-restricted" disabled>
     <div id="users-list"></div>
-    <input id="user-id" type="hidden">
-    <div class="config-grid">
-      <div class="field"><label for="user-name">Username</label><input id="user-name" maxlength="32" autocomplete="off"></div>
-      <div class="field"><label for="user-password">Password (leave blank to keep when editing)</label><input id="user-password" type="password" autocomplete="new-password"></div>
-      <div class="field"><label for="user-panel-admin">Panel access</label><select id="user-panel-admin"><option value="staff">Staff — server access only</option><option value="admin">Panel administrator — manages users and access</option></select><p class="feature-note">Use Staff for your server team. Panel administrators can create accounts and grant access to any server.</p></div>
-    </div>
-    <h3>Which servers can this person use?</h3><p class="feature-note">Choose a role beside each server. No access means they cannot see or control that server.</p><div id="user-server-access" class="feature-grid"></div>
-    <details><summary>Advanced: access to every server</summary><label><input type="checkbox" id="user-all-servers"> Allow every current and future server</label><div class="field"><label for="user-role">Default role when all-server access is enabled</label><select id="user-role"><option value="viewer">View only</option><option value="operator">Start, stop and read logs</option><option value="manager">Manage settings and mods</option><option value="admin">Full server administration</option></select></div><p class="feature-note">Explicit server roles override this default. Full server administration does not grant panel account-management access.</p></details>
-    <div class="card" style="margin:16px 0;padding:16px"><strong>This account will have:</strong><p id="user-access-summary" class="feature-note" role="status">No server access. Cannot manage panel users.</p></div>
-    <label><input id="user-enabled" type="checkbox" checked> Account enabled</label>
-    <div class="feature-row"><button id="user-save" class="btn-save" onclick="saveUser()">Create account</button>
-    <button class="btn-save" onclick="resetUserForm()">Clear form</button></div>
+    <button type="button" class="btn-save" onclick="openUserEditor()">New account</button>
     </fieldset>
   </div>
 </div>
@@ -699,6 +688,7 @@
 <script src="/static/persistence.js"></script>
 <script src="/static/mods.js"></script>
 <script src="/static/mod-inventory.js"></script>
+<script src="/static/user-editor.js"></script>
 <script src="/static/features.js"></script>
 <script src="/static/notifications.js"></script>
 <script src="/static/workshop.js"></script>

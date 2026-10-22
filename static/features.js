@@ -1,8 +1,6 @@
 // Accounts, mod presets, player roster and activity history.
 let currentAccount = {permissions: []};
 let savedPresets = [];
-let accountRows = [];
-let accountServers = [];
 let roster = [];
 let activityCursor = null;
 const can = permission => currentAccount.permissions.includes(permission);
@@ -223,113 +221,6 @@ async function presetAction(action) {
   } catch (e) { setLog(e.message, 'error'); }
 }
 
-async function loadUsers() {
-  const data = await getFeature('/api/users');
-  accountRows = data.users; accountServers = data.servers || [];
-  byId('users-list').replaceChildren();
-  accountRows.forEach(user => {
-    const row = document.createElement('div'); row.className = 'feature-row';
-    const label = document.createElement('span');
-    label.textContent = `${user.username} · ${user.is_owner ? 'Owner' : user.panel_admin ? 'Panel administrator' : 'Staff'}${user.enabled ? '' : ' · Disabled'}`;
-    row.append(label);
-    if (user.is_owner && user.id !== currentAccount.id) {
-      const note = document.createElement('small'); note.textContent = 'Protected Owner account';
-      row.append(note); byId('users-list').append(row); return;
-    }
-    const edit = document.createElement('button'); edit.className = 'btn-save'; edit.textContent = 'Edit';
-    edit.onclick = () => {
-      byId('user-id').value = user.id; byId('user-name').value = user.username;
-      byId('user-role').value = user.role; byId('user-enabled').checked = !!user.enabled;
-      byId('user-role').disabled = !!user.is_owner; byId('user-enabled').disabled = !!user.is_owner;
-      byId('user-password').value = ''; byId('user-save').textContent = 'Update account';
-      byId('user-panel-admin').value = user.panel_admin ? 'admin' : 'staff';
-      byId('user-panel-admin').disabled = !!user.is_owner;
-      renderUserAccess(user);
-    };
-    row.append(edit);
-    if (user.id !== currentAccount.id && !user.is_owner) {
-      const remove = document.createElement('button'); remove.className = 'btn-save'; remove.textContent = 'Delete';
-      remove.onclick = async () => {
-        if (!confirm(`Delete account "${user.username}"? Its activity history will remain.`)) return;
-        try { await changeFeature('/api/users/delete', {id:user.id}); await loadUsers(); }
-        catch (e) { setLog(e.message, 'error'); }
-      };
-      row.append(remove);
-    }
-    byId('users-list').append(row);
-  });
-  if (!byId('user-id').value) renderUserAccess();
-}
-
-function renderUserAccess(user = null) {
-  const all = byId('user-all-servers'), container = byId('user-server-access');
-  all.checked = !!(user && (user.is_owner || user.access_all)); all.disabled = !!user?.is_owner;
-  container.replaceChildren();
-  for (const server of accountServers) {
-    const label = document.createElement('label'); label.className = 'field'; label.textContent = server.name;
-    const select = document.createElement('select'); select.dataset.server = server.id;
-    for (const [value,text] of [['',all.checked ? 'Use default role' : 'No access'],['viewer','View only'],['operator','Start, stop and read logs'],['manager','Manage settings and mods'],['admin','Full server administration']]) {
-      const option = document.createElement('option'); option.value = value; option.textContent = text; select.append(option);
-    }
-    select.value = user?.server_roles?.[server.id] || ''; select.disabled = !!user?.is_owner;
-    select.onchange = updateUserAccessSummary;
-    label.append(select); container.append(label);
-  }
-  all.onchange = () => {
-    container.querySelectorAll('select').forEach(select => {
-      select.options[0].textContent = all.checked ? 'Use default role' : 'No access';
-    });
-    updateUserAccessSummary();
-  };
-  byId('user-role').onchange = updateUserAccessSummary;
-  byId('user-panel-admin').onchange = updateUserAccessSummary;
-  byId('user-enabled').onchange = updateUserAccessSummary;
-  updateUserAccessSummary();
-}
-
-function updateUserAccessSummary() {
-  const all = byId('user-all-servers').checked;
-  const assigned = [...byId('user-server-access').querySelectorAll('select')].filter(select => select.value);
-  const summary = all ? 'Every current and future server: ' + byId('user-role').selectedOptions[0].textContent + (assigned.length ? '. Overrides: ' + assigned.map(select => `${accountServers.find(server => server.id === select.dataset.server).name}: ${select.selectedOptions[0].textContent}`).join('; ') : '') + '.' : assigned.length ? assigned.map(select => `${accountServers.find(server => server.id === select.dataset.server).name}: ${select.selectedOptions[0].textContent}`).join('; ') + '.' : 'No server access.';
-  byId('user-access-summary').textContent = (byId('user-enabled').checked ? '' : 'Account disabled: cannot sign in. If enabled: ') + summary + (byId('user-panel-admin').value === 'admin' ? ' Can manage panel users and grant access to any server.' : ' Cannot manage panel users.');
-}
-
-function resetUserForm() {
-  byId('user-id').value = ''; byId('user-name').value = ''; byId('user-password').value = '';
-  byId('user-role').value = 'viewer'; byId('user-enabled').checked = true;
-  byId('user-role').disabled = false; byId('user-enabled').disabled = false;
-  byId('user-save').textContent = 'Create account';
-  byId('user-panel-admin').value = 'staff'; byId('user-panel-admin').disabled = false;
-  renderUserAccess();
-}
-
-async function saveUser() {
-  try {
-    const data = {username:byId('user-name').value.trim(), password:byId('user-password').value,
-      role:byId('user-role').value, enabled:byId('user-enabled').checked,
-      access_all:byId('user-all-servers').checked, panel_admin:byId('user-panel-admin').value === 'admin',
-      server_roles:Object.fromEntries([...byId('user-server-access').querySelectorAll('select')].filter(select => select.value).map(select => [select.dataset.server,select.value]))};
-    if (byId('user-id').value) data.id = Number(byId('user-id').value);
-    await changeFeature('/api/users', data);
-    if (data.id === currentAccount.id) {
-      currentAccount = await getFeature('/api/me');
-      byId('account-label').textContent = `${currentAccount.username} · ${currentAccount.is_owner ? 'Owner' : currentAccount.role}`;
-    }
-    resetUserForm(); await loadUsers();
-  } catch (e) { setLog(e.message, 'error'); }
-}
-
-const actionNames = {
-  players_moderate:'Moderate player', scheduled_start:'Scheduled start', scheduled_stop:'Scheduled stop', scheduled_broadcast:'Scheduled broadcast',
-  startup_save:'Save startup settings', players_admin_save:'Change in-game administrator access',
-  schedules_save:'Create schedule', schedules_change:'Change schedule',
-  scheduled_restart:'Scheduled restart', scheduled_update:'Scheduled game update', scheduled_backup:'Scheduled configuration backup',
-  login:'Signed in', api_start:'Start server', api_stop:'Stop server', api_restart:'Restart server',
-  api_config:'Change server configuration', api_mods_add:'Add mod', api_mods_remove:'Remove mod',
-  api_mods_import:'Import mods', api_persistence_set:'Change persistence', api_persistence_flush:'Delete saves',
-  api_scenarios_rescan:'Rescan scenarios', presets_save:'Save preset', presets_apply:'Apply preset',
-  presets_delete:'Delete preset', users_save:'Save account', users_delete:'Delete account', account_password:'Change password'
-};
 
 async function loadActivity(older = false) {
   try {

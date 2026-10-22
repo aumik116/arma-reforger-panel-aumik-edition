@@ -2,14 +2,14 @@
 
 Manage multiple Arma Reforger dedicated servers on one Ubuntu VM: mods, performance, players, configuration, files and scheduled operations.
 
-The current development branch is **`multi-server-manager`**. Fresh Ubuntu installation, Steam downloads and systemd game startup still need real VM verification. Remote nodes are not supported yet.
+The default branch is **`main`**, including the multi-server manager. Fresh Ubuntu installation, Steam downloads and systemd game startup still need real VM verification. Remote nodes are not supported yet.
 
 ## Fresh installation
 
 Use **Ubuntu 24.04, x86_64**, a sudo account and enough disk space for each server's game files, mods and saves. The installer installs Python dependencies and prepares SteamCMD.
 
 ```bash
-git clone --branch multi-server-manager https://github.com/aumik116/arma-reforger-panel-aumik-edition.git
+git clone https://github.com/aumik116/arma-reforger-panel-aumik-edition.git
 cd arma-reforger-panel-aumik-edition
 sudo bash install.sh
 ```
@@ -25,18 +25,26 @@ Additional servers can start from defaults or copy a managed server's settings a
 
 **Public IPv4 address:** leave blank for automatic detection, or enter the address players should use. For LAN-only testing, use the VM's private IPv4 address. Advertising an address does not configure NAT or prove internet connectivity.
 
+## Units and rosters
+
+Open **Units & rosters** from the navigation. Panel administrators create units, link servers and create staff accounts. Unit administrators manage their own staff and rosters. Other staff see only their assigned units; hosting roles remain separate.
+
+Create the unit's qualifications, positions, paygrades and named ranks in **Ranks & qualifications**, then add roster members manually. Members need no login account. Game name, Discord handle, Active/Reserve/LOA status, optional rank/section, multiple positions and qualifications, and promotion dates stay separate for each unit. UUIDs can be selected from recorded players on linked servers.
+
+Promotion readiness shows a calculated date and missing qualifications, with a notice when someone is eligible for staff review. It never promotes anyone automatically. Former members retain their records, and CSV export is available. Events and automatic attendance are a later addition; casual server logins do not create attendance records.
+
 ## Update an existing installation
 
 Run these commands inside your repository checkout:
 
 ```bash
 git fetch origin
-git switch multi-server-manager
+git switch main
 git pull --ff-only
 sudo bash install.sh --update
 ```
 
-Pulling `main` does not install changes from `multi-server-manager`. If Git says it is already up to date, check `git status --short --branch` and `git log -1 --oneline`.
+The former `multi-server-manager` work is now on `main`. If Git says it is already up to date, check `git status --short --branch` and `git log -1 --oneline`.
 
 The update preserves accounts, settings, existing servers and legacy server access. It restarts the panel service; it does not deliberately restart the game servers. Wait for provisioning and software jobs to finish before updating.
 

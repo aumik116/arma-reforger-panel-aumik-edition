@@ -3,6 +3,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let loading = false, permissions = [], timer;
   const busy = new Set();
   let snapshots = [], measureStorage = false, events = [], eventError = '', host = null;
+  let fleetUnits = [];
+  const unitFilter = document.getElementById('overview-unit');
+  function inSelectedUnit(server) { return !unitFilter.value || fleetUnits.find(u => String(u.id) === unitFilter.value)?.servers.includes(server.id); }
   const transitions = [];
   const charts = [];
   function chart(id, labels, percent) {
@@ -95,6 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
     finally { busy.delete(server.id); button.disabled = false; await refresh(false); }
   }
   function render(servers) {
+    servers = servers.filter(inSelectedUnit);
     const focused = rows.contains(document.activeElement) ? document.activeElement : null;
     const focusedServer = focused?.closest('[data-server-id]')?.dataset.serverId;
     const focusedAction = focused?.dataset.action;
@@ -120,6 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
       row.append(art);
       const heading = element('div','', 'fleet-card-heading');
       heading.append(element('span',server.status,'server-state state-' + server.status));
+      for (const unit of fleetUnits.filter(u=>u.servers.includes(server.id))) { const badge=element('a',unit.tag||unit.name,'unit-badge');badge.href='/units?unit='+unit.id;badge.title=unit.name;heading.append(badge); }
       row.append(heading);
       row.append(element('span',server.uptime && server.running ? server.uptime : '—', 'fleet-uptime'));
       const build = element('span', '', 'fleet-build'); build.dataset.softwareServer = server.id; heading.append(build);
@@ -213,7 +218,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (loading) return; loading = true;
     const button = document.getElementById('overview-refresh'); button.disabled = true;
     try {
-      const data = await read('/api/servers');
+      const [data, unitData] = await Promise.all([read('/api/servers'),read('/api/units').catch(()=>({units:[]}))]);
+      fleetUnits=unitData.units||[];
+      const unitSelection=unitFilter.value;
+      unitFilter.replaceChildren(new Option('All units',''));
+      for(const unit of fleetUnits)unitFilter.append(new Option(unit.name,unit.id));
+      if(fleetUnits.some(u=>String(u.id)===unitSelection))unitFilter.value=unitSelection;
       const servers = [...(data.legacy_server ? [{id:'',name:data.legacy_server.name,state:'ready',permissions:data.legacy_server.permissions}] : []),...data.servers];
       const previousSelection = switcher.value;
       navigationServers = servers.filter(server => server.state === 'ready');
@@ -245,13 +255,15 @@ document.addEventListener('DOMContentLoaded', () => {
       transitions.splice(20);
       snapshots = results;
       const now = Date.now();
-      sample(playerChart, [results.every(server => Number.isFinite(server.players)) ? results.reduce((sum,server) => sum+server.players,0) : null], now);
+      const unitResults=results.filter(inSelectedUnit);
+      sample(playerChart, [unitResults.every(server => Number.isFinite(server.players)) ? unitResults.reduce((sum,server) => sum+server.players,0) : null], now);
       sample(hostChart, [host?.cpu_host, host?.ram_total > 0 ? 100*host.ram_used/host.ram_total : null], now);
       render(snapshots); renderEvents();
       if (report) feedback.textContent = servers.length ? 'Updated ' + new Date().toLocaleTimeString() : permissions.includes('admin_config') ? 'No servers yet. Create your first server to get started.' : 'No servers are assigned to your account.';
     } catch (error) { feedback.textContent = 'Refresh failed · ' + error.message + '. Displayed server readings may be out of date.'; host = null; sample(playerChart,[null],Date.now()); sample(hostChart,[null,null],Date.now()); }
     finally { loading = false; button.disabled = false; }
   }
+  unitFilter.onchange=()=>{if(playerChart){playerChart.data.datasets.forEach(s=>s.data=[]);playerChart.update('none');}render(snapshots);};
   document.getElementById('overview-search').oninput = () => render(snapshots);
   document.getElementById('overview-filter').onchange = () => render(snapshots);
   document.getElementById('overview-storage').onclick = () => { measureStorage = true; refresh(); };

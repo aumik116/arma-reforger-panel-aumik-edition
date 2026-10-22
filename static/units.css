@@ -5,3 +5,4 @@
 #promotion-notice{border-color:var(--accent-border);background:var(--accent-soft)}.user-editor small.unit-meta{display:block}.fleet-card-heading .unit-badge{font-size:10px;text-decoration:none;padding:2px 5px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.unit-dialog .unit-field input[type="number"]{min-width:0}.units-page pre{overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere}
 
 .units-page .manager-header{z-index:40}.units-page .section-tabs{margin:18px 0}.unit-dialog h3{margin:18px 0 8px}.user-editor .btn-save,.units-page .btn-save,.unit-dialog .btn-save{background:var(--accent);color:var(--button-text);border-color:var(--accent)}
+.unit-dialog,.user-editor{margin:auto}html[data-theme] :is(.unit-dialog,.user-editor) .btn-save{background:var(--accent);color:var(--button-text);border-color:var(--accent)}

@@ -158,9 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
       else if (permissions.includes('admin_config')) { const progress = element('a','Progress / retry','manager-link'); progress.href = '/setup?server='+encodeURIComponent(server.id); actions.append(progress); }
       if(server.state==='ready'&&(server.permissions||[]).includes('admin_config')){const startup=element('a','Startup','manager-link');startup.href=workspace(server)+'#startup';actions.append(startup);}
       if(server.id&&permissions.includes('admin_config')){const remove=element('button','Remove','btn-logout');remove.disabled=busy.has(server.id);remove.onclick=async()=>{
-        const confirmId=prompt('Remove '+server.name+'? Files are retained on the VM. Type its ID: '+server.id);if(confirmId===null)return;
-        busy.add(server.id);remove.disabled=true;
-        try{const response=await postJson('/api/servers/'+encodeURIComponent(server.id)+'/delete',{confirm_id:confirmId});const body=await response.json();if(!response.ok)throw new Error(body.error);feedback.textContent=server.name+': removed. Files retained on the VM.';}catch(error){feedback.textContent=error.message;}finally{busy.delete(server.id);await refresh(false);}
+        openServerRemoval(server,()=>refresh(false));
       };actions.append(remove);}
       actions.querySelectorAll('button,a').forEach(node => { node.dataset.action = node.textContent; });
       row.append(actions); rows.append(row);
@@ -275,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('overview-storage').onclick = () => { measureStorage = true; refresh(); };
   document.getElementById('overview-refresh').onclick = () => refresh();
   document.getElementById('overview-logout').onclick = async () => { await postJson('/logout',{}); location.href = '/login'; };
-  read('/api/me').then(account => { permissions = account.panel_permissions || account.permissions || []; document.getElementById('overview-account').textContent = account.username; document.getElementById('overview-create').hidden = !permissions.includes('admin_config'); return refresh(); }).catch(error => feedback.textContent = error.message);
+  read('/api/me').then(account => { permissions = account.panel_permissions || account.permissions || []; document.getElementById('overview-account').textContent = account.username; document.getElementById('overview-create').hidden = !permissions.includes('admin_config'); document.getElementById('server-cleanup-open').hidden=!permissions.includes('users'); return refresh(); }).catch(error => feedback.textContent = error.message);
   timer = setInterval(() => { if (!document.hidden) refresh(); },10000);
   window.addEventListener('pagehide',() => clearInterval(timer));
 });

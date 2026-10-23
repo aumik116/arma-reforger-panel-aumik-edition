@@ -272,11 +272,120 @@ def worker(database, root, server_id, executable, lock_fd):
         os.close(int(lock_fd))
 
 
+def retained_server_folder(registry, relative):
+    """Only recognize direct managed-server folders, including the old .removed archive."""
+    if not isinstance(relative,str):
+        raise ValueError('Choose a retained server folder')
+    parts=Path(relative).parts
+    if len(parts)==1 and re.fullmatch(r'[a-z][a-z0-9-]{0,31}',parts[0]):
+        server_id=parts[0]
+        if any(server.id==server_id for server in registry.list()):
+            raise ValueError('This server is still registered; use its Remove button')
+    elif len(parts)==2 and parts[0]=='.removed':
+        match=re.fullmatch(r'([a-z][a-z0-9-]{0,31})-[0-9a-f]{16}',parts[1])
+        if not match:raise ValueError('Unrecognized archived server folder')
+        server_id=match[1]
+    else:
+        raise ValueError('Choose a direct retained server folder')
+    path=registry.root/relative
+    if path.resolve()!=path or not path.is_dir():
+        raise ValueError('Folder is missing or redirects through a link')
+    if len(parts)==1 and not ((path/'config.json').is_file() or (path/'server'/'ArmaReforgerServer').is_file() or (path/'.provision-options.json').is_file()):
+        raise ValueError('Folder does not contain a recognizable panel server')
+    return path,server_id
+
+
+def folder_revision(path):
+    info=path.stat()
+    return f'{info.st_dev}:{info.st_ino}:{info.st_mtime_ns}'
+
+
+def purge_server_folder(registry, path):
+    """Delete a retained instance, never another registered server or a mounted volume."""
+    path,server_id=retained_server_folder(registry,path.relative_to(registry.root).as_posix())
+    if sys.platform!='linux' or not shutil.rmtree.avoids_symlink_attacks:
+        raise ValueError('Safe server-file cleanup requires Linux')
+    # Archived folders can share an ID with a newly created server. Check actual paths too.
+    if not any(server.id==server_id for server in registry.list()):
+        state=subprocess.run(['/usr/bin/systemctl','show',f'arma-server@{server_id}.service','--property=ActiveState','--property=MainPID','--property=LoadState'],capture_output=True,text=True,timeout=15)
+        fields=dict(line.split('=',1) for line in state.stdout.splitlines() if '=' in line)
+        missing=fields.get('LoadState')=='not-found'
+        if state.returncode and not missing:raise ValueError('Could not verify the old server service state')
+        if not missing and (fields.get('ActiveState') not in ('inactive','failed') or fields.get('MainPID','0')!='0'):
+            raise ValueError('The old server service is still active; stop it before cleanup')
+        if not missing:service_command('disable',server_id)
+    for proc in Path('/proc').iterdir():
+        if not proc.name.isdigit():continue
+        for item in ('cwd','exe'):
+            try:
+                target=(proc/item).resolve(strict=True)
+                if target==path or path in target.parents:
+                    raise ValueError('A process is still using this server folder; stop it before cleanup')
+            except OSError:pass
+        try:
+            arguments=(proc/'cmdline').read_bytes().split(b'\0')
+            if any(argument.decode(errors='replace')==str(path) or argument.decode(errors='replace').startswith(str(path)+'/') for argument in arguments):
+                raise ValueError('A process still references this server folder; stop it before cleanup')
+        except OSError:pass
+    with open('/proc/self/mountinfo') as stream:
+        for line in stream:
+            mount=line.split()[4]
+            mount=re.sub(r'\\([0-7]{3})',lambda match:chr(int(match[1],8)),mount)
+            if Path(mount)==path or path in Path(mount).parents:
+                raise ValueError('Server folder contains a mounted volume; unmount it before cleanup')
+    shutil.rmtree(path)
+
+
 def install(api):
     from flask import g, jsonify, request
     registry = api.server_registry
     api.PROVISIONING_ENDPOINTS = {'servers_create', 'server_provision_status', 'server_provision_retry',
-                                'server_delete', 'server_startup_save'}
+                                'server_delete', 'server_startup_save','server_removal_info'}
+
+    api.PANEL_WIDE_ENDPOINTS.update({'server_cleanup_list','server_cleanup_delete'})
+    from panel_features import MUTATIONS
+    MUTATIONS['server_cleanup_delete']='users'
+
+    @api.app.get('/api/server-cleanup')
+    def server_cleanup_list():
+        if 'users' not in g.panel_permissions:
+            return jsonify(ok=False,error='Panel administrator access required'),403
+        rows=[];skipped=0
+        try:
+            candidates=list(registry.root.iterdir()) if registry.root.exists() else []
+            archive=registry.root/'.removed'
+            if archive.is_dir() and archive.resolve()==archive:candidates+=list(archive.iterdir())
+            for path in candidates:
+                if path.name.startswith('.') or not path.is_dir():continue
+                relative=path.relative_to(registry.root).as_posix()
+                try:
+                    folder,identity=retained_server_folder(registry,relative)
+                    rows.append(dict(folder=relative,path=str(folder),server_id=identity,revision=folder_revision(folder),contents=sorted(child.name for child in folder.iterdir())[:30]))
+                except (ValueError,OSError):skipped+=1
+            return jsonify(ok=True,root=str(registry.root),folders=rows,skipped=skipped)
+        except OSError as exc:return jsonify(ok=False,error=str(exc)),409
+
+    @api.app.post('/api/server-cleanup/delete')
+    def server_cleanup_delete():
+        try:
+            data=request.get_json() or {}
+            folder,identity=retained_server_folder(registry,data.get('folder'))
+            if data.get('confirm_id')!=identity:raise ValueError('Type the server ID to confirm permanent file deletion')
+            if data.get('revision')!=folder_revision(folder):raise ValueError('The folder changed; refresh the cleanup list before deleting')
+            with ExitStack() as locks:
+                locks.enter_context(lock_job(folder));locks.enter_context(lock_job(folder,'.software-job.lock'))
+                purge_server_folder(registry,folder)
+            g.audit_details=dict(server_id=identity,deleted_folder=data['folder'])
+            return jsonify(ok=True)
+        except (ValueError,OSError,RuntimeError,subprocess.SubprocessError) as exc:
+            return jsonify(ok=False,error=str(exc)),409
+
+    @api.app.get('/api/servers/<server_id>/removal')
+    def server_removal_info(server_id):
+        try:
+            server=registry.get(server_id)
+            return jsonify(ok=True,id=server.id,name=server.name,path=str(server.directory))
+        except KeyError:return jsonify(ok=False,error='Server was already removed. Refresh the server list.'),404
 
     def executable():
         if sys.platform != 'linux':
@@ -368,6 +477,8 @@ def install(api):
             if request.get_json().get('confirm_id') != server_id:
                 raise ValueError('Type the server ID to confirm removal')
             server = registry.get(server_id)
+            delete_files=request.get_json().get('delete_files',False)
+            if type(delete_files) is not bool:raise ValueError('Choose a valid file-removal option')
             archived = None
             with ExitStack() as locks:
                 if server.directory.exists():
@@ -390,8 +501,16 @@ def install(api):
                     raise
             api.clear_server_access(server_id)
             api.clear_instance_state(server_id)
-            g.audit_details = {'server_id':server_id, 'files_archived':bool(archived)}
-            return jsonify(ok=True, archived=str(archived) if archived else None)
+            warning=''
+            files_deleted=bool(delete_files and archived is None)
+            if delete_files and archived:
+                try:
+                    purge_server_folder(registry,archived)
+                    files_deleted=True
+                except (ValueError,OSError,subprocess.SubprocessError) as exc:
+                    warning='Server removed, but file cleanup did not finish: '+str(exc)+'. Use Clean up deleted servers to retry.'
+            g.audit_details = {'server_id':server_id, 'files_archived':bool(archived) and not files_deleted,'files_deleted':files_deleted,'warning':warning}
+            return jsonify(ok=True, archived=str(archived) if archived and not files_deleted else None,files_deleted=files_deleted,warning=warning)
         except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as exc:
             return jsonify(ok=False, error=str(exc)), 409
 

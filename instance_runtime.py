@@ -109,7 +109,7 @@ def install(api):
 
     @api.app.before_request
     def select_instance():
-        metadata_target = request.endpoint in {'server_delete', 'server_startup_save'}
+        metadata_target = request.endpoint in {'server_delete', 'server_startup_save','server_removal_info'}
         if not metadata_target and request.endpoint in getattr(api, 'PROVISIONING_ENDPOINTS', set()):
             return
         if request.endpoint in api.PANEL_WIDE_ENDPOINTS:

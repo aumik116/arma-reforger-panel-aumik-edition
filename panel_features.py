@@ -195,7 +195,7 @@ def install(api):
 
         needed = ("view" if request.endpoint == 'api_mods_compare_json' else MUTATIONS.get(request.endpoint)) if request.method == "POST" else {
             'workshop_preview': 'mods',
-            'server_provision_status': 'admin_config',
+            'server_provision_status': 'admin_config', 'server_removal_info':'admin_config',
             "notifications_settings": "admin_config",
             "software_status": "admin_config",
             'players_bans':'admin_config', 'startup_get':'admin_config', 'players_admins':'admin_config',

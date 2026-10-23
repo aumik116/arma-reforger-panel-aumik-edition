@@ -155,35 +155,43 @@
     </div>
 
 </div>
-  <section class="dashboard-network-metrics" aria-label="Live host network metrics">
+<section class="dashboard-metric-row" aria-label="Network and server simulation">
     <div class="chart-card">
       <div class="chart-title">Network traffic — host interfaces</div>
       <div class="traffic-values"><span class="traffic-first">↓ Receive <strong id="net-rx">—</strong></span><span class="traffic-second">↑ Send <strong id="net-tx">—</strong></span></div>
       <div class="chart-sub" id="net-state">Waiting for sample</div>
       <div class="chart-wrap"><canvas id="chart-network" aria-label="Host network receive and send rates"></canvas></div>
     </div>
-
-  </section>
-
-<div class="dashboard-columns"><details class="dashboard-performance-details"><summary>More performance details <span>Storage &amp; simulation</span></summary><div class="dashboard-performance">  <div class="charts-row" id="extra-metrics"></div>
+<div id="fps-metrics"></div>
+</section>
+  <div data-permission="logs" hidden class="log-viewer-card" id="console-card" tabindex="-1">
+    <div class="log-viewer-header">
+      <div class="log-viewer-title">
+        <div class="log-live-dot off" id="log-live-dot"></div>
+        Server console — live
+      </div>
+      <button class="btn-clear-log" onclick="openPanelSection('console','console-workspace')">Open console</button>
+      <details class="dashboard-console-tools"><summary>Preview filters</summary><div class="console-actions"><label class="console-filter"><input type="checkbox" id="show-performance-logs" onchange="togglePerformanceLogs()"> Show performance logs</label><label class="console-filter"><input type="checkbox" id="pause-console-scroll"> Pause scrolling</label><input type="search" id="console-search" aria-label="Search console" placeholder="Search console…" oninput="filterConsole()"><button class="btn-clear-log" onclick="clearLog()">Clear</button></div></details>
+    </div>
+    <div id="log-output" class="hide-performance"></div>
+  </div>
+<section class="dashboard-metric-row dashboard-storage-row" aria-label="Storage breakdown and disk activity">
   <div class="card" id="storage-card">
     <div class="card-label">Server storage</div>
-    <div id="disk-space-text" role="status">Waiting for storage sample…</div><details id="storage-details"><summary>Storage breakdown</summary><p class="feature-note">Decimal GB/MB. File sizes may differ from allocated disk space. Refresh after deleting or uploading files.</p><button type="button" class="config-button" id="storage-refresh">Refresh breakdown</button><p id="storage-status" class="feature-note" role="status"></p><div id="storage-breakdown"></div></details>
+    <div id="disk-space-text" role="status">Waiting for storage sample…</div><details id="storage-details" open><summary>Storage breakdown</summary><p class="feature-note">Decimal GB/MB. File sizes may differ from allocated disk space. Refresh after deleting or uploading files.</p><button type="button" class="config-button" id="storage-refresh">Refresh breakdown</button><p id="storage-status" class="feature-note" role="status"></p><div id="storage-breakdown"></div></details>
     <progress id="disk-space-gauge" max="100" value="0" aria-label="Disk space used" style="width:100%;margin-top:12px;accent-color:var(--accent)"></progress>
     <p class="feature-note" id="disk-space-alert" role="status"></p>
     <details class="metric-explanation"><summary>About these metrics</summary><p class="feature-note">Storage metrics cover the server filesystem device. Network metrics cover host interfaces except loopback. Charts retain the latest 60 samples while this dashboard is open; dashed lines mark panel server controls and mod changes.</p></details>
     <p class="feature-note" id="metric-events">No recent panel events.</p>
   </div>
-
-<details class="dashboard-diagnostics"><summary>More performance details <span>Disk activity & latency</span></summary><div class="dashboard-diagnostics-content"><div class="chart-card">
+<div class="chart-card">
       <div class="chart-title">Disk activity — Arma process</div>
       <div class="traffic-values"><span class="traffic-first">Read <strong id="disk-read">—</strong></span><span class="traffic-second">Write <strong id="disk-write">—</strong></span></div>
       <div class="chart-sub" id="disk-state">Waiting for sample</div>
       <div class="chart-wrap"><canvas id="chart-disk" aria-label="Arma disk read and write rates"></canvas></div>
-    </div><div id="latency-details"></div></div></details>
-</div></details><div class="dashboard-live">
-  <!-- Connected players -->
-  <div class="dashboard-player-column">
+    </div>
+</section>
+<details class="dashboard-secondary"><summary>Players, notifications &amp; latency</summary><div class="dashboard-secondary-content">
   <div class="card clip" id="players-card" tabindex="-1">
     <div class="card-label">Players · <span id="player-summary">Loading...</span></div>
     <div id="dashboard-player-list" class="dashboard-player-list"></div>
@@ -197,26 +205,9 @@
     </details>
   </div>
 <div class="chart-card dashboard-player-chart"><div class="chart-header"><div><div class="chart-title">Players</div><div class="chart-sub">Last 60 roster readings</div></div></div><div class="chart-wrap"><canvas id="chart-players" aria-label="Connected players over time"></canvas></div></div>
-  </div>
-
-  <div class="dashboard-console-column">
-  <!-- Live Logs -->
-  <div data-permission="logs" hidden class="log-viewer-card" id="console-card" tabindex="-1">
-    <div class="log-viewer-header">
-      <div class="log-viewer-title">
-        <div class="log-live-dot off" id="log-live-dot"></div>
-        Server console — live
-      </div>
-      <button class="btn-clear-log" onclick="openPanelSection('console','console-workspace')">Open console</button>
-      <details class="dashboard-console-tools"><summary>Preview filters</summary><div class="console-actions"><label class="console-filter"><input type="checkbox" id="show-performance-logs" onchange="togglePerformanceLogs()"> Show performance logs</label><label class="console-filter"><input type="checkbox" id="pause-console-scroll"> Pause scrolling</label><input type="search" id="console-search" aria-label="Search console" placeholder="Search console…" oninput="filterConsole()"><button class="btn-clear-log" onclick="clearLog()">Clear</button></div></details>
-    </div>
-    <div id="log-output" class="hide-performance"></div>
-  </div>
-
   <details class="card" id="notification-history"><summary>Server notifications</summary><p class="feature-note">Recent starts, stops and update results for this server.</p><div id="notification-events" role="log"></div></details>
-
-</div>
-</div></div>
+<details class="dashboard-diagnostics"><summary>Player latency</summary><div id="latency-details"></div></details>
+</div></details>
   </section>
 
   <section class="tab-panel" id="panel-console" role="tabpanel" aria-labelledby="tab-console" hidden>

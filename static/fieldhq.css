@@ -123,11 +123,6 @@ html[data-theme] .fleet-server-card .manager-actions .action-stop:hover{backgrou
 :root[data-theme=fielddesk]{--button-text:#fff}
 html[data-theme] .fleet-heading-actions #overview-create{background:var(--accent);background-image:none;color:var(--button-text)}
 
-/* Network traffic is visible without opening performance details. */
-html[data-theme] .dashboard-network-metrics{margin:0 0 14px;min-width:0}
-html[data-theme] .dashboard-network-metrics .chart-card{padding:13px;margin:0}
-html[data-theme] .dashboard-network-metrics .chart-wrap{height:150px}
-
 /* Population shares one wider summary card. */
 html[data-theme] .dashboard-summary{grid-template-columns:minmax(320px,1.7fr) repeat(3,minmax(0,1fr))}
 html[data-theme] .dashboard-summary .dashboard-population{grid-template-columns:26px minmax(0,1fr);gap:12px}
@@ -138,3 +133,16 @@ html[data-theme] .population-counts .card-label{font-size:11px;margin:3px 0 0}
 html[data-theme] .population-counts .chart-value{font-size:24px;margin:0;overflow-wrap:anywhere}
 @media(max-width:1100px){html[data-theme] .dashboard-summary{grid-template-columns:repeat(3,minmax(0,1fr))}html[data-theme] .dashboard-summary .dashboard-population{grid-column:1/-1}}
 @media(max-width:500px){html[data-theme] .dashboard-summary{grid-template-columns:minmax(0,1fr)}html[data-theme] .dashboard-summary .dashboard-population{grid-column:1}html[data-theme] .population-counts{gap:8px}html[data-theme] .population-counts>div+div{padding-left:8px}}
+
+/* Dashboard order follows the document: counters, CPU/memory, network/FPS, console, storage/disk. */
+html[data-theme] .dashboard-metric-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px;align-items:stretch}
+html[data-theme] .dashboard-metric-row :is(.card,.chart-card){margin:0;padding:13px;min-width:0}
+html[data-theme] .dashboard-metric-row .chart-wrap{height:150px}
+html[data-theme] #fps-metrics{min-width:0;display:grid}
+html[data-theme] #panel-dashboard>#console-card{width:100%;margin:0 0 14px;min-width:0}
+html[data-theme] .dashboard-storage-row #storage-card{grid-column:auto}
+html[data-theme] .dashboard-secondary{padding:12px;border:1px solid var(--border);border-radius:5px;background:var(--surface);margin-bottom:14px}
+html[data-theme] .dashboard-secondary>summary{cursor:pointer;font-size:12px;color:var(--muted)}
+html[data-theme] .dashboard-secondary-content{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px;align-items:start}
+html[data-theme] .dashboard-secondary-content>*{grid-area:auto;margin:0;min-width:0}
+@media(max-width:700px){html[data-theme] .dashboard-metric-row,html[data-theme] .dashboard-secondary-content{grid-template-columns:minmax(0,1fr)}}

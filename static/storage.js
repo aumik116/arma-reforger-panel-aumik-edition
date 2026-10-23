@@ -12,3 +12,5 @@ async function loadStorageBreakdown(refresh=false){
 }
 byId('storage-details').ontoggle=()=>{if(byId('storage-details').open)loadStorageBreakdown();else clearTimeout(storageTimer);};
 byId('storage-refresh').onclick=()=>loadStorageBreakdown(true);
+
+if(byId('storage-details').open)loadStorageBreakdown();

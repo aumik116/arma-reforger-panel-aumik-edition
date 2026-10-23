@@ -11,9 +11,9 @@
   const awards = member => (metadata?.awards || []).filter(a => a.member_id === member.id);
   const held = member => member.certificates.split(';').filter(Boolean);
   const sign = () => JSON.stringify([...new FormData(form)]);
+  UnitUX.registerDraft({dirty:()=>dialog.open&&sign()!==baseline,busy:()=>dialog.open&&saving,discard:()=>dialog.close()});
   function close() {
-    if (saving) return;
-    if (sign() !== baseline && !confirm('Discard unsaved roster changes?')) return;
+    if (!UnitUX.canLeave()) return;
     dialog.close();
   }
   el('roster-tools-close').onclick = close;

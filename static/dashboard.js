@@ -61,9 +61,11 @@ cpuChart.options.scales.x = {display:true, ticks:{maxTicksLimit:5, font:{size:9}
 const ramChart = createPanelChart(document.getElementById('chart-ram'), {
   type: 'line',
   data: makeChartData('#c8a84b'),
-  options: chartOpts(100)
+  options: chartOpts(undefined)
 });
 
+ramChart.data.datasets[0].label = 'Arma process memory';
+ramChart.options.scales.y.ticks.callback = value => value + ' GiB';
 ramChart.options.scales.x = {display:true, ticks:{maxTicksLimit:5, font:{size:9}}, grid:{display:false}};
 
 function trafficChart(id, unit) {
@@ -215,17 +217,17 @@ async function fetchMetrics(supplied) {
     document.getElementById('dashboard-feedback').hidden=true;
     updateExtraMetrics(d);
 
-    const ramPct = d.ram_total > 0 ? Math.round(d.ram_used / d.ram_total * 100) : 0;
+    const processRam = d.running && Number.isFinite(d.ram_process) ? d.ram_process / 1024 : null;
 
     document.getElementById('cpu-val').textContent = (d.cpu ?? 0).toFixed(1) + '%';
     document.getElementById('summary-cpu').textContent = d.running ? (d.cpu ?? 0).toFixed(1) + '%' : '—';
     document.getElementById('summary-ram').textContent = d.running && Number.isFinite(d.ram_process) ? (d.ram_process / 1024).toFixed(2) + ' GiB' : '—';
-    document.getElementById('ram-val').textContent = ramPct + '%';
+    document.getElementById('ram-val').textContent = processRam === null ? '— GiB' : processRam.toFixed(2) + ' GiB';
     document.getElementById('proc-cpu-sub').textContent = 'Arma: ' + (d.running ? (d.cpu ?? 0).toFixed(1) + '%' : '—%');
-    document.getElementById('proc-ram-sub').textContent = 'Arma: ' + (d.running ? (d.ram_process ?? 0) + ' MB / ' + d.ram_total + ' MB' : '— MB');
+    document.getElementById('proc-ram-sub').textContent = 'Arma: ' + (d.running ? (d.ram_process ?? 0) + ' MB' : '— MB');
 
     pushChart(cpuChart, d.cpu ?? 0);
-    pushChart(ramChart, ramPct);
+    pushChart(ramChart, processRam);
     renderTraffic(d.network, networkChart, ['net-rx','net-tx'], 'net-state', 8 / 1000000, 'Mbps', 'All non-loopback interfaces; includes other host traffic');
     renderTraffic(d.disk, diskChart, ['disk-read','disk-write'], 'disk-state', 1 / 1048576, 'MiB/s', 'Storage reads/writes attributed to the game process');
   } catch(e) {
@@ -234,6 +236,7 @@ async function fetchMetrics(supplied) {
     document.getElementById('summary-cpu').textContent = '—';
     document.getElementById('summary-ram').textContent = '—';
     updateExtraMetrics(null);
+    for (const id of ['cpu-val','ram-val','proc-cpu-sub','proc-ram-sub']) document.getElementById(id).textContent='Unavailable';
     pushChart(cpuChart, null);
     pushChart(ramChart, null);
     renderTraffic(null, networkChart, ['net-rx','net-tx'], 'net-state', 1, 'Mbps', '');

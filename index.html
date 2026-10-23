@@ -141,17 +141,17 @@
 <div class="chart-card">
       <div class="chart-header">
         <div>
-          <div class="chart-title">Host memory</div>
+          <div class="chart-title">Server memory</div>
           <div class="chart-sub" id="proc-ram-sub">Arma: — MB</div>
         </div>
         <div>
           <div class="metric-counter-pair">
-            <div><div class="chart-value ram" id="ram-val">—%</div><span class="metric-caption">Host memory</span></div>
-            <div><div class="chart-value ram" id="ram-capacity">— / — GiB</div><span class="metric-caption">Used / total</span></div>
+            <div><div class="chart-value ram" id="ram-val">— GiB</div><span class="metric-caption">Arma process</span></div>
+            <div><div class="chart-value ram" id="ram-capacity">— / — GiB</div><span class="metric-caption">Host used / total</span></div>
           </div>
         </div>
       </div>
-      <div class="chart-wrap"><canvas id="chart-ram" aria-label="Host memory usage over time"></canvas></div>
+      <div class="chart-wrap"><canvas id="chart-ram" aria-label="Game process memory usage in GiB over time"></canvas></div>
     </div>
 
 </div>
@@ -187,10 +187,10 @@
   <div class="card clip" id="players-card" tabindex="-1">
     <div class="card-label">Players · <span id="player-summary">Loading...</span></div>
     <div id="dashboard-player-list" class="dashboard-player-list"></div>
+    <p class="feature-note" id="player-message" role="status"></p><button type="button" id="player-retry" hidden>Retry player query</button>
     <details id="player-details-disclosure" class="player-details-disclosure"><summary>Player details</summary>
     <div class="field"><label for="player-select">Connected usernames</label>
       <select id="player-select" onchange="showPlayer()"><option>Loading...</option></select></div>
-    <p class="feature-note" id="player-message"></p>
     <p class="feature-note" id="player-details"></p>
     <div class="field" id="player-uuid-field" hidden><label for="player-uuid">Player UUID</label>
       <input id="player-uuid" type="text" readonly spellcheck="false" aria-label="Selected player UUID"><button class="config-button" id="copy-player-uuid" onclick="copyPlayerUuid()" disabled>Copy UUID</button><span id="uuid-copy-status" role="status"></span></div>

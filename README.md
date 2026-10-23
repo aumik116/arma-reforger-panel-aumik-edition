@@ -93,7 +93,7 @@ Updates create recovery snapshots under `/var/backups/arma-panel/`. A failed upd
 
 | Workspace | What you use it for |
 | --- | --- |
-| Dashboard | Start, stop, restart, performance charts, players and notifications |
+| Dashboard | Start, stop, restart, separate process CPU/memory charts, players and notifications |
 | Console | Search/filter logs, export output and send RCON commands |
 | Startup | FPS cap, launch options, CPU/memory limits and diagnostics |
 | Players | Live roster, observed player history, game admins and moderation |

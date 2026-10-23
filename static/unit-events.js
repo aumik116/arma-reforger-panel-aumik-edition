@@ -18,7 +18,8 @@
   const localValue=(timestamp,tz)=>{const parts=new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(new Date(timestamp*1000));const p=Object.fromEntries(parts.map(p=>[p.type,p.value]));return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;};
   const field=(label,name,value='',type='text')=>`<label class="unit-field">${esc(label)}<input name="${name}" type="${type}" value="${esc(value)}"></label>`;
   const sign=()=>JSON.stringify([...new FormData(form)]);
-  const close=()=>{if(saving)return;if(sign()!==baseline&&!confirm('Discard unsaved event changes?'))return;dialog.close();};
+  UnitUX.registerDraft({dirty:()=>dialog.open&&sign()!==baseline,busy:()=>dialog.open&&saving,discard:()=>dialog.close()});
+  const close=()=>{if(!UnitUX.canLeave())return;dialog.close();};
   el('event-dialog-close').onclick=close;dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
   function open(title,html,handler=null){
     if(dialog.open)dialog.close();

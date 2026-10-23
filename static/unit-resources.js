@@ -17,7 +17,8 @@
   const field=(label,name,value='',type='text')=>`<label class="unit-field">${esc(label)}<input name="${name}" type="${type}" value="${esc(value)}"></label>`;
   const textArea=(label,name,value='',max=4000)=>`<label class="unit-field wide">${esc(label)}<textarea name="${name}" maxlength="${max}">${esc(value)}</textarea></label>`;
   const signature=()=>JSON.stringify([...new FormData(form)]);
-  function close(){if(saving)return;if(signature()!==baseline&&!confirm('Discard unsaved changes?'))return;dialog.close();modalRequest++;}
+  UnitUX.registerDraft({dirty:()=>dialog.open&&signature()!==baseline,busy:()=>dialog.open&&saving,discard:()=>dialog.close()});
+  function close(){if(!UnitUX.canLeave())return;dialog.close();modalRequest++;}
   el('resource-close').onclick=close;dialog.addEventListener('cancel',e=>{e.preventDefault();close();});
   function open(title,html,save=null,button='Save changes'){
     modalRequest++;

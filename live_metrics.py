@@ -12,6 +12,9 @@ def install(api):
     cache = {}
     lock = threading.Lock()
     players = {}
+    server_locks = {}
+    host_lock = threading.Lock()
+    metrics_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix='live-metrics')
     player_pool = ThreadPoolExecutor(max_workers=4, thread_name_prefix='live-players')
 
     def dispatch(path, cookie, server=None):
@@ -28,6 +31,8 @@ def install(api):
         instance = api.selected_instance()
         key = instance.id if instance else ''
         with lock:
+            server_lock = server_locks.setdefault(key, threading.Lock())
+        with server_lock:
             previous = cache.get(key)
             if previous and time.monotonic() - previous[0] < 2:
                 return previous[1]
@@ -43,15 +48,12 @@ def install(api):
                     count = len(roster['players']) if code == 200 and roster.get('available') else None
                 except Exception:
                     count = None  # Player query failures must not stall resource readings.
-            if (not previous_players or previous_players[1].done() and time.monotonic() - previous_players[0] >= 10) and sum(not item[1].done() for item in players.values()) < 8:
-                players[key] = (time.monotonic(), player_pool.submit(dispatch, '/api/players', request.headers.get('Cookie', ''), key))
+            with lock:
+                if (not previous_players or previous_players[1].done() and time.monotonic() - previous_players[0] >= 10) and sum(not item[1].done() for item in players.values()) < 8:
+                    players[key] = (time.monotonic(), player_pool.submit(dispatch, '/api/players', request.headers.get('Cookie', ''), key))
             data.update(players=count if pid else 0,
                         uptime=api.format_uptime(api.get_process_uptime(pid)) if pid else '—')
             cache[key] = (time.monotonic(), data)
-            for old in list(cache):
-                if time.monotonic() - cache[old][0] > 300:
-                    cache.pop(old)
-                    players.pop(old, None)
             return data
 
     api.app.view_functions['api_metrics'] = lambda: api.jsonify(snapshot())
@@ -59,7 +61,7 @@ def install(api):
     host_cache = [0, None]
 
     def host_snapshot():
-        with lock:
+        with host_lock:
             if time.monotonic() - host_cache[0] >= 2:
                 host_cache[:] = [time.monotonic(), original_host().get_json()]
             return api.jsonify(host_cache[1])
@@ -94,8 +96,9 @@ def install(api):
                 else:
                     ids = [selected]
                 readings = {}
-                for server in ids:
-                    code, data = read('/api/metrics', server)
+                futures = {server: metrics_pool.submit(read, '/api/metrics', server) for server in ids}
+                for server, future in futures.items():
+                    code, data = future.result()
                     if code == 401:
                         return
                     readings[server] = data if code == 200 else None

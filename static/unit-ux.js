@@ -1,5 +1,16 @@
 // Shared behavior for the unit workspace's native dialogs and async panels.
+const unitDrafts = [];
 window.UnitUX = {
+  registerDraft(draft) { unitDrafts.push(draft); },
+  hasDraft() { return unitDrafts.some(draft => draft.dirty()); },
+  canLeave() {
+    if (unitDrafts.some(draft => draft.busy?.())) return false;
+    const drafts = unitDrafts.filter(draft => draft.dirty());
+    if (!drafts.length) return true;
+    if (!confirm('Discard unsaved changes?')) return false;
+    drafts.forEach(draft => draft.discard());
+    return true;
+  },
   open(dialog) {
     dialog.scrollTop = 0;
     const heading = dialog.querySelector('h2');
@@ -53,3 +64,5 @@ function updateUnitScrollHints() {
 new MutationObserver(updateUnitScrollHints).observe(document.body,{childList:true,subtree:true});
 window.addEventListener('resize',updateUnitScrollHints);
 document.addEventListener('toggle',updateUnitScrollHints,true);
+
+window.addEventListener('beforeunload',event=>{if(UnitUX.hasDraft()){event.preventDefault();event.returnValue='';}});

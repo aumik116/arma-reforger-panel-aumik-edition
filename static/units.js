@@ -18,7 +18,8 @@
   const checked=name=>[...form.querySelectorAll(`input[name="${name}"]:checked`)].map(c=>c.value);
   const values=()=>Object.fromEntries(new FormData(form));
   function signature() { return JSON.stringify([...new FormData(form)]); }
-  function closeDialog() { if(dialogSaving)return;if(signature()!==baseline&&!confirm('Discard unsaved changes?'))return;dialog.close(); }
+  UnitUX.registerDraft({dirty:()=>dialog.open&&signature()!==baseline,busy:()=>dialog.open&&dialogSaving,discard:()=>dialog.close()});
+  function closeDialog() { if(UnitUX.canLeave())dialog.close(); }
   function openDialog(title,html,save) {
     dialog.dataset.record='';el('unit-dialog-title').textContent=title;el('unit-dialog-body').innerHTML=html;
     el('unit-dialog-error').textContent='';const saveButton=form.querySelector('[type="submit"]');saveButton.hidden=false;saveButton.disabled=false;saveButton.textContent='Save changes';dialogSave=save;dialog.showModal();baseline=signature();
@@ -41,7 +42,7 @@
     form.querySelectorAll('[name="servers"]').forEach(input=>input.parentNode.lastChild.textContent=listing.servers.find(s=>s.id===input.value).name);
   }
   async function loadListing(preferred=unitId) {
-    if(loading)return;loading=true;
+    if(loading||!UnitUX.canLeave())return;loading=true;
     try {
       listing=await read('/api/units');el('units-server-navigation').hidden=listing.hosting_access===false;el('unit-new').hidden=!listing.panel_admin;el('unit-users').hidden=!listing.panel_admin;
       el('unit-select').replaceChildren();
@@ -54,12 +55,13 @@
     finally{loading=false;}
   }
   async function loadUnit(){
+    if(!UnitUX.canLeave())return;
     const requested=unitId;
     if(detail?.unit.id!==requested)el('unit-workspace').hidden=true;
     el('unit-workspace').setAttribute('aria-busy','true');
     try{
       const result=await read('/api/units/'+requested);
-      if(requested!==unitId)return;
+      if(requested!==unitId||!UnitUX.canLeave())return;
       detail=result;el('unit-workspace').hidden=false;
       const selected=listing.units.find(u=>u.id===unitId);
       el('unit-access-description').hidden=false;
@@ -387,8 +389,7 @@
     }catch(error){el('unit-server-list').textContent=error.message;}
   }
   function selectTab(key,notify=true){
-    if(notify&&activeTab==='customization'&&key!==activeTab&&brandDirty&&!confirm('Discard unsaved branding changes?'))return;
-    if(notify&&activeTab==='customization'&&key!==activeTab)applyBranding();
+    if(notify&&key!==activeTab&&!UnitUX.canLeave())return;
     const target=el('unit-tab-'+key);
     if(!target||target.dataset.restricted==='true')key='roster';
     activeTab=key;
@@ -414,7 +415,7 @@
   el('position-rename').onclick=()=>openDialog('Rename position',`<label class="unit-field">Existing position<select name="old">${options(detail.unit.catalog.positions||[],'','Choose position')}</select></label>${field('New name','name')}<p class="feature-note">Updates this unit’s current and former roster assignments together.</p>`,async()=>{const data=values();await write(`/api/units/${unitId}/positions/rename`,{...data,revision:detail.unit.revision});});
   el('roster-structure').onclick=()=>selectTab('structure');
   el('structure-add-group').onclick=()=>structureEditor('group');
-  let brandDirty=false;
+  let brandDirty=false,brandSaving=false;
   const brandForm=el('unit-brand-form'),previewURLs={};
   function applyBranding(){
     brandDirty=false;
@@ -434,17 +435,17 @@
     if(file.size>4*1024*1024||!['image/png','image/jpeg','image/webp'].includes(file.type)){el('unit-brand-error').textContent='Choose a PNG, JPEG or WebP image up to 4 MB.';brandForm.elements[kind].value='';return;}
     if(previewURLs[kind])URL.revokeObjectURL(previewURLs[kind]);previewURLs[kind]=URL.createObjectURL(file);img.src=previewURLs[kind];img.hidden=false;brandForm.elements['remove_'+kind].checked=false;el('unit-brand-error').textContent='';brandDirty=true;
   };
-  el('unit-brand-reset').onclick=()=>{if(!brandDirty||confirm('Discard unsaved branding changes?'))applyBranding();};
+  el('unit-brand-reset').onclick=()=>{if(UnitUX.canLeave())applyBranding();};
   brandForm.onsubmit=async event=>{
-    event.preventDefault();const button=brandForm.querySelector('[type="submit"]');if(button.disabled)return;button.disabled=true;
-    try{const data=new FormData(brandForm);data.set('revision',detail.unit.revision);await readJson(await postForm(`/api/units/${unitId}/branding`,data));brandDirty=false;await loadListing(unitId);feedback('Unit branding saved.');}
+    event.preventDefault();const button=brandForm.querySelector('[type="submit"]');if(button.disabled)return;button.disabled=true;brandSaving=true;
+    try{const data=new FormData(brandForm);data.set('revision',detail.unit.revision);await readJson(await postForm(`/api/units/${unitId}/branding`,data));brandDirty=false;brandSaving=false;await loadListing(unitId);feedback('Unit branding saved.');}
     catch(error){el('unit-brand-error').textContent=error.message;}
-    finally{button.disabled=false;}
+    finally{brandSaving=false;button.disabled=false;}
   };
-  window.addEventListener('beforeunload',event=>{if(brandDirty){event.preventDefault();event.returnValue='';}});
+  UnitUX.registerDraft({dirty:()=>brandDirty,busy:()=>brandSaving,discard:()=>applyBranding()});
   el('unit-new').onclick=()=>unitSettings(true);el('unit-settings').onclick=()=>unitSettings();el('roster-add').onclick=()=>memberEditor();el('catalog-edit').onclick=catalogEditor;el('staff-add').onclick=()=>staffEditor();
   for(const id of ['roster-search','roster-status','roster-sort'])el(id).addEventListener(id==='roster-search'?'input':'change',renderRoster);
-  el('unit-select').onchange=()=>{if(brandDirty&&!confirm('Discard unsaved branding changes?')){el('unit-select').value=unitId;return;}unitId=Number(el('unit-select').value);loadUnit();};el('unit-refresh').onclick=()=>{if(!brandDirty||confirm('Discard unsaved branding changes?'))loadListing();};
+  el('unit-select').onchange=()=>{if(!UnitUX.canLeave()){el('unit-select').value=unitId;return;}unitId=Number(el('unit-select').value);loadUnit();};el('unit-refresh').onclick=()=>loadListing();
   el('unit-users').onclick=async()=>{el('panel-users').hidden=!el('panel-users').hidden;if(!el('panel-users').hidden){await loadUsers();el('panel-users').scrollIntoView();}};
   el('users-new').onclick=()=>openUserEditor();
   read('/api/me').then(account=>{window.unitAccount=account;return loadListing(Number(new URLSearchParams(location.search).get('unit')));}).then(async()=>{if(listing?.panel_admin&&new URLSearchParams(location.search).has('users')){el('panel-users').hidden=false;await loadUsers();}}).catch(error=>feedback(error.message));

@@ -23,16 +23,18 @@ document.addEventListener('DOMContentLoaded', () => {
     charts.push(instance); return instance;
   }
   const playerChart = chart('fleet-player-chart', ['Players'], false);
-  const hostChart = chart('fleet-host-chart', ['CPU', 'Memory'], true);
+  const cpuChart = chart('fleet-cpu-chart', ['Host CPU'], true);
+  const memoryChart = chart('fleet-memory-chart', ['Host memory'], true);
   function themeCharts() {
     const style = getComputedStyle(document.documentElement);
     for (const instance of charts) {
-      instance.data.datasets.forEach((set,index) => { set.borderColor = style.getPropertyValue(index ? '--online' : '--accent').trim(); set.backgroundColor = set.borderColor; });
+      instance.data.datasets.forEach((set,index) => { set.borderColor = style.getPropertyValue(instance === memoryChart ? '--ram-color' : '--accent').trim(); set.backgroundColor = set.borderColor; });
       instance.options.plugins.legend.labels = {color:style.getPropertyValue('--text').trim(), boxWidth:12, boxHeight:2};
       for (const axis of Object.values(instance.options.scales)) { axis.ticks.color = style.getPropertyValue('--muted').trim(); axis.grid = {color:style.getPropertyValue('--border').trim()}; }
       instance.update('none');
     }
   }
+  document.querySelector('.fleet-player-trends').addEventListener('toggle',event=>{if(event.target.open)playerChart?.resize();});
   themeCharts();
   document.addEventListener('panel-theme-change', themeCharts);
   function sample(chart, values, now) {
@@ -135,8 +137,11 @@ document.addEventListener('DOMContentLoaded', () => {
       row.append(element('p',server.ip && server.ip !== '—' ? server.ip + ':' + (server.port || server.game_port || '—') : 'Game ' + (server.port || server.game_port || '—') + ' · Query ' + (server.query_port || '—'), 'fleet-address'));
       if (server.error) row.append(element('p',server.error,'fleet-event-error'));
       const stats = element('dl','', 'fleet-card-stats');
-      for (const [label,value] of [['Players',server.players ?? '—'],['CPU',Number.isFinite(server.cpu) ? server.cpu.toFixed(1)+'%' : '—'],['Memory',Number.isFinite(server.ram_process) ? (server.ram_process/1024).toFixed(2)+' GiB' : '—']]) {
-        const stat = element('div',''); stat.append(element('dt',label),element('dd',value)); stats.append(stat);
+      for (const [label,value] of [['Players',Number.isFinite(server.players) && Number.isFinite(server.max_players) ? server.players+' / '+server.max_players : server.players ?? '—'],['CPU',Number.isFinite(server.cpu) ? server.cpu.toFixed(1)+'%' : '—'],['Memory',Number.isFinite(server.ram_process) ? (server.ram_process/1024).toFixed(2)+' GiB' : '—']]) {
+        const stat = element('div',''), reading=element('dd',value); stat.append(element('dt',label),reading);
+        const percent=label==='CPU'?server.cpu:label==='Memory'&&host?.ram_total>0?100*server.ram_process/host.ram_total:null;
+        if(Number.isFinite(percent)){const track=element('span','','fleet-usage-track'),fill=element('span','','fleet-usage-fill');track.setAttribute('aria-hidden','true');fill.style.width=Math.max(0,Math.min(100,percent))+'%';track.append(fill);reading.append(track);}
+        stats.append(stat);
       }
       row.append(stats);
       if (measureStorage) {
@@ -252,10 +257,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const now = Date.now();
       const unitResults=results.filter(inSelectedUnit);
       sample(playerChart, [unitResults.every(server => Number.isFinite(server.players)) ? unitResults.reduce((sum,server) => sum+server.players,0) : null], now);
-      sample(hostChart, [host?.cpu_host, host?.ram_total > 0 ? 100*host.ram_used/host.ram_total : null], now);
+      sample(cpuChart, [host?.cpu_host], now);
+      const memoryPercent=host?.ram_total > 0 ? 100*host.ram_used/host.ram_total : null;
+      sample(memoryChart, [memoryPercent], now);
+      document.getElementById('fleet-cpu-reading').textContent=Number.isFinite(host?.cpu_host)?host.cpu_host.toFixed(0)+'%':'—';
+      document.getElementById('fleet-memory-reading').textContent=Number.isFinite(memoryPercent)?memoryPercent.toFixed(0)+'%':'—';
       render(snapshots); renderEvents();
       if (report) feedback.textContent = servers.length ? 'Updated ' + new Date().toLocaleTimeString() : permissions.includes('admin_config') ? 'No servers yet. Create your first server to get started.' : 'No servers are assigned to your account.';
-    } catch (error) { feedback.textContent = 'Refresh failed · ' + error.message + '. Displayed server readings may be out of date.'; host = null; sample(playerChart,[null],Date.now()); sample(hostChart,[null,null],Date.now()); }
+    } catch (error) { feedback.textContent = 'Refresh failed · ' + error.message + '. Displayed server readings may be out of date.'; host = null; sample(playerChart,[null],Date.now()); sample(cpuChart,[null],Date.now()); sample(memoryChart,[null],Date.now()); document.getElementById('fleet-cpu-reading').textContent='—';document.getElementById('fleet-memory-reading').textContent='—'; }
     finally { loading = false; button.disabled = false; }
   }
   unitFilter.onchange=()=>{if(playerChart){playerChart.data.datasets.forEach(s=>s.data=[]);playerChart.update('none');}render(snapshots);};

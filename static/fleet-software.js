@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     check.disabled = update.disabled = submitting || status.busy || !status.supported || !status.steamcmd_available;
     const panel = el('fleet-software-status');
     panel.hidden = !allowed;
+    if(status.busy || status.state === 'failed' || status.state === 'interrupted') panel.open = true;
     el('fleet-software-message').textContent = !status.supported ? 'Software updates require the Linux host.' :
       !status.steamcmd_available ? 'SteamCMD is unavailable. Configure STEAMCMD_PATH on the host.' : status.message;
     el('fleet-software-build').textContent = status.latest_build ? `Public Steam build ${status.latest_build}${status.checked_at ? ' · Checked ' + new Date(status.checked_at * 1000).toLocaleString() : ''}` : 'Public build not checked yet.';

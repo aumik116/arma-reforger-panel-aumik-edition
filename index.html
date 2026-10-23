@@ -30,13 +30,13 @@
 <link rel="stylesheet" href="/static/workshop.css">
 <link rel="stylesheet" href="/static/ux.css">
 <link rel="stylesheet" href="/static/field.css"><link rel="stylesheet" href="/static/units.css">
-</head>
+<link rel="stylesheet" href="/static/fieldhq.css"></head>
 <body>
 <div class="layout">
 
   <header>
     <div class="header-left">
-      <a class="workspace-brand" href="/servers">SERVER MANAGER</a>
+      <a class="fieldhq-brand" href="/servers" aria-label="FieldHQ hosting">FIELD<span>HQ</span></a><nav class="fieldhq-areas" aria-label="Workspace"><a href="/servers" aria-current="page"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#servers"></use></svg>Hosting</a><a href="/units" ><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#players"></use></svg>Units</a></nav>
       <h1 id="workspace-server-name">ARMA REFORGER</h1>
     </div>
     <button class="btn-logout" onclick="doLogout()">Logout</button>

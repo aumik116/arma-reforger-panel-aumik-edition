@@ -176,8 +176,10 @@ document.addEventListener('DOMContentLoaded', () => {
     for (const server of problems) { const link = element('a',server.name + ': ' + (server.error || 'Installation failed. Open progress to review and retry.')); link.href = server.state === 'ready' ? workspace(server) : '/setup?server='+encodeURIComponent(server.id); alerts.append(link); }
     document.getElementById('overview-alert-count').textContent = problems.length;
     document.getElementById('overview-cpu').textContent = Number.isFinite(host?.cpu_host) ? host.cpu_host.toFixed(1)+'%' : '—';
-    document.getElementById('overview-ram').textContent = host?.ram_total > 0 ? (100*host.ram_used/host.ram_total).toFixed(1)+'%' : '—';
-    document.getElementById('overview-ram-detail').textContent = host?.ram_total > 0 ? (host.ram_used/1024).toFixed(1)+' / '+(host.ram_total/1024).toFixed(1)+' GiB' : 'Waiting for a reading';
+    document.getElementById('overview-ram').textContent = host?.ram_total > 0 && Number.isFinite(host.ram_used) ? (100*host.ram_used/host.ram_total).toFixed(1)+'%' : '—';
+    document.getElementById('overview-ram-detail').textContent = host?.ram_total > 0 && Number.isFinite(host.ram_used) ? (host.ram_used/1024).toFixed(1)+' / '+(host.ram_total/1024).toFixed(1)+' GiB' : 'Waiting for a reading';
+    document.getElementById('overview-disk').textContent=Number.isFinite(host?.disk_free)?(host.disk_free/1e9).toFixed(1)+' GB':'—';
+    document.getElementById('overview-disk-detail').textContent=host?.disk_total>0?'of '+(host.disk_total/1e9).toFixed(1)+' GB · panel volume':'Panel data volume';
     document.getElementById('overview-total').textContent = servers.length;
     document.getElementById('overview-online').textContent = servers.filter(s => s.status === 'online').length;
     const known = servers.filter(s => s.players !== null && s.players !== undefined);

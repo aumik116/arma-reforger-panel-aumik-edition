@@ -973,7 +973,9 @@ def api_scenarios_rescan():
 @app.get('/api/host-metrics')
 def api_host_metrics():
     ram_used, ram_total = get_system_ram()
-    return jsonify(cpu_host=_fleet_host_metrics.read(_STATE_DIR)['cpu_host'],
+    host = _fleet_host_metrics.read(_STATE_DIR)
+    return jsonify(cpu_host=host['cpu_host'], disk_free=host.get('disk_free'),
+                   disk_total=host.get('disk_total'),
                    ram_used=ram_used, ram_total=ram_total, ts=int(time.time()))
 
 

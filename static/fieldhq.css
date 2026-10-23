@@ -158,3 +158,23 @@ html[data-theme] .dashboard-metric-row .chart-wrap{flex:none;margin:0;height:150
 html[data-theme] .dashboard-metric-row :is(.chart-sub,.feature-note){text-align:left;line-height:1.5}
 html[data-theme] .dashboard-metric-row .chart-wrap+:is(.chart-sub,.feature-note){margin:10px 0 0}
 html[data-theme] .dashboard-storage-row{align-items:start}
+
+/* Full-width fleet totals, then a single filter/action toolbar. */
+html[data-theme] .fleet-overview-top{display:flex;flex-direction:column;gap:14px;margin-bottom:14px}
+html[data-theme] .fleet-overview-top .manager-heading{width:100%}
+html[data-theme] .fleet-overview-top .manager-summary{width:100%;max-width:none;grid-template-columns:repeat(7,minmax(0,1fr))}
+html[data-theme] .fleet-overview-top .manager-summary>div{min-height:84px;align-content:start;padding:14px 10px}
+html[data-theme] .fleet-overview-top .manager-summary small{grid-column:1/-1;font-size:9px;color:var(--muted);margin-top:4px}
+html[data-theme] .fleet-control-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px 16px;margin-bottom:8px}
+html[data-theme] .fleet-control-toolbar .fleet-filters{margin:0;gap:8px;flex:1 1 390px}
+html[data-theme] .fleet-control-toolbar .fleet-heading-actions{justify-content:flex-end;gap:7px;flex:0 1 auto}
+html[data-theme] .fleet-control-toolbar .fleet-filters>label{flex:0 1 130px;min-width:0}
+html[data-theme] .fleet-control-toolbar .fleet-toolbar-search{display:flex;position:static;flex:1 1 180px;width:auto;min-width:140px;margin:0;padding:0 8px;border-radius:4px;height:33px}
+html[data-theme] .fleet-control-toolbar .fleet-toolbar-search input{font-size:11px;height:30px;padding:4px 0}
+html[data-theme] .fleet-control-toolbar :is(select,button,a){min-height:33px;margin:0}
+html[data-theme] .fleet-control-toolbar #overview-storage{margin-left:0}
+html[data-theme] .fleet-refresh-status{display:flex;align-items:center;flex-wrap:wrap;gap:4px 14px;margin-bottom:10px;color:var(--muted)}
+html[data-theme] .fleet-refresh-status :is(p,span){font-size:10px;margin:0;padding:0}
+html[data-theme] .fleet-page .manager-header .fieldhq-account{margin-left:auto}
+@media(max-width:1100px){html[data-theme] .fleet-overview-top .manager-summary{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:700px){html[data-theme] .fleet-overview-top .manager-summary{grid-template-columns:repeat(2,minmax(0,1fr))}html[data-theme] .fleet-control-toolbar .fleet-filters{flex-basis:100%}html[data-theme] .fleet-control-toolbar .fleet-heading-actions{justify-content:flex-start}html[data-theme] .fleet-page .mobile-nav-toggle{width:100%}html[data-theme] .fleet-control-toolbar .fleet-toolbar-search{flex-basis:100%;width:100%}html[data-theme] .fleet-control-toolbar .fleet-filters>label:not(.fleet-toolbar-search){flex:1 1 100px}}

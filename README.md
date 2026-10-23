@@ -89,7 +89,7 @@ Updates create recovery snapshots under `/var/backups/arma-panel/`. A failed upd
 
 ## Find your tools
 
-**All servers** uses the FieldHQ layout: Hosting/Units navigation, five summary totals, compact server rows with visible actions and usage bars, separate host CPU and memory charts, and recent activity. Player trends are available below the resource charts. Live charts cover up to 30 minutes collected while the page is open; they reset on reload. Start, Stop and Restart are available on each row when your role permits them, with confirmation before Stop or Restart. Open a server or use the selector at the **top of the sidebar** to switch. Switching reloads the workspace and clears its previous drafts and console cursor.
+**All servers** uses the FieldHQ layout: Hosting/Units navigation, seven full-width summary counters (servers, online, players, host CPU/memory, panel-volume disk free and needs attention), a filter/action toolbar below them, compact server rows with visible actions and usage bars, separate host CPU and memory charts, and recent activity. Player trends are available below the resource charts. Live charts cover up to 30 minutes collected while the page is open; they reset on reload. Start, Stop and Restart are available on each row when your role permits them, with confirmation before Stop or Restart. Open a server or use the selector at the **top of the sidebar** to switch. Switching reloads the workspace and clears its previous drafts and console cursor.
 
 | Workspace | What you use it for |
 | --- | --- |

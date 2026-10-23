@@ -157,10 +157,12 @@
 </div>
 <section class="dashboard-metric-row" aria-label="Network and server simulation">
     <div class="chart-card">
+      <div class="chart-header"><div>
       <div class="chart-title">Network traffic — host interfaces</div>
       <div class="traffic-values"><span class="traffic-first">↓ Receive <strong id="net-rx">—</strong></span><span class="traffic-second">↑ Send <strong id="net-tx">—</strong></span></div>
-      <div class="chart-sub" id="net-state">Waiting for sample</div>
+      </div></div>
       <div class="chart-wrap"><canvas id="chart-network" aria-label="Host network receive and send rates"></canvas></div>
+      <div class="chart-sub" id="net-state">Waiting for sample</div>
     </div>
 <div id="fps-metrics"></div>
 </section>
@@ -185,10 +187,12 @@
     <p class="feature-note" id="metric-events">No recent panel events.</p>
   </div>
 <div class="chart-card">
+      <div class="chart-header"><div>
       <div class="chart-title">Disk activity — Arma process</div>
       <div class="traffic-values"><span class="traffic-first">Read <strong id="disk-read">—</strong></span><span class="traffic-second">Write <strong id="disk-write">—</strong></span></div>
-      <div class="chart-sub" id="disk-state">Waiting for sample</div>
+      </div></div>
       <div class="chart-wrap"><canvas id="chart-disk" aria-label="Arma disk read and write rates"></canvas></div>
+      <div class="chart-sub" id="disk-state">Waiting for sample</div>
     </div>
 </section>
 <details class="dashboard-secondary"><summary>Players, notifications &amp; latency</summary><div class="dashboard-secondary-content">
@@ -660,7 +664,7 @@
   </div>
 
   <footer>
-    Refresh in <span id="refresh-timer">10</span>s &nbsp;|&nbsp; Panel v3.0
+    Refresh in <span id="refresh-timer">10</span>s
   </footer>
 
 </div>

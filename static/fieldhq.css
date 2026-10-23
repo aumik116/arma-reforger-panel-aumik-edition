@@ -146,3 +146,15 @@ html[data-theme] .dashboard-secondary>summary{cursor:pointer;font-size:12px;colo
 html[data-theme] .dashboard-secondary-content{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px;align-items:start}
 html[data-theme] .dashboard-secondary-content>*{grid-area:auto;margin:0;min-width:0}
 @media(max-width:700px){html[data-theme] .dashboard-metric-row,html[data-theme] .dashboard-secondary-content{grid-template-columns:minmax(0,1fr)}}
+
+/* Keep every dashboard row separated, including full-width console and disclosures. */
+html[data-theme] #panel-dashboard:not([hidden]){display:flex;flex-direction:column;gap:14px}
+html[data-theme] #panel-dashboard>:is(.dashboard-heading,.dashboard-summary,.field-resource-charts,.dashboard-metric-row,#console-card,.dashboard-secondary){margin:0!important}
+html[data-theme] .dashboard-metric-row .chart-card{display:flex;flex-direction:column}
+html[data-theme] .dashboard-metric-row .chart-header{min-height:76px;margin-bottom:10px;align-items:start}
+html[data-theme] .dashboard-metric-row .traffic-values{margin:8px 0 0;gap:8px 24px}
+html[data-theme] .dashboard-metric-row .traffic-values strong{font-size:16px;margin-top:3px}
+html[data-theme] .dashboard-metric-row .chart-wrap{flex:none;margin:0;height:150px}
+html[data-theme] .dashboard-metric-row :is(.chart-sub,.feature-note){text-align:left;line-height:1.5}
+html[data-theme] .dashboard-metric-row .chart-wrap+:is(.chart-sub,.feature-note){margin:10px 0 0}
+html[data-theme] .dashboard-storage-row{align-items:start}

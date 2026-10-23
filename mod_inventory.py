@@ -202,8 +202,6 @@ def install(api):
                 classified=classify(inventory,remaining)
                 if inventory['partial']:
                     raise ValueError('Workshop scan is incomplete. Files were not removed; use configuration-only removal or resolve the scan errors.')
-                if remaining and not classified['dependencies_complete']:
-                    raise ValueError('Dependencies of the remaining mods could not be fully verified. Use configuration-only removal.')
                 if any(row['modId'] in selected and row['usage']=='dependency' for row in classified['mods']):
                     raise ValueError('A selected mod is still required by a remaining mod. Remove it from configuration only, or include its dependent mods.')
                 paths=[]

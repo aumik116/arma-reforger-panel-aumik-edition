@@ -1,10 +1,12 @@
-"""Read-only inventory of the selected server's downloaded Workshop assets."""
+"""Inventory of the selected server's downloaded Workshop assets."""
 import json
 import os
 from pathlib import Path
 import re
 import threading
 import time
+import shutil
+import tempfile
 from concurrent.futures import ThreadPoolExecutor
 
 from storage_usage import scan_storage
@@ -146,7 +148,9 @@ def classify(inventory, configured):
 
 
 def install(api):
-    from flask import jsonify, request
+    from flask import g, jsonify, request
+    from panel_features import MUTATIONS
+    MUTATIONS['mods_remove_bulk']='mods'
     pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix='mod-inventory')
     cache = {}; lock = threading.Lock()
 
@@ -173,3 +177,68 @@ def install(api):
                         cache.pop(old)
                 return jsonify(ok=True, status='pending')
         return jsonify(ok=True, status='ready', **classify(inventory, api.read_config().get('game', {}).get('mods', [])))
+
+    @api.app.post('/api/mods/remove-bulk')
+    def mods_remove_bulk():
+        data=request.get_json(silent=True) or {}
+        ids=data.get('modIds')
+        mode=data.get('mode')
+        if not isinstance(ids,list) or not 1<=len(ids)<=1000 or any(not mod_id(value) for value in ids) or mode not in ('config','complete'):
+            return jsonify(ok=False,error='Choose mods and a removal option'),400
+        selected={value.upper() for value in ids}
+        cfg=api.read_config();current=cfg.get('game',{}).get('mods',[])
+        if data.get('expected')!=current or not selected.issubset({str(m.get('modId','')).upper() for m in current}):
+            return jsonify(ok=False,error='The mod list changed. Refresh and select the mods again.'),409
+        remaining=[m for m in current if str(m.get('modId','')).upper() not in selected]
+        staged=[];staging=None;warning=''
+        try:
+            if mode=='complete':
+                if 'admin_config' not in g.permissions:
+                    return jsonify(ok=False,error='Complete removal requires server administrator permission'),403
+                if api.get_server_pid():
+                    return jsonify(ok=False,error='Stop the server before deleting downloaded mods'),409
+                root=Path(api.WORKSHOP_DIR).absolute()
+                inventory=scan_downloads(root)
+                classified=classify(inventory,remaining)
+                if inventory['partial']:
+                    raise ValueError('Workshop scan is incomplete. Files were not removed; use configuration-only removal or resolve the scan errors.')
+                if remaining and not classified['dependencies_complete']:
+                    raise ValueError('Dependencies of the remaining mods could not be fully verified. Use configuration-only removal.')
+                if any(row['modId'] in selected and row['usage']=='dependency' for row in classified['mods']):
+                    raise ValueError('A selected mod is still required by a remaining mod. Remove it from configuration only, or include its dependent mods.')
+                paths=[]
+                for row in inventory['mods']:
+                    if row['modId'] not in selected:continue
+                    path=root/row['path']
+                    if path==root or path.resolve()!=path or root not in path.parents or not path.is_dir():
+                        raise ValueError('A Workshop path changed or redirects through a link. Refresh before removing mods.')
+                    paths.append(path)
+                if paths and not shutil.rmtree.avoids_symlink_attacks:
+                    raise ValueError('Safe file removal is not supported on this platform; use configuration-only removal.')
+                if api.get_server_pid():
+                    raise ValueError('The server started during the scan. Stop it before deleting mods.')
+                if paths:
+                    staging=Path(tempfile.mkdtemp(prefix='.panel-mod-removal-',dir=root.parent))
+                    for index,path in enumerate(paths):
+                        destination=staging/str(index)
+                        path.rename(destination);staged.append((path,destination))
+            cfg.setdefault('game',{})['mods']=remaining
+            api.write_config(cfg)
+        except (OSError,ValueError) as exc:
+            rollback_failed=False
+            for original,destination in reversed(staged):
+                try:destination.rename(original)
+                except OSError:rollback_failed=True
+            if staging and not rollback_failed:
+                shutil.rmtree(staging,ignore_errors=True)
+            error=str(exc)
+            if rollback_failed:error+=' Some files could not be restored; recovery files remain at '+str(staging)
+            return jsonify(ok=False,error=error),409
+        if staging:
+            try:shutil.rmtree(staging)
+            except OSError:
+                warning='Configuration updated and downloads detached, but some recovery files could not be deleted: '+str(staging)
+        instance=api.selected_instance()
+        with lock:cache.pop(instance.id if instance else '',None)
+        g.audit_details=dict(mod_ids=sorted(selected),mode=mode,download_folders=len(staged),warning=warning)
+        return jsonify(ok=True,mods=remaining,restart_required=bool(api.get_server_pid()),warning=warning,removed=len(selected),download_folders=len(staged))

@@ -1,6 +1,7 @@
 // Configured mod library. Polling preserves local search, pagination and edit drafts.
 const modLibrary = {mods:[], signature:null, page:1, size:8, sort:'order', reorder:false, edit:null, historyCursor:null, metadata:new Map(), added:{}};
 const modEl = id => document.getElementById(id);
+const selectedMods = new Set();
 const modUpdates = {selected:new Set(), draft:null};
 let modView = 'details';
 function setModView(view) {
@@ -28,6 +29,7 @@ function updateModLibrary(mods) {
   const signature = JSON.stringify(mods);
   if (signature === modLibrary.signature) return;
   modLibrary.signature = signature; modLibrary.mods = mods;
+  for(const id of selectedMods)if(!mods.some(m=>m.modId===id))selectedMods.delete(id);
   if (typeof invalidateServerComparison === 'function') invalidateServerComparison(signature);
   modEl('mods-count').textContent = `${mods.length} configured`;
   drawModLibrary();
@@ -63,6 +65,8 @@ function drawModLibrary() {
   grid.append(heading);
   mods.slice(start, start + modLibrary.size).forEach(mod => {
     const card = document.createElement('article'); card.className='mod-tile';card.dataset.modId=mod.modId;
+    const selection=document.createElement('label');selection.className='mod-selection';selection.dataset.permission='mods';
+    const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=selectedMods.has(mod.modId);checkbox.setAttribute('aria-label','Select '+(mod.name||mod.modId));checkbox.onchange=()=>{if(checkbox.checked)selectedMods.add(mod.modId);else selectedMods.delete(mod.modId);updateModSelection();};selection.append(checkbox);card.append(selection);
     const art = document.createElement('div'); art.className='mod-art';
     art.innerHTML='<span class="mod-badge">Configured</span><span class="mod-art-label">Preview unavailable</span>';
     const size=document.createElement('span');size.className='mod-size';art.append(size);
@@ -102,6 +106,7 @@ function drawModLibrary() {
   const visible=new Set([1,pages,modLibrary.page-1,modLibrary.page,modLibrary.page+1]); let last=0;
   [...visible].filter(p=>p>=1&&p<=pages).sort((a,b)=>a-b).forEach(p=>{ if(last && p-last>1) { const gap=document.createElement('span'); gap.textContent='…'; pagination.append(gap); } const b=pageButton(String(p),p); if(p===modLibrary.page)b.setAttribute('aria-current','page'); pagination.append(b);last=p; });
   pagination.append(pageButton('Next',modLibrary.page+1));
+  updateModSelection();
   drawModTotal();
   if (typeof applyPermissions==='function') applyPermissions();
 }
@@ -279,9 +284,19 @@ async function loadModHistory(reset) {
   try {
     const data=await getFeature('/api/activity'+(modLibrary.historyCursor?'?before='+modLibrary.historyCursor:''));
     container.querySelector('.mods-history-empty')?.remove();
-    const labels={api_mods_add:'Add mod',api_mods_remove:'Remove mod',api_mods_import:'Import mods',api_mods_edit:'Edit mods',api_mods_update_pins:'Update version pins',api_mods_server_apply:'Apply selected server comparison',presets_save:'Save preset',presets_apply:'Apply preset',presets_delete:'Delete preset'};
+    const labels={api_mods_add:'Add mod',api_mods_remove:'Remove mod',mods_remove_bulk:'Remove selected mods',api_mods_import:'Import mods',api_mods_edit:'Edit mods',api_mods_update_pins:'Update version pins',api_mods_server_apply:'Apply selected server comparison',presets_save:'Save preset',presets_apply:'Apply preset',presets_delete:'Delete preset'};
     data.events.filter(e=>/mod|preset/.test(e.action)).forEach(e=>{const row=document.createElement('article');const title=document.createElement('div');title.textContent=`${e.actor} · ${labels[e.action]||'Mod change'} · ${e.outcome}`;const time=document.createElement('small');time.textContent=new Date(e.ts*1000).toLocaleString();row.append(title,time);container.append(row);});
     modLibrary.historyCursor=data.next_before;more.hidden=!data.next_before;
     if(!container.children.length){const empty=document.createElement('p');empty.className='mods-history-empty';empty.textContent=data.next_before?'No mod events in this batch. Load more to check older activity.':'No mod activity found.';container.append(empty);}
   }catch(e){setLog(e.message,'error');const error=document.createElement('p');error.textContent=e.message;container.append(error);}finally{more.disabled=false;modHistoryLoading=false;}
 }
+
+function filteredModsForRemoval(){const search=modEl('mods-search').value.trim().toLowerCase();return modLibrary.mods.filter(m=>`${m.name||''} ${m.modId}`.toLowerCase().includes(search));}
+function updateModSelection(){
+ const filtered=filteredModsForRemoval(),count=filtered.filter(m=>selectedMods.has(m.modId)).length,all=modEl('mods-select-all');
+ all.checked=filtered.length>0&&count===filtered.length;all.indeterminate=count>0&&count<filtered.length;all.disabled=!filtered.length;
+ modEl('mods-selected-count').textContent=selectedMods.size+' selected';modEl('mods-remove-selected').disabled=!selectedMods.size;modEl('mods-selection-clear').disabled=!selectedMods.size;
+}
+modEl('mods-select-all').onchange=event=>{for(const mod of filteredModsForRemoval()){if(event.target.checked)selectedMods.add(mod.modId);else selectedMods.delete(mod.modId);}drawModLibrary();};
+modEl('mods-selection-clear').onclick=()=>{selectedMods.clear();drawModLibrary();};
+modEl('mods-remove-selected').onclick=()=>openModRemoval([...selectedMods]);

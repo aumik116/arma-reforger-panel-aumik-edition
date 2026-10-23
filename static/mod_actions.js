@@ -31,20 +31,35 @@ function closeModRemoval(){if(!modRemovalBusy)document.getElementById('mods-remo
 function openModRemoval(ids){
  const dialog=document.getElementById('mods-remove-dialog'),form=document.getElementById('mods-remove-form');
  const mods=modLibrary.mods.filter(m=>ids.includes(m.modId));if(!mods.length)return;
- modRemovalDraft={ids:mods.map(m=>m.modId),expected:JSON.parse(JSON.stringify(modLibrary.mods))};form.reset();
+ modRemovalDraft={ids:mods.map(m=>m.modId),expected:JSON.parse(JSON.stringify(modLibrary.mods)),reviewed:false};form.reset();document.getElementById('mods-remove-dependencies').replaceChildren();document.getElementById('mods-remove-confirm').textContent='Confirm removal';
  document.getElementById('mods-remove-error').textContent='';document.getElementById('mods-remove-summary').textContent=`Remove ${mods.length} mod${mods.length===1?'':'s'} from this server?`;
  const list=document.getElementById('mods-remove-list');list.replaceChildren();for(const mod of mods){const item=document.createElement('li');item.textContent=(mod.name||mod.modId)+' · '+mod.modId;list.append(item);}
  const complete=document.getElementById('mods-remove-complete');complete.disabled=!can('admin_config')||window.consoleServerRunning!==false;
- document.getElementById('mods-remove-restriction').textContent=!can('admin_config')?'Complete removal requires server administrator permission.':window.consoleServerRunning!==false?'Stop the server before using complete removal.':'Complete removal checks remaining dependencies before deleting files.';
+ document.getElementById('mods-remove-restriction').textContent=!can('admin_config')?'Complete removal requires server administrator permission.':window.consoleServerRunning!==false?'Stop the server before using complete removal.':'Known dependencies will be listed for your review. You can remove them anyway.';
  dialog.showModal();form.querySelector('[value="config"]').focus();
 }
+document.getElementById('mods-remove-form').addEventListener('change',event=>{if(event.target.name==='removal'&&modRemovalDraft){modRemovalDraft.reviewed=false;document.getElementById('mods-remove-dependencies').replaceChildren();document.getElementById('mods-remove-confirm').textContent='Confirm removal';}});
 document.getElementById('mods-remove-close').onclick=closeModRemoval;document.getElementById('mods-remove-cancel').onclick=closeModRemoval;
 document.getElementById('mods-remove-dialog').addEventListener('cancel',event=>{event.preventDefault();closeModRemoval();});
 document.getElementById('mods-remove-form').onsubmit=async event=>{
  event.preventDefault();if(modRemovalBusy||!modRemovalDraft)return;modRemovalBusy=true;
  const button=document.getElementById('mods-remove-confirm');button.disabled=true;document.getElementById('mods-remove-error').textContent='';
  try{
-  const mode=new FormData(event.target).get('removal');const result=await readJson(await postJson('/api/mods/remove-bulk',{modIds:modRemovalDraft.ids,expected:modRemovalDraft.expected,mode}));
+  const mode=new FormData(event.target).get('removal');
+  if(!modRemovalDraft.reviewed){
+   const preview=await readJson(await postJson('/api/mods/remove-bulk',{modIds:modRemovalDraft.ids,expected:modRemovalDraft.expected,mode,preview:true}));
+   modRemovalDraft.reviewed=true;
+   const region=document.getElementById('mods-remove-dependencies');region.replaceChildren();
+   if(preview.dependencies.length){
+    const heading=document.createElement('p');heading.textContent='These remaining mods depend on your selection:';region.append(heading);
+    const list=document.createElement('ul');for(const dependency of preview.dependencies){const item=document.createElement('li');item.textContent=dependency.name+' ('+dependency.modId+') — required by: '+dependency.required_by.join(', ');list.append(item);}region.append(list);
+    const include=document.createElement('button');include.type='button';include.textContent='Also remove dependent mods';
+    include.onclick=()=>{const ids=new Set(modRemovalDraft.ids);for(const dependency of preview.dependencies)for(const dependent of dependency.dependents)ids.add(dependent.modId);document.getElementById('mods-remove-dialog').close();openModRemoval([...ids]);document.querySelector('#mods-remove-form [name="removal"][value="'+mode+'"]').checked=true;};region.append(include);
+    if(preview.metadata_incomplete){const note=document.createElement('p');note.textContent='Some metadata is missing; other dependencies may be unknown.';region.append(note);}
+    button.textContent='Remove anyway';region.scrollIntoView({block:'nearest'});return;
+   }
+  }
+  const result=await readJson(await postJson('/api/mods/remove-bulk',{modIds:modRemovalDraft.ids,expected:modRemovalDraft.expected,mode}));
   modRemovalDraft.ids.forEach(id=>selectedMods.delete(id));updateModLibrary(result.mods);
   document.getElementById('mods-restart-notice').classList.toggle('visible',result.restart_required);
   document.getElementById('mods-remove-dialog').close();setLog(result.warning||`${result.removed} mod(s) removed${mode==='complete'?' completely':' from configuration'}.`,result.warning?'error':'ok');

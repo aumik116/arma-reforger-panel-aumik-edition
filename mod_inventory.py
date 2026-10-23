@@ -192,18 +192,33 @@ def install(api):
         remaining=[m for m in current if str(m.get('modId','')).upper() not in selected]
         staged=[];staging=None;warning=''
         try:
-            if mode=='complete':
-                if 'admin_config' not in g.permissions:
+            if mode=='complete' or data.get('preview'):
+                if mode=='complete' and 'admin_config' not in g.permissions:
                     return jsonify(ok=False,error='Complete removal requires server administrator permission'),403
-                if api.get_server_pid():
+                if mode=='complete' and api.get_server_pid():
                     return jsonify(ok=False,error='Stop the server before deleting downloaded mods'),409
                 root=Path(api.WORKSHOP_DIR).absolute()
                 inventory=scan_downloads(root)
                 classified=classify(inventory,remaining)
-                if inventory['partial']:
+                if inventory['partial'] and not data.get('preview'):
                     raise ValueError('Workshop scan is incomplete. Files were not removed; use configuration-only removal or resolve the scan errors.')
-                if any(row['modId'] in selected and row['usage']=='dependency' for row in classified['mods']):
-                    raise ValueError('A selected mod is still required by a remaining mod. Remove it from configuration only, or include its dependent mods.')
+                if data.get('preview'):
+                    by_id={}
+                    names={str(m.get('modId','')).upper():m.get('name') or m.get('modId') for m in current}
+                    for row in inventory['mods']:
+                        by_id.setdefault(row['modId'],set()).update(row.get('dependencies') or [])
+                        names.setdefault(row['modId'],row['name'])
+                    required_by={identity:[] for identity in selected}
+                    for mod in remaining:
+                        identity=str(mod.get('modId','')).upper()
+                        pending=[identity];seen=set()
+                        while pending:
+                            dependency=pending.pop()
+                            if dependency in seen:continue
+                            seen.add(dependency)
+                            if dependency in selected:required_by[dependency].append(identity)
+                            pending.extend(by_id.get(dependency,()))
+                    return jsonify(ok=True,preview=True,dependencies=[dict(modId=identity,name=names.get(identity,identity),required_by=[names.get(user,user) for user in sorted(set(users))],dependents=[dict(modId=user,name=names.get(user,user)) for user in sorted(set(users))]) for identity,users in required_by.items() if users],metadata_incomplete=not classified['dependencies_complete'])
                 paths=[]
                 for row in inventory['mods']:
                     if row['modId'] not in selected:continue

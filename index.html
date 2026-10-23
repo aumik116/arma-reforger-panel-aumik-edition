@@ -119,12 +119,12 @@
   <div class="card"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#cpu"></use></svg><div class="card-label">Server CPU</div><div class="chart-value" id="summary-cpu">—</div><p class="feature-note">Game process usage</p></div>
   <div class="card"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#memory"></use></svg><div class="card-label">Server memory</div><div class="chart-value" id="summary-ram">—</div><p class="feature-note">Game process resident memory</p></div>
 </div>
-<div class="field-resource-charts"><div class="chart-card"><div class="chart-header"><div><div class="chart-title">Players</div><div class="chart-sub">Last 60 roster readings</div></div></div><div class="chart-wrap"><canvas id="chart-players" aria-label="Connected players over time"></canvas></div></div>  <!-- Charts -->
+<div class="field-resource-charts">  <!-- Charts -->
   <div class="charts-row">
     <div class="chart-card">
       <div class="chart-header">
         <div>
-          <div class="chart-title">Process CPU &amp; host memory</div>
+          <div class="chart-title">Process CPU</div>
           <div class="chart-sub" id="proc-cpu-sub">Arma: —%</div>
         </div>
         <div>
@@ -134,16 +134,14 @@
           </div>
         </div>
       </div>
-      <div class="chart-wrap"><canvas id="chart-cpu"></canvas></div>
+      <div class="chart-wrap"><canvas id="chart-cpu" aria-label="Game process CPU usage over time"></canvas></div>
     </div>
 
   </div>
-
-</div>
-<div class="dashboard-columns"><details class="dashboard-performance-details"><summary>More performance details <span>Memory, network, storage &amp; simulation</span></summary><div class="dashboard-performance"><div class="chart-card">
+<div class="chart-card">
       <div class="chart-header">
         <div>
-          <div class="chart-title">RAM Usage</div>
+          <div class="chart-title">Host memory</div>
           <div class="chart-sub" id="proc-ram-sub">Arma: — MB</div>
         </div>
         <div>
@@ -153,9 +151,11 @@
           </div>
         </div>
       </div>
-      <div class="chart-wrap"><canvas id="chart-ram"></canvas></div>
+      <div class="chart-wrap"><canvas id="chart-ram" aria-label="Host memory usage over time"></canvas></div>
     </div>
-  <div class="charts-row" id="extra-metrics"></div>
+
+</div>
+<div class="dashboard-columns"><details class="dashboard-performance-details"><summary>More performance details <span>Network, storage &amp; simulation</span></summary><div class="dashboard-performance">  <div class="charts-row" id="extra-metrics"></div>
   <div class="charts-row">
     <div class="chart-card">
       <div class="chart-title">Network traffic — host interfaces</div>
@@ -222,7 +222,7 @@
       <div class="chart-sub">All spawned vehicles</div>
     </div>
   </div>
-
+<div class="chart-card dashboard-player-chart"><div class="chart-header"><div><div class="chart-title">Players</div><div class="chart-sub">Last 60 roster readings</div></div></div><div class="chart-wrap"><canvas id="chart-players" aria-label="Connected players over time"></canvas></div></div>
 </div></div>
   </section>
 

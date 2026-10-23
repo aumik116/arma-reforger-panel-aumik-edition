@@ -203,7 +203,10 @@ html[data-theme] .manager-actions .action-stop{color:var(--offline);border-color
 html[data-theme] .manager-actions .action-start{color:var(--online);border-color:var(--online)}
 html[data-theme] .manager-actions .action-restart{color:var(--accent);border-color:var(--accent-border)}
 .fleet-more{position:relative}.fleet-more summary{cursor:pointer;list-style:none}.fleet-more summary::-webkit-details-marker{display:none}
-.fleet-more[open]{z-index:5}.fleet-more-menu{position:absolute;right:0;top:calc(100% + 5px);min-width:145px;padding:7px;display:grid;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:4px;box-shadow:0 8px 24px #0005}
+/* Expand secondary actions inside their server row so they cannot cover other rows. */
+html[data-theme] .fleet-server-card .manager-actions:has(.fleet-more[open]){flex-wrap:wrap}
+.fleet-more[open]{flex-basis:100%;min-width:0}.fleet-more[open] summary{width:fit-content;margin-left:auto}
+.fleet-more-menu{position:static;margin-top:5px;padding:7px;display:grid;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:4px}
 html[data-theme] .fleet-storage{grid-column:2/-1;grid-row:3;font-size:11px;color:var(--muted);margin:5px 0 0}
 html[data-theme] .fleet-server-card .fleet-event-error{grid-column:2/-1;grid-row:4}
 html[data-theme] .fleet-charts{margin:16px 0 8px;gap:14px}
@@ -361,3 +364,9 @@ html[data-theme] #mods-sort{max-width:190px;min-width:140px}
 .mod-added{display:block;font-size:10px;color:var(--muted);margin-top:4px}html[data-theme] .mods-details-view .mod-added{grid-column:2;grid-row:3}
 
 #downloaded-search { border:1px solid var(--border); border-radius:4px; }
+
+/* Put CPU and memory first; player history follows the live console and roster. */
+html[data-theme] .dashboard-player-chart{grid-column:1/-1;grid-row:3;padding:13px;min-width:0}
+html[data-theme] .dashboard-player-chart .chart-wrap{height:150px}
+html[data-theme] .dashboard-performance-details{grid-row:4}
+@media(max-width:700px){html[data-theme] .dashboard-player-chart,html[data-theme] .dashboard-performance-details{grid-column:1;grid-row:auto}}

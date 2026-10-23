@@ -54,8 +54,6 @@ const cpuChart = createPanelChart(document.getElementById('chart-cpu'), {
 });
 
 cpuChart.data.datasets[0].label = 'Process CPU';
-cpuChart.data.datasets.push({...makeChartData('#85d77a').datasets[0], label:'Host memory', fill:false});
-cpuChart.options.plugins.legend = {display:true, labels:{boxWidth:12, boxHeight:2, font:{size:10}}};
 // Process CPU may exceed 100% when the game uses multiple cores.
 cpuChart.options.scales.y.max = undefined;
 cpuChart.options.scales.x = {display:true, ticks:{maxTicksLimit:5, font:{size:9}}, grid:{display:false}};
@@ -65,6 +63,8 @@ const ramChart = createPanelChart(document.getElementById('chart-ram'), {
   data: makeChartData('#c8a84b'),
   options: chartOpts(100)
 });
+
+ramChart.options.scales.x = {display:true, ticks:{maxTicksLimit:5, font:{size:9}}, grid:{display:false}};
 
 function trafficChart(id, unit) {
   const data = makeChartData('#c8a84b');
@@ -224,9 +224,6 @@ async function fetchMetrics(supplied) {
     document.getElementById('proc-cpu-sub').textContent = 'Arma: ' + (d.running ? (d.cpu ?? 0).toFixed(1) + '%' : '—%');
     document.getElementById('proc-ram-sub').textContent = 'Arma: ' + (d.running ? (d.ram_process ?? 0) + ' MB / ' + d.ram_total + ' MB' : '— MB');
 
-    const memoryHistory = cpuChart.data.datasets[1].data;
-    memoryHistory.push(d.ram_total > 0 ? ramPct : null);
-    if (memoryHistory.length > MAX_POINTS) memoryHistory.shift();
     pushChart(cpuChart, d.cpu ?? 0);
     pushChart(ramChart, ramPct);
     renderTraffic(d.network, networkChart, ['net-rx','net-tx'], 'net-state', 8 / 1000000, 'Mbps', 'All non-loopback interfaces; includes other host traffic');
@@ -237,9 +234,8 @@ async function fetchMetrics(supplied) {
     document.getElementById('summary-cpu').textContent = '—';
     document.getElementById('summary-ram').textContent = '—';
     updateExtraMetrics(null);
-    const memoryHistory = cpuChart.data.datasets[1].data;
-    memoryHistory.push(null); if (memoryHistory.length > MAX_POINTS) memoryHistory.shift();
     pushChart(cpuChart, null);
+    pushChart(ramChart, null);
     renderTraffic(null, networkChart, ['net-rx','net-tx'], 'net-state', 1, 'Mbps', '');
     renderTraffic(null, diskChart, ['disk-read','disk-write'], 'disk-state', 1, 'MiB/s', '');
   }

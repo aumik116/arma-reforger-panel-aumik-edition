@@ -187,19 +187,31 @@
   <div class="card clip" id="players-card" tabindex="-1">
     <div class="card-label">Players · <span id="player-summary">Loading...</span></div>
     <div id="dashboard-player-list" class="dashboard-player-list"></div>
-    <p class="feature-note" id="player-message" role="status"></p><button type="button" id="player-retry" hidden>Retry player query</button>
     <details id="player-details-disclosure" class="player-details-disclosure"><summary>Player details</summary>
     <div class="field"><label for="player-select">Connected usernames</label>
       <select id="player-select" onchange="showPlayer()"><option>Loading...</option></select></div>
+    <p class="feature-note" id="player-message"></p>
     <p class="feature-note" id="player-details"></p>
     <div class="field" id="player-uuid-field" hidden><label for="player-uuid">Player UUID</label>
       <input id="player-uuid" type="text" readonly spellcheck="false" aria-label="Selected player UUID"><button class="config-button" id="copy-player-uuid" onclick="copyPlayerUuid()" disabled>Copy UUID</button><span id="uuid-copy-status" role="status"></span></div>
     </details>
   </div>
 <div class="chart-card dashboard-player-chart"><div class="chart-header"><div><div class="chart-title">Players</div><div class="chart-sub">Last 60 roster readings</div></div></div><div class="chart-wrap"><canvas id="chart-players" aria-label="Connected players over time"></canvas></div></div>
+  <div class="chart-card entity-counters" aria-label="Live server counts">
+    <div class="entity-counter">
+      <div class="chart-title">AI</div>
+      <div class="chart-value" id="ai-count">—</div>
+      <div class="chart-sub">Current server count</div>
+    </div>
+    <div class="entity-counter">
+      <div class="chart-title">Vehicles</div>
+      <div class="chart-value" id="vehicle-count">—</div>
+      <div class="chart-sub">All spawned vehicles</div>
+    </div>
+  </div>
   </div>
 
-  <details class="card" id="notification-history"><summary>Server notifications</summary><p class="feature-note">Recent starts, stops and update results for this server.</p><div id="notification-events" role="log"></div></details>
+  <div class="dashboard-console-column">
   <!-- Live Logs -->
   <div data-permission="logs" hidden class="log-viewer-card" id="console-card" tabindex="-1">
     <div class="log-viewer-header">
@@ -213,19 +225,9 @@
     <div id="log-output" class="hide-performance"></div>
   </div>
 
-  <div class="chart-card entity-counters" aria-label="Live server counts">
-    <div class="entity-counter">
-      <div class="chart-title">AI</div>
-      <div class="chart-value" id="ai-count">—</div>
-      <div class="chart-sub">Current server count</div>
-    </div>
-    <div class="entity-counter">
-      <div class="chart-title">Vehicles</div>
-      <div class="chart-value" id="vehicle-count">—</div>
-      <div class="chart-sub">All spawned vehicles</div>
-    </div>
-  </div>
+  <details class="card" id="notification-history"><summary>Server notifications</summary><p class="feature-note">Recent starts, stops and update results for this server.</p><div id="notification-events" role="log"></div></details>
 
+</div>
 </div></div>
   </section>
 

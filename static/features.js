@@ -114,19 +114,17 @@ function applyPermissions() {
 }
 
 let playersPending = false;
-byId('player-retry').onclick = () => loadPlayers();
 async function loadPlayers() {
   if (playersPending) return;
-  playersPending = true;byId('player-retry').disabled=true;
+  playersPending = true;
   try {
     const data = await getFeature('/api/players');
-    byId('player-retry').hidden=!!data.available;
     const selected = byId('player-select').value;
     roster = data.players;
     byId('summary-players').textContent = data.available ? roster.length : '—';
     pushChart(playersChart, data.available ? roster.length : null);
     byId('player-summary').textContent = data.available ? `${roster.length} connected` : 'Player list unavailable';
-    byId('player-message').textContent = data.available ? '' : (data.message || 'Player query unavailable. Check this server’s RCON settings.');
+    byId('player-message').textContent = data.message;
     byId('player-select').replaceChildren(new Option(roster.length ? 'Select a player' : 'No players to display', ''));
     roster.forEach(p => byId('player-select').add(new Option(p.name, p.identity)));
     const list = byId('dashboard-player-list'); list.replaceChildren();
@@ -142,7 +140,7 @@ async function loadPlayers() {
     byId('player-select').value = roster.some(p => p.identity === selected) ? selected : '';
     showPlayer();
   } catch (error) {
-    roster = [];byId('player-retry').hidden=false;
+    roster = [];
     byId('dashboard-player-list').replaceChildren();
     byId('player-select').replaceChildren(new Option('Unavailable', ''));
     byId('summary-players').textContent = '—';
@@ -150,7 +148,7 @@ async function loadPlayers() {
     byId('player-summary').textContent = 'Player list unavailable';
     byId('player-message').textContent = error.message;
     showPlayer();
-  } finally {playersPending=false;byId('player-retry').disabled=false;}
+  } finally {playersPending=false;}
 }
 
 function showPlayer() {
@@ -234,7 +232,7 @@ async function loadActivity(older = false) {
     for (const event of data.events) {
       const row = document.createElement('div'); row.className = 'activity-entry';
       const title = document.createElement('strong');
-      title.textContent = `${new Date(event.ts * 1000).toLocaleString('en-US')} · ${event.actor} · ${actionNames[event.action] || event.action} · ${event.outcome}`;
+      title.textContent = `${new Date(event.ts * 1000).toLocaleString('en-US')} · ${event.actor} · ${event.action.replace(/_/g, ' ')} · ${event.outcome}`;
       row.append(title);
       if (Object.keys(event.details).length) {
         const detail = document.createElement('div');

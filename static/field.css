@@ -192,17 +192,12 @@ html[data-theme] .fleet-card-stats>div:nth-child(1) dd{grid-column:5}
 html[data-theme] .fleet-card-stats>div:nth-child(2) dd{grid-column:6}
 html[data-theme] .fleet-card-stats>div:nth-child(3) dd{grid-column:7}
 html[data-theme] .fleet-uptime{grid-column:8;grid-row:1/3;font-size:11px}
-html[data-theme] .fleet-server-card .manager-actions{grid-column:9;grid-row:1/3;flex-wrap:nowrap;gap:5px;justify-content:flex-end;margin:0;padding:0}
+html[data-theme] .fleet-server-card .manager-actions{grid-column:9;grid-row:1/3;flex-wrap:wrap;gap:5px;justify-content:flex-end;margin:0;padding:0}
 html[data-theme] .fleet-server-card .manager-actions>*{margin:0;min-height:30px}
 html[data-theme] .manager-actions :is(button,.manager-link,summary){font:12px 'Barlow',sans-serif;padding:6px 8px;min-height:30px;background:var(--surface);border:1px solid var(--border);border-radius:3px;color:var(--text)}
 html[data-theme] .manager-actions .action-stop{color:var(--offline);border-color:var(--offline)}
 html[data-theme] .manager-actions .action-start{color:var(--online);border-color:var(--online)}
 html[data-theme] .manager-actions .action-restart{color:var(--accent);border-color:var(--accent-border)}
-.fleet-more{position:relative}.fleet-more summary{cursor:pointer;list-style:none}.fleet-more summary::-webkit-details-marker{display:none}
-/* Expand secondary actions inside their server row so they cannot cover other rows. */
-html[data-theme] .fleet-server-card .manager-actions:has(.fleet-more[open]){flex-wrap:wrap}
-.fleet-more[open]{flex-basis:100%;min-width:0}.fleet-more[open] summary{width:fit-content;margin-left:auto}
-.fleet-more-menu{position:static;margin-top:5px;padding:7px;display:grid;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:4px}
 html[data-theme] .fleet-storage{grid-column:2/-1;grid-row:3;font-size:11px;color:var(--muted);margin:5px 0 0}
 html[data-theme] .fleet-server-card .fleet-event-error{grid-column:2/-1;grid-row:4}
 html[data-theme] .fleet-charts{margin:16px 0 8px;gap:14px}
@@ -219,7 +214,7 @@ html[data-theme] .field-resource-charts .chart-card{padding:13px}
 html[data-theme] .field-resource-charts .chart-wrap{height:150px}
 html[data-theme] .field-resource-charts .chart-value{font-size:19px}
 html[data-theme] .dashboard-live{display:contents}
-html[data-theme] #console-card{grid-area:console;align-self:start}
+html[data-theme] #console-card{align-self:start}
 html[data-theme] #players-card{padding:14px;min-width:0;margin:0}
 html[data-theme] .dashboard-player-list{max-height:250px;margin:8px 0}
 html[data-theme] .dashboard-player{padding:7px 4px;font-size:12px}
@@ -229,8 +224,8 @@ html[data-theme] #console-card #log-output{height:280px;font-size:11px}
 html[data-theme] .log-viewer-header{padding:12px;gap:8px}
 html[data-theme] .dashboard-performance{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 html[data-theme] #extra-metrics{grid-column:1/-1}
-html[data-theme] #notification-history{grid-area:notifications;padding:13px}
-html[data-theme] .entity-counters{grid-area:counts;padding:13px}
+html[data-theme] #notification-history{padding:13px}
+html[data-theme] .entity-counters{padding:13px}
 html[data-theme] .dashboard-diagnostics{grid-column:1/-1}
 html[data-theme] .section-tabs{background:transparent;border:0;border-bottom:1px solid var(--border);gap:6px;padding:0;margin-bottom:14px}
 html[data-theme] .section-tabs button{background:transparent;border:0;border-bottom:2px solid transparent;border-radius:3px 3px 0 0;padding:10px 18px}
@@ -359,12 +354,15 @@ html[data-theme] #mods-sort{max-width:190px;min-width:140px}
 #downloaded-search { border:1px solid var(--border); border-radius:4px; }
 
 /* Keep player history beneath the roster, alongside the console. */
-html[data-theme] .dashboard-player-column{grid-area:players;display:grid;gap:14px;min-width:0;align-self:start}
+html[data-theme] .dashboard-player-column{display:grid;gap:14px;min-width:0;align-self:start}
 html[data-theme] .dashboard-player-chart{padding:13px;min-width:0;margin:0}
 html[data-theme] .dashboard-player-chart .chart-wrap{height:150px}
 
 
-html[data-theme] .dashboard-columns{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(260px,1fr);grid-template-areas:"console players" "notifications counts" "performance performance";gap:14px}
-html[data-theme] .dashboard-columns:has(#console-card[hidden]){grid-template-columns:minmax(0,1fr);grid-template-areas:"players" "notifications" "counts" "performance"}
-@media(max-width:900px){html[data-theme] .dashboard-columns{grid-template-columns:minmax(0,1fr);grid-template-areas:"console" "players" "notifications" "counts" "performance"}}
-#player-message:empty{display:none}#player-retry{margin:0 0 10px}
+html[data-theme] .dashboard-columns{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(260px,1fr);grid-template-areas:"console players" "performance performance";gap:14px}
+html[data-theme] .dashboard-columns:has(#console-card[hidden]){grid-template-columns:minmax(0,1fr);grid-template-areas:"console" "players" "performance"}
+@media(max-width:900px){html[data-theme] .dashboard-columns{grid-template-columns:minmax(0,1fr);grid-template-areas:"console" "players" "performance"}}
+#player-message:empty{display:none}
+
+html[data-theme] .dashboard-console-column{grid-area:console;display:grid;gap:14px;align-self:start;min-width:0}
+html[data-theme] .dashboard-player-column{grid-area:players}

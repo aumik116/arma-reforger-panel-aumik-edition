@@ -102,7 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const focused = rows.contains(document.activeElement) ? document.activeElement : null;
     const focusedServer = focused?.closest('[data-server-id]')?.dataset.serverId;
     const focusedAction = focused?.dataset.action;
-    const expanded = new Set(Array.from(rows.querySelectorAll('details[open]')).map(menu => menu.closest('[data-server-id]').dataset.serverId));
     rows.replaceChildren();
     const query = document.getElementById('overview-search').value.trim().toLowerCase();
     const filter = document.getElementById('overview-filter').value;
@@ -152,16 +151,12 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (server.state === 'ready') { const manage = element('a','Open','manager-link'); manage.href = workspace(server); actions.prepend(manage); }
       else if (permissions.includes('admin_config')) { const progress = element('a','Progress / retry','manager-link'); progress.href = '/setup?server='+encodeURIComponent(server.id); actions.append(progress); }
-      const more = element('details','','fleet-more'); more.open = expanded.has(server.id);
-      const summary = element('summary','More'); summary.dataset.action = 'more'; more.append(summary);
-      const menu = element('div','','fleet-more-menu'); more.append(menu);
-      if(server.state==='ready'&&(server.permissions||[]).includes('admin_config')){const startup=element('a','Startup','manager-link');startup.href=workspace(server)+'#startup';menu.append(startup);}
+      if(server.state==='ready'&&(server.permissions||[]).includes('admin_config')){const startup=element('a','Startup','manager-link');startup.href=workspace(server)+'#startup';actions.append(startup);}
       if(server.id&&permissions.includes('admin_config')){const remove=element('button','Remove','btn-logout');remove.disabled=busy.has(server.id);remove.onclick=async()=>{
         const confirmId=prompt('Remove '+server.name+'? Files are retained on the VM. Type its ID: '+server.id);if(confirmId===null)return;
         busy.add(server.id);remove.disabled=true;
         try{const response=await postJson('/api/servers/'+encodeURIComponent(server.id)+'/delete',{confirm_id:confirmId});const body=await response.json();if(!response.ok)throw new Error(body.error);feedback.textContent=server.name+': removed. Files retained on the VM.';}catch(error){feedback.textContent=error.message;}finally{busy.delete(server.id);await refresh(false);}
-      };menu.append(remove);}
-      if (menu.children.length) actions.append(more);
+      };actions.append(remove);}
       actions.querySelectorAll('button,a').forEach(node => { node.dataset.action = node.textContent; });
       row.append(actions); rows.append(row);
     }
@@ -194,8 +189,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return {...server, ...data, status};
     });
     transitions.splice(20);
-    // Avoid replacing a focused control or an expanded action menu mid-use.
-    if (!rows.contains(document.activeElement) && !rows.querySelector('details[open]')) render(snapshots);
+    // Avoid replacing a focused control mid-use.
+    if (!rows.contains(document.activeElement)) render(snapshots);
     renderEvents();
   });
   let navigationServers = [];

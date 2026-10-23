@@ -365,8 +365,9 @@ html[data-theme] #mods-sort{max-width:190px;min-width:140px}
 
 #downloaded-search { border:1px solid var(--border); border-radius:4px; }
 
-/* Put CPU and memory first; player history follows the live console and roster. */
-html[data-theme] .dashboard-player-chart{grid-column:1/-1;grid-row:3;padding:13px;min-width:0}
+/* Keep player history beneath the roster, alongside the console. */
+html[data-theme] .dashboard-player-column{grid-column:2;grid-row:1;display:grid;gap:14px;min-width:0;align-self:start}
+html[data-theme] .dashboard-player-column #players-card{grid-column:auto;grid-row:auto;margin:0}
+html[data-theme] .dashboard-player-chart{padding:13px;min-width:0;margin:0}
 html[data-theme] .dashboard-player-chart .chart-wrap{height:150px}
-html[data-theme] .dashboard-performance-details{grid-row:4}
-@media(max-width:700px){html[data-theme] .dashboard-player-chart,html[data-theme] .dashboard-performance-details{grid-column:1;grid-row:auto}}
+@media(max-width:700px){html[data-theme] .dashboard-player-column{grid-column:1;grid-row:auto}}

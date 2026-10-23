@@ -20,6 +20,21 @@ def unpack(data):
     return data[7:]
 
 
+PLAYER_COLUMNS = re.compile(r'\[Player\s*#\]\s*;\s*\[Player\s+UID\]\s*;\s*\[Player\s+Name\]\s*;?', re.I)
+
+
+def empty_player_reply(text):
+    cleaned=text.replace('\x00','').replace('\ufeff','').strip()
+    if cleaned.lower() in {'no players connected','no players on server','0 players'}:
+        return True
+    match=re.fullmatch(r'Players on server:\s*(.*)',cleaned,re.I|re.S)
+    if not match:
+        return False
+    rest=match[1].strip()
+    rest=re.sub(r'^(?:0|\(0\))(?=\s|$)\s*','',rest)
+    return not rest or bool(PLAYER_COLUMNS.fullmatch(rest))
+
+
 def parse_players(text):
     """Native #players rows: player number ; identity ID ; player name."""
     # Some server versions include a count or column labels after the header,
@@ -32,10 +47,7 @@ def parse_players(text):
         if match:
             players.append({'id': match[1], 'identity': match[2].strip(), 'name': match[3].strip()})
     if not players:
-        cleaned = text.strip().lower()
-        empty = (re.fullmatch(r'players on server:\s*(?:0|\(0\))?\s*', cleaned)
-                 or cleaned in {'no players connected', 'no players on server', '0 players'})
-        if not empty:
+        if not empty_player_reply(text):
             # An actual reply is much more useful than a generic parser error.
             # Keep it short and on one line so the dashboard remains readable.
             excerpt = re.sub(r'\s+', ' ', text).strip()[:160]
@@ -55,16 +67,28 @@ def query_command(host, port, password, command):
             deadline = time.monotonic() + 3
             chunks, total = {}, None
             interim_response = None
+            player_fragments = []
+            player_messages = set()
             while time.monotonic() < deadline:
                 sock.settimeout(max(.01, deadline - time.monotonic()))
                 try:
                     payload = unpack(sock.recv(65535))
                 except socket.timeout:
                     break
+                if not payload:
+                    raise ValueError('Empty RCON payload')
                 if payload[0] == 2 and len(payload) >= 2:
                     sock.send(packet(payload[:2]))
-                    if players_reply and b'players on server' in payload[2:].lower():
-                        return payload[2:]
+                    if players_reply:
+                        content=payload[2:]
+                        decoded=content.decode('utf-8',errors='replace')
+                        if b'players on server' in content.lower() or player_fragments and re.search(r'^\s*(?:Player\s*#?\s*|#\s*)?\d+\s*;',decoded,re.M|re.I):
+                            # Some versions send the header before the roster in separate messages.
+                            if payload not in player_messages:
+                                player_messages.add(payload);player_fragments.append(content)
+                            if len(player_fragments)>1024 or sum(map(len,player_fragments))>1024*1024:
+                                raise ValueError('RCON player response is too large')
+                            continue
                     if moderation_reply:
                         text=payload[2:].lower()
                         if b'processing command:' not in text and any(word in text for word in (b'ban',b'kick',b'error',b'denied',b'invalid')):
@@ -81,6 +105,9 @@ def query_command(host, port, password, command):
                     if (players_reply or moderation_reply) and (not content or b'processing command:' in content.lower()):
                         interim_response = content
                         continue
+                    if players_reply and empty_player_reply(content.decode('utf-8',errors='replace')):
+                        if not player_fragments:player_fragments.append(content)
+                        continue
                     return content
                 if len(content) < 3 or content[1] == 0 or content[2] >= content[1]:
                     raise ValueError('Invalid multipart RCON response')
@@ -90,6 +117,10 @@ def query_command(host, port, password, command):
                 chunks[content[2]] = content[3:]
                 if len(chunks) == total:
                     return b''.join(chunks[i] for i in range(total))
+            if total is not None and len(chunks)!=total:
+                raise TimeoutError('Incomplete multipart RCON response')
+            if player_fragments:
+                return b'\n'.join(player_fragments)
             if interim_response is not None:
                 return interim_response
             raise TimeoutError('RCON response timed out')

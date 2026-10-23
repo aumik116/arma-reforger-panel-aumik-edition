@@ -1,3 +1,14 @@
+/* Low-specificity defaults give every action a usable button, while component styles win. */
+:where(html[data-theme]) :where(button,input[type="button"],input[type="submit"],input[type="reset"],[role="button"]){
+  appearance:none;box-sizing:border-box;min-height:34px;padding:8px 12px;
+  border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);
+  font:500 12px/1.3 Barlow,system-ui,sans-serif;text-align:center;text-decoration:none;cursor:pointer;
+}
+:where(html[data-theme]) :where(button,input[type="button"],input[type="submit"],input[type="reset"],[role="button"]):where(:hover:not(:disabled):not([aria-disabled="true"])){border-color:var(--accent)}
+:where(html[data-theme]) :where(button,input[type="button"],input[type="submit"],input[type="reset"],[role="button"]):where(:focus-visible){outline:2px solid var(--accent);outline-offset:3px}
+html[data-theme] :where(button,input[type="button"],input[type="submit"],input[type="reset"],[role="button"]):is(:disabled,[aria-disabled="true"]){opacity:.5;cursor:not-allowed}
+html[data-theme] .btn-danger{border-color:var(--offline);color:var(--offline);background:var(--surface2)}
+html[data-theme] .btn-danger:hover:not(:disabled){border-color:var(--offline);box-shadow:inset 0 0 0 1px var(--offline)}
 /* FIELDHQ: one fixed workspace layout, with independent account color palettes. */
 :root[data-theme=slate]{color-scheme:dark;--bg:#0c1822;--surface:#122430;--surface2:#192e3b;--chrome:#0e1e2a;--border:#29404f;--accent:#13d5df;--accent2:#71edf0;--accent-soft:#123d49;--accent-border:#237486;--ram-color:#bc99f4;--cpu-color:#13d5df;--text:#cfdee8;--muted:#99afbf;--heading:#f4f8fb;--console-bg:#0a1620;--chart-grid:#243c4a;--online:#6ed78d;--offline:#ef6565;--warn:#efbb65}
 :root[data-theme=operations]{color-scheme:dark;--bg:#0b131b;--surface:#12212c;--surface2:#192e3a;--chrome:#0d1b25;--border:#293e4b;--accent:#22b8f3;--accent2:#8bdcff;--accent-soft:#12364b;--accent-border:#246b8d;--ram-color:#b097f4;--cpu-color:#22b8f3;--text:#cedce6;--muted:#9aafbf;--heading:#f2f7fb;--console-bg:#09131b;--chart-grid:#283b49;--online:#73d78c;--offline:#ee6767;--warn:#edbd6d}
@@ -185,8 +196,5 @@ html[data-theme] .fleet-control-toolbar .fleet-filters>label:not(.fleet-toolbar-
 html[data-theme] .fleet-control-toolbar .fleet-filters select{display:block;width:100%;min-width:0;max-width:100%;box-sizing:border-box}
 html[data-theme] .fleet-control-toolbar .fleet-toolbar-search{flex:1 1 200px;min-width:180px;gap:8px;overflow:hidden}
 html[data-theme] .fleet-control-toolbar .fleet-toolbar-search input[type=search]{flex:1 1 0;width:0;min-width:0;max-width:100%;padding:4px 0;background-image:none;border:0}
-html[data-theme] :is(#server-cleanup-dialog,#server-remove-dialog) button{padding:8px 12px;min-height:34px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);font:500 12px Barlow,system-ui,sans-serif;cursor:pointer}
-html[data-theme] :is(#server-cleanup-dialog,#server-remove-dialog) button:hover:not(:disabled){border-color:var(--accent)}
-html[data-theme] :is(#server-cleanup-dialog,#server-remove-dialog) button:disabled{opacity:.5;cursor:wait}
 html[data-theme] #server-remove-confirm{border-color:var(--offline);color:var(--offline)}
 @media(max-width:700px){html[data-theme] .fleet-control-toolbar .fleet-toolbar-search{flex-basis:100%;min-width:0}html[data-theme] .fleet-control-toolbar .fleet-filters>label:not(.fleet-toolbar-search){flex:1 1 120px}}

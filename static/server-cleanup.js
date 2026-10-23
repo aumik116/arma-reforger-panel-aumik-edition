@@ -48,7 +48,7 @@ async function loadServerCleanup(){
    const name=document.createElement('strong');name.textContent=folder.server_id;
    const path=document.createElement('code');path.textContent=folder.path;
    const contents=document.createElement('p');contents.className='feature-note';contents.textContent='Contains: '+folder.contents.join(', ');
-   const remove=document.createElement('button');remove.type='button';remove.textContent='Delete retained files';remove.onclick=()=>showServerRemoval({...folder,orphan:true});
+   const remove=document.createElement('button');remove.type='button';remove.className='btn-danger';remove.textContent='Delete retained files';remove.onclick=()=>showServerRemoval({...folder,orphan:true});
    row.append(name,path,contents,remove);list.append(row);
   }
  }catch(error){cleanupEl('server-cleanup-status').textContent=error.message;}

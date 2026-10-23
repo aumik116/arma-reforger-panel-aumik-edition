@@ -155,8 +155,7 @@
     </div>
 
 </div>
-<div class="dashboard-columns"><details class="dashboard-performance-details"><summary>More performance details <span>Network, storage &amp; simulation</span></summary><div class="dashboard-performance">  <div class="charts-row" id="extra-metrics"></div>
-  <div class="charts-row">
+  <section class="dashboard-network-metrics" aria-label="Live host network metrics">
     <div class="chart-card">
       <div class="chart-title">Network traffic — host interfaces</div>
       <div class="traffic-values"><span class="traffic-first">↓ Receive <strong id="net-rx">—</strong></span><span class="traffic-second">↑ Send <strong id="net-tx">—</strong></span></div>
@@ -164,8 +163,9 @@
       <div class="chart-wrap"><canvas id="chart-network" aria-label="Host network receive and send rates"></canvas></div>
     </div>
 
-  </div>
+  </section>
 
+<div class="dashboard-columns"><details class="dashboard-performance-details"><summary>More performance details <span>Storage &amp; simulation</span></summary><div class="dashboard-performance">  <div class="charts-row" id="extra-metrics"></div>
   <div class="card" id="storage-card">
     <div class="card-label">Server storage</div>
     <div id="disk-space-text" role="status">Waiting for storage sample…</div><details id="storage-details"><summary>Storage breakdown</summary><p class="feature-note">Decimal GB/MB. File sizes may differ from allocated disk space. Refresh after deleting or uploading files.</p><button type="button" class="config-button" id="storage-refresh">Refresh breakdown</button><p id="storage-status" class="feature-note" role="status"></p><div id="storage-breakdown"></div></details>

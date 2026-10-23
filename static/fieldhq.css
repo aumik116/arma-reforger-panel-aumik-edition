@@ -122,3 +122,8 @@ html[data-theme] .fleet-server-card .manager-actions .action-stop{background:#aa
 html[data-theme] .fleet-server-card .manager-actions .action-stop:hover{background:#92262b}
 :root[data-theme=fielddesk]{--button-text:#fff}
 html[data-theme] .fleet-heading-actions #overview-create{background:var(--accent);background-image:none;color:var(--button-text)}
+
+/* Network traffic is visible without opening performance details. */
+html[data-theme] .dashboard-network-metrics{margin:0 0 14px;min-width:0}
+html[data-theme] .dashboard-network-metrics .chart-card{padding:13px;margin:0}
+html[data-theme] .dashboard-network-metrics .chart-wrap{height:150px}

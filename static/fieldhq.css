@@ -1,11 +1,11 @@
 /* Low-specificity defaults give every action a usable button, while component styles win. */
-:where(html[data-theme]) :where(button,input[type="button"],input[type="submit"],input[type="reset"],[role="button"]){
+html:where([data-theme]) :where(button,input[type="button"],input[type="submit"],input[type="reset"],[role="button"]){
   appearance:none;box-sizing:border-box;min-height:34px;padding:8px 12px;
   border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text);
   font:500 12px/1.3 Barlow,system-ui,sans-serif;text-align:center;text-decoration:none;cursor:pointer;
 }
-:where(html[data-theme]) :where(button,input[type="button"],input[type="submit"],input[type="reset"],[role="button"]):where(:hover:not(:disabled):not([aria-disabled="true"])){border-color:var(--accent)}
-:where(html[data-theme]) :where(button,input[type="button"],input[type="submit"],input[type="reset"],[role="button"]):where(:focus-visible){outline:2px solid var(--accent);outline-offset:3px}
+html:where([data-theme]) :where(button,input[type="button"],input[type="submit"],input[type="reset"],[role="button"]):where(:hover:not(:disabled):not([aria-disabled="true"])){border-color:var(--accent)}
+html:where([data-theme]) :where(button,input[type="button"],input[type="submit"],input[type="reset"],[role="button"]):where(:focus-visible){outline:2px solid var(--accent);outline-offset:3px}
 html[data-theme] :where(button,input[type="button"],input[type="submit"],input[type="reset"],[role="button"]):is(:disabled,[aria-disabled="true"]){opacity:.5;cursor:not-allowed}
 html[data-theme] .btn-danger{border-color:var(--offline);color:var(--offline);background:var(--surface2)}
 html[data-theme] .btn-danger:hover:not(:disabled){border-color:var(--offline);box-shadow:inset 0 0 0 1px var(--offline)}
@@ -198,3 +198,5 @@ html[data-theme] .fleet-control-toolbar .fleet-toolbar-search{flex:1 1 200px;min
 html[data-theme] .fleet-control-toolbar .fleet-toolbar-search input[type=search]{flex:1 1 0;width:0;min-width:0;max-width:100%;padding:4px 0;background-image:none;border:0}
 html[data-theme] #server-remove-confirm{border-color:var(--offline);color:var(--offline)}
 @media(max-width:700px){html[data-theme] .fleet-control-toolbar .fleet-toolbar-search{flex-basis:100%;min-width:0}html[data-theme] .fleet-control-toolbar .fleet-filters>label:not(.fleet-toolbar-search){flex:1 1 120px}}
+
+html[data-theme] :is(#server-cleanup-dialog,#server-remove-dialog) .btn-logout{min-height:34px;padding:8px 12px;font:500 12px/1.3 Barlow,system-ui,sans-serif;background:var(--surface2);color:var(--text)}

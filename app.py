@@ -1524,6 +1524,11 @@ install_live_metrics(sys.modules[__name__])
 from mod_reuse import install as install_mod_reuse
 install_mod_reuse(sys.modules[__name__])
 
+from mod_staging import install as install_mod_staging
+install_mod_staging(sys.modules[__name__])
+from storage_usage import install_host
+install_host(sys.modules[__name__])
+
 if __name__ == "__main__":
     notifications.start()
     operator_tools.start()

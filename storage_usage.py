@@ -66,3 +66,57 @@ def install(api):
             for old in list(cache):
                 if len(cache)>128 and cache[old][1].done():cache.pop(old)
         return jsonify(ok=True,status='pending')
+
+
+def install_host(api):
+    import shutil
+    from flask import g
+    api.PANEL_WIDE_ENDPOINTS.add('host_storage')
+    pool=ThreadPoolExecutor(max_workers=1,thread_name_prefix='host-storage')
+    job=None;started=0;lock=threading.Lock()
+    legacy=None if api.manager_mode else [('legacy-game','Existing server · game',str(api.SERVER_DIR)),('legacy-mods','Existing server · mods',str(api.WORKSHOP_DIR)),('legacy-profile','Existing server · profile',str(api.PROFILE_DIR)),('legacy-logs','Existing server · logs',str(api.LOG_DIR))]
+
+    def measure():
+        paths=list(legacy or [])
+        for server in api.server_registry.list():
+            paths.extend((server.id+'-'+key,server.name+' · '+key,str(path)) for key,path in server.paths.items())
+        from server_provisioning import retained_server_folder
+        root=api.server_registry.root
+        candidates=list(root.iterdir()) if root.exists() else []
+        archive=root/'.removed'
+        if archive.is_dir() and not archive.is_symlink():candidates+=list(archive.iterdir())
+        for folder in candidates:
+            try:
+                retained,identity=retained_server_folder(api.server_registry,folder.relative_to(root).as_posix())
+                paths.append(('retained-'+folder.name,'Retained · '+identity,str(retained)))
+            except (ValueError,OSError):continue
+        unique={}
+        for key,label,path in paths:
+            absolute=os.path.abspath(path)
+            if absolute in unique:
+                previous=unique[absolute]
+                unique[absolute]=(previous[0],previous[1]+' / '+label,absolute)
+            else:unique[absolute]=(key,label,absolute)
+        paths=list(unique.values())
+        result=scan_storage(paths,seconds=30,max_entries=500000)
+        disks={}
+        for _,_,path in paths+ [('panel','Panel data',str(Path(api.server_registry.database).parent))]:
+            location=Path(path)
+            while not location.exists() and location!=location.parent:location=location.parent
+            if location.is_symlink():continue
+            info=location.stat();usage=shutil.disk_usage(location)
+            disks.setdefault(info.st_dev,dict(path=str(location),total=usage.total,used=usage.used,free=usage.free))
+        result['filesystems']=list(disks.values())
+        return result
+
+    @api.app.get('/api/host/storage')
+    def host_storage():
+        nonlocal job,started
+        if 'users' not in g.panel_permissions:return jsonify(ok=False,error='Panel administrator access required'),403
+        with lock:
+            if job and not job.done():return jsonify(ok=True,status='pending')
+            if job and request.args.get('refresh')!='1' and time.monotonic()-started<600:
+                try:return jsonify(ok=True,**job.result())
+                except Exception:return jsonify(ok=False,error='Host storage scan failed. Refresh to try again.'),503
+            started=time.monotonic();job=pool.submit(measure)
+        return jsonify(ok=True,status='pending')

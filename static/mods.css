@@ -142,3 +142,5 @@
 html[data-theme] .mods-grid.mods-details-view .mod-tile{padding-left:38px}.mods-remove-list{max-height:220px;overflow:auto;padding:8px 24px;overflow-wrap:anywhere}.mods-removal-options{border:1px solid var(--border);padding:12px;margin:12px 0}.mods-removal-options label{display:block;padding:10px 0}.mods-removal-options small{display:block;margin:5px 0 0 24px;color:var(--muted);line-height:1.5}.mods-remove-footer{display:flex;justify-content:flex-end;gap:10px;margin-top:16px}#mods-remove-error:not(:empty){padding:12px;color:var(--offline)}
 
 #mods-remove-dialog input[type="radio"],#mods-remove-dialog input[type="checkbox"]{width:16px;height:16px;accent-color:var(--accent)}
+
+.mod-draft-row {display:grid;grid-template-columns: minmax(120px,1fr) minmax(120px,2fr) minmax(100px,1fr) auto;gap:8px;margin:8px 0}.mod-draft-row input{min-width:0;width:100%}@media(max-width:650px){.mod-draft-row{grid-template-columns:1fr 1fr}}

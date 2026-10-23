@@ -163,3 +163,26 @@ Based on Mateusz Gołębiewski's original panel, including upstream contribution
 Adding or changing mods on a stopped server automatically looks for compatible downloads on other servers you can access and copies missing files locally. On a running server, reuse waits until the next start/restart. Imports, presets, config edits and first launch use the same mechanism; no extra checkbox or popup is needed. Known dependencies are included. Pinned mods require the matching local version; unpinned mods use the newest detected local version and Reforger handles any further updates/downloads. Existing destination downloads are never replaced.
 
 Copies use Linux reflinks (copy-on-write, independent files) where supported, with ordinary local copies as fallback. No hardlinks or shared writable Workshop folder are used. Sources can remain running; busy, incomplete, linked or changing downloads are skipped. Missing/unsuitable copies fall back to Reforger’s normal downloader. A host-wide `mod_download_index` table in the existing panel database records mod IDs, versions and locations. The index is refreshed as servers are checked, and source metadata/files are checked again before publishing each copy. Server removal clears that server’s index entry. Per-server `.mod-reuse.json` records copy results for diagnostics.
+
+### Mod drafts and host storage
+
+On **Mods → Review queue**, build and save a separate list of mod IDs, names,
+and optional version pins. Review additions, removals, and edits before applying.
+The active configuration remains unchanged until **Apply saved draft** is used
+while the server is stopped. Applying uses the normal configuration backup and
+local mod reuse flow. Start the server afterward when ready. Other mod controls
+still edit the active list directly; drafts reject application if that list changed.
+Discarding a draft never deletes downloaded files.
+
+Panel administrators can open **All servers → Host storage** for a background
+measurement of server installations, mods, logs, profiles, backups and recognized
+retained server folders. Measurements are cached for ten minutes and bounded to
+30 seconds / 500,000 filesystem entries; partial results are labeled. Category
+sizes are logical bytes, not unique allocated disk blocks: reflinks can share
+physical space. Filesystem usage/free space includes other files on the host.
+
+Workshop cards offer **Add now** (the existing preview/save flow) and **Add to queue**.
+Queueing includes known dependencies and leaves the active configuration untouched.
+Review queue lists additions with available Workshop size estimates, totals them
+once per mod, and flags unknown sizes. Estimates exclude temporary download space
+and are not a measurement of physical disk use or network traffic.

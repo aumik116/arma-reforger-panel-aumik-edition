@@ -442,7 +442,7 @@
 </div>
     <div id="section-mods-workshop" role="tabpanel" aria-labelledby="section-tab-mods-workshop" data-section-content="mods" hidden>
 <p class="feature-note">Browse the official Workshop. Restart the server after saving mod changes.</p>
-<form id="workshop-search-form" class="workshop-toolbar"><input id="workshop-search" aria-label="Search Workshop" maxlength="120" placeholder="Search Workshop mods"><select id="workshop-sort" aria-label="Sort Workshop"><option value="popularity">Popular</option><option value="newest">Newest</option><option value="subscribers">Most subscribed</option><option value="version_size">Largest</option></select><button>Search</button></form>
+<form id="workshop-search-form" class="workshop-toolbar"><input id="workshop-search" aria-label="Search Workshop" maxlength="120" placeholder="Search Workshop mods"><select id="workshop-sort" aria-label="Sort Workshop"><option value="popularity">Popular</option><option value="newest">Newest</option><option value="subscribers">Most subscribed</option><option value="version_size">Largest</option></select><button>Search</button><button type="button" class="btn-logout" id="workshop-queue-open" data-permission="mods">Review queue</button></form>
 <div id="workshop-categories" class="workshop-toolbar"></div><p id="workshop-status" role="status"></p><div id="workshop-grid" class="workshop-grid"></div><div class="workshop-toolbar"><button id="workshop-previous" type="button">Previous</button><span id="workshop-page"></span><button id="workshop-next" type="button">Next</button></div></div>
 <dialog id="workshop-detail" class="mods-dialog workshop-dialog" aria-labelledby="workshop-title"><button type="button" class="workshop-close" aria-label="Close Workshop details" onclick="this.closest('dialog').close()">Close</button><div id="workshop-detail-content"></div><p id="workshop-detail-status" role="status"></p><div id="workshop-preview"></div></dialog>
     <div id="section-mods-installed" role="tabpanel" aria-labelledby="section-tab-mods-installed" data-section-content="mods">
@@ -464,7 +464,7 @@
         </div></details>
         <div class="mods-actions"><details class="action-menu"><summary>Actions</summary><div><button onclick="exportModLibrary()">Export JSON</button>
     <button onclick="copyModLibrary()">Copy list</button>
-    <button data-permission="mods" onclick="openModDialog('import')">Import mods</button></div></details><button class="mod-primary" data-permission="mods" onclick="openModDialog('add')"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg>Add mod</button></div>
+    <button data-permission="mods" onclick="openModDialog('import')">Import mods</button></div></details><button type="button" class="btn-logout" id="mod-draft-open" data-permission="mods">Review queue</button><button class="mod-primary" data-permission="mods" onclick="openModDialog('add')"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#plus"></use></svg>Add mod</button></div>
       </div>
       <div class="mods-bulk-toolbar" data-permission="mods"><label><input type="checkbox" id="mods-select-all"> Select all filtered mods</label><span id="mods-selected-count" role="status">0 selected</span><button type="button" id="mods-selection-clear">Clear selection</button><button type="button" id="mods-remove-selected" disabled>Remove selected</button></div>
       <p id="mods-sort-note" class="feature-note" role="status"></p><p id="mods-reorder-help" class="feature-note" hidden>Use the arrows to move a mod in the configured load order. Each move is saved immediately.</p>
@@ -681,7 +681,7 @@
 <script src="/static/user-editor.js"></script>
 <script src="/static/features.js"></script>
 <script src="/static/notifications.js"></script>
-<script src="/static/workshop.js"></script>
+<script src="/static/workshop.js?v=mod-queue-1"></script>
 <script src="/static/console.js"></script>
 <script src="/static/configuration.js"></script>
 <script src="/static/config_backups.js"></script>
@@ -698,5 +698,5 @@
 <script src="/static/bootstrap.js"></script>
 <script src="/static/pwa.js"></script>
 
-</body>
+<script src="/static/mod-staging.js"></script></body>
 </html>

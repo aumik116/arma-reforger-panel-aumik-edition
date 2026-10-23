@@ -16,7 +16,7 @@ async function loadWorkshop(reset=false){
     for(const asset of data.items){
       const card=workshopNode('article',undefined,'workshop-card');const detail=workshopButton('',()=>openWorkshopDetails(asset.modId));detail.className='workshop-card-open';detail.append(workshopImage(asset),workshopNode('h3',asset.name),workshopNode('p','by '+asset.author));
       const installed=modLibrary.mods.find(m=>m.modId.toUpperCase()===asset.modId);
-      detail.append(workshopNode('p',`${installed?'On server · ':''}${workshopSize(asset.size)} · v${asset.version}`),workshopNode('p',`${(asset.subscribers??0).toLocaleString()} subscribers · ${typeof asset.rating==='number'?Math.round(asset.rating*100)+'% rating':'Unrated'}`));card.append(detail);grid.append(card);
+      detail.append(workshopNode('p',`${installed?'On server · ':''}${workshopSize(asset.size)} · v${asset.version}`),workshopNode('p',`${(asset.subscribers??0).toLocaleString()} subscribers · ${typeof asset.rating==='number'?Math.round(asset.rating*100)+'% rating':'Unrated'}`));card.append(detail);const actions=workshopNode('div',undefined,'workshop-toolbar');actions.append(workshopButton(installed?'Set to latest':'Add now',async()=>{await openWorkshopDetails(asset.modId);await previewWorkshop(asset,'add','',true);},true),workshopButton('Add to queue',()=>queueWorkshopMod(asset.modId),true));card.append(actions);grid.append(card);
     }
     status.textContent=`${data.count.toLocaleString()} mods${data.items.length?'':' · No matches'}`;
     modEl('workshop-page').textContent=`Page ${data.page}`;
@@ -32,7 +32,8 @@ async function openWorkshopDetails(id){
     const tags=workshopNode('div',undefined,'workshop-toolbar');for(const tag of asset.tags)tags.append(workshopNode('span',tag,'workshop-tag'));body.append(tags);
     const configured=modLibrary.mods.find(m=>m.modId.toUpperCase()===id.toUpperCase());body.append(workshopNode('p',configured?`On server · ${configured.version?'Pinned v'+configured.version:'Tracks latest'}`:'Not on this server'));
     const actions=workshopNode('div',undefined,'workshop-toolbar');
-    actions.append(workshopButton(configured?'Set to latest':'Add to server',()=>previewWorkshop(asset,'add','',false),true));
+    actions.append(workshopButton(configured?'Set to latest':'Add now',()=>previewWorkshop(asset,'add','',false),true));
+    actions.append(workshopButton('Add to queue',()=>queueWorkshopMod(asset.modId),true));
     if(asset.dependencies.length)actions.append(workshopButton('Add with dependencies',()=>previewWorkshop(asset,'add','',true),true));
     if(configured){actions.append(workshopButton('Remove from server',()=>previewWorkshop(asset,'remove'),true));actions.append(workshopButton('Edit fields',()=>{dialog.close();openModDetails(configured);},true));}
     const link=workshopNode('a','View on Workshop');link.href='https://reforger.armaplatform.com/workshop/'+asset.modId;link.target='_blank';link.rel='noopener noreferrer';actions.append(link);body.append(actions);
@@ -77,3 +78,10 @@ modEl('workshop-search-form').onsubmit=event=>{event.preventDefault();loadWorksh
 modEl('workshop-sort').onchange=()=>loadWorkshop(true);
 modEl('workshop-previous').onclick=()=>{workshopState.page--;loadWorkshop();};modEl('workshop-next').onclick=()=>{workshopState.page++;loadWorkshop();};
 for(const category of ['',...'TERRAINS WEAPONS VEHICLES STRUCTURES CHARACTERS ANIMALS VEGETATION PROPS COMPOSITIONS SCENARIOS_SP SCENARIOS_MP SYSTEMS EFFECTS MISC'.split(' ')]){const button=workshopButton(category||'All',()=>{workshopState.category=category;for(const sibling of button.parentElement.children)sibling.setAttribute('aria-pressed',String(sibling===button));loadWorkshop(true);});button.setAttribute('aria-pressed',String(!category));modEl('workshop-categories').append(button);}
+
+async function queueWorkshopMod(modId){
+  const status=modEl('workshop-detail').open?modEl('workshop-detail-status'):modEl('workshop-status');
+  status.textContent='Adding mod and dependencies to queue…';
+  try{await readJson(await postJson('/api/mods/draft/queue',{modId}));status.textContent='Added to queue with known dependencies. Open Review queue to review changes and size estimates.';}
+  catch(error){status.textContent=error.message;}
+}

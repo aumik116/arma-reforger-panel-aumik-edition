@@ -3,9 +3,9 @@
   const el=id=>document.getElementById(id), esc=escHtml;
   let listing, detail, unitId, dialogSave, baseline='', loading=false, dialogSaving=false;
   let rosterView='',rosterUnit=null,activeTab='roster';
-  const areas={overview:['dashboard','analytics'],people:['roster','qualifications','promotions','awards'],operations:['events','attendance','campaigns','servers'],resources:['references','catalog'],administration:['structure','staff']};
+  const areas={overview:['dashboard','analytics'],people:['roster','qualifications','promotions','awards'],operations:['events','attendance','campaigns','servers'],resources:['references','catalog'],administration:['structure','staff','customization']};
   const areaNames={overview:'Overview',people:'Roster',operations:'Operations',resources:'Resources',administration:'Administration'};
-  const pageNotes={dashboard:'Staffing, upcoming operations and work awaiting review.',analytics:'Recorded strength, retention and finalized attendance trends.',roster:'Members, primary billets and individual records.',qualifications:'Who holds each qualification, and where coverage is missing.',promotions:'Review readiness and approve promotions manually.',awards:'Medals, citations and issue history.',events:'Schedule operations and review event evidence.',attendance:'Monthly attendance decisions and exports.',campaigns:'Group operations and review campaign participation.',servers:'Basic health for this unit’s linked servers. Server control access is separate.',references:'Unit SOPs and role-specific kit references.',catalog:'Configure rank paths, qualification names and position suggestions.',structure:'Manage roster groups, sections and billet slots.',staff:'Create or assign staff logins and unit permissions.'};
+  const pageNotes={customization:'Upload your unit’s icon and banner, and set its description.',dashboard:'Staffing, upcoming operations and work awaiting review.',analytics:'Recorded strength, retention and finalized attendance trends.',roster:'Members, primary billets and individual records.',qualifications:'Who holds each qualification, and where coverage is missing.',promotions:'Review readiness and approve promotions manually.',awards:'Medals, citations and issue history.',events:'Schedule operations and review event evidence.',attendance:'Monthly attendance decisions and exports.',campaigns:'Group operations and review campaign participation.',servers:'Basic health for this unit’s linked servers. Server control access is separate.',references:'Unit SOPs and role-specific kit references.',catalog:'Configure rank paths, qualification names and position suggestions.',structure:'Manage roster groups, sections and billet slots.',staff:'Create or assign staff logins and unit permissions.'};
   const areaPages={};
 
   const dialog=el('unit-dialog'), form=el('unit-form');
@@ -48,7 +48,7 @@
       for(const unit of listing.units){const option=document.createElement('option');option.value=unit.id;option.textContent=unit.name;el('unit-select').append(option);}
       unitId=listing.units.some(u=>u.id===Number(preferred))?Number(preferred):listing.units[0]?.id;
       el('unit-workspace').hidden=!unitId;el('unit-select').disabled=!unitId;
-      if(!unitId){el('unit-page-title').textContent='Units & rosters';el('unit-page-subtitle').textContent='Choose a unit to manage its people and operations.';el('unit-access-description').hidden=true;feedback(listing.panel_admin?'Create your first unit to start building its roster.':'No units assigned. Ask a panel administrator or unit administrator to add your account.');return;}
+      if(!unitId){brandDirty=false;el('unit-brand-header').style.backgroundImage='';el('unit-brand-header').classList.remove('has-banner');el('unit-brand-icon').hidden=true;el('unit-page-title').textContent='Units & rosters';el('unit-page-subtitle').textContent='Choose a unit to manage its people and operations.';el('unit-access-description').hidden=true;feedback(listing.panel_admin?'Create your first unit to start building its roster.':'No units assigned. Ask a panel administrator or unit administrator to add your account.');return;}
       el('unit-select').value=unitId;await loadUnit();
     }catch(error){feedback(error.message);el('unit-workspace').hidden=true;}
     finally{loading=false;}
@@ -68,9 +68,9 @@
       el('unit-settings').hidden=!detail.can_settings;el('roster-add').hidden=!detail.can_edit;
       el('catalog-edit').hidden=!detail.can_staff;el('position-rename').hidden=!detail.can_staff;el('unit-tab-staff').hidden=!detail.can_staff;
       el('unit-tab-structure').hidden=!detail.can_staff;el('roster-structure').hidden=!detail.can_staff;
-      for(const key of ['staff','structure'])el('unit-tab-'+key).dataset.restricted=String(!detail.can_staff);
+      for(const key of ['staff','structure','customization'])el('unit-tab-'+key).dataset.restricted=String(!detail.can_staff);
       el('roster-export').href='/api/units/'+unitId+'/roster.csv';
-      el('unit-page-title').textContent=detail.unit.name;el('unit-page-subtitle').textContent='Unit workspace · people, operations and resources';
+      el('unit-page-title').textContent=detail.unit.name;applyBranding();
       selectTab(new URLSearchParams(location.search).get('tab')||activeTab,false);feedback('');
       document.dispatchEvent(new CustomEvent('unit-loaded',{detail:{unitId,detail,listing}}));
       const params=new URLSearchParams(location.search);params.set('unit',unitId);history.replaceState(null,'','/units?'+params);
@@ -387,6 +387,8 @@
     }catch(error){el('unit-server-list').textContent=error.message;}
   }
   function selectTab(key,notify=true){
+    if(notify&&activeTab==='customization'&&key!==activeTab&&brandDirty&&!confirm('Discard unsaved branding changes?'))return;
+    if(notify&&activeTab==='customization'&&key!==activeTab)applyBranding();
     const target=el('unit-tab-'+key);
     if(!target||target.dataset.restricted==='true')key='roster';
     activeTab=key;
@@ -412,9 +414,37 @@
   el('position-rename').onclick=()=>openDialog('Rename position',`<label class="unit-field">Existing position<select name="old">${options(detail.unit.catalog.positions||[],'','Choose position')}</select></label>${field('New name','name')}<p class="feature-note">Updates this unit’s current and former roster assignments together.</p>`,async()=>{const data=values();await write(`/api/units/${unitId}/positions/rename`,{...data,revision:detail.unit.revision});});
   el('roster-structure').onclick=()=>selectTab('structure');
   el('structure-add-group').onclick=()=>structureEditor('group');
+  let brandDirty=false;
+  const brandForm=el('unit-brand-form'),previewURLs={};
+  function applyBranding(){
+    brandDirty=false;
+    const brand=detail.unit.branding||{},url=kind=>`/api/units/${unitId}/branding/${kind}?v=${detail.unit.revision}`;
+    const header=el('unit-brand-header'),icon=el('unit-brand-icon');
+    header.classList.toggle('has-banner',!!brand.banner);
+    header.style.backgroundImage=brand.banner?`linear-gradient(90deg,rgba(0,0,0,.82),rgba(0,0,0,.55)),url("${url('banner')}")`:'';
+    icon.hidden=!brand.icon;if(brand.icon)icon.src=url('icon');else icon.removeAttribute('src');
+    el('unit-page-subtitle').textContent=brand.description||'Unit workspace · people, operations and resources';
+    brandForm.reset();brandForm.elements.description.value=brand.description||'';el('unit-brand-error').textContent='';
+    for(const kind of ['icon','banner']){if(previewURLs[kind])URL.revokeObjectURL(previewURLs[kind]);delete previewURLs[kind];const img=el('unit-'+kind+'-preview');img.hidden=!brand[kind];if(brand[kind])img.src=url(kind);else img.removeAttribute('src');}
+  }
+  brandForm.oninput=()=>{brandDirty=true;};
+  for(const kind of ['icon','banner'])brandForm.elements[kind].onchange=()=>{
+    const file=brandForm.elements[kind].files[0],img=el('unit-'+kind+'-preview');
+    if(!file)return;
+    if(file.size>4*1024*1024||!['image/png','image/jpeg','image/webp'].includes(file.type)){el('unit-brand-error').textContent='Choose a PNG, JPEG or WebP image up to 4 MB.';brandForm.elements[kind].value='';return;}
+    if(previewURLs[kind])URL.revokeObjectURL(previewURLs[kind]);previewURLs[kind]=URL.createObjectURL(file);img.src=previewURLs[kind];img.hidden=false;brandForm.elements['remove_'+kind].checked=false;el('unit-brand-error').textContent='';brandDirty=true;
+  };
+  el('unit-brand-reset').onclick=()=>{if(!brandDirty||confirm('Discard unsaved branding changes?'))applyBranding();};
+  brandForm.onsubmit=async event=>{
+    event.preventDefault();const button=brandForm.querySelector('[type="submit"]');if(button.disabled)return;button.disabled=true;
+    try{const data=new FormData(brandForm);data.set('revision',detail.unit.revision);await readJson(await postForm(`/api/units/${unitId}/branding`,data));brandDirty=false;await loadListing(unitId);feedback('Unit branding saved.');}
+    catch(error){el('unit-brand-error').textContent=error.message;}
+    finally{button.disabled=false;}
+  };
+  window.addEventListener('beforeunload',event=>{if(brandDirty){event.preventDefault();event.returnValue='';}});
   el('unit-new').onclick=()=>unitSettings(true);el('unit-settings').onclick=()=>unitSettings();el('roster-add').onclick=()=>memberEditor();el('catalog-edit').onclick=catalogEditor;el('staff-add').onclick=()=>staffEditor();
   for(const id of ['roster-search','roster-status','roster-sort'])el(id).addEventListener(id==='roster-search'?'input':'change',renderRoster);
-  el('unit-select').onchange=()=>{unitId=Number(el('unit-select').value);loadUnit();};el('unit-refresh').onclick=()=>loadListing();
+  el('unit-select').onchange=()=>{if(brandDirty&&!confirm('Discard unsaved branding changes?')){el('unit-select').value=unitId;return;}unitId=Number(el('unit-select').value);loadUnit();};el('unit-refresh').onclick=()=>{if(!brandDirty||confirm('Discard unsaved branding changes?'))loadListing();};
   el('unit-users').onclick=async()=>{el('panel-users').hidden=!el('panel-users').hidden;if(!el('panel-users').hidden){await loadUsers();el('panel-users').scrollIntoView();}};
   el('users-new').onclick=()=>openUserEditor();
   read('/api/me').then(account=>{window.unitAccount=account;return loadListing(Number(new URLSearchParams(location.search).get('unit')));}).then(async()=>{if(listing?.panel_admin&&new URLSearchParams(location.search).has('users')){el('panel-users').hidden=false;await loadUsers();}}).catch(error=>feedback(error.message));

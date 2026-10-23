@@ -8,7 +8,7 @@ import re
 import sqlite3
 import time
 
-from flask import abort, g, jsonify, request, send_from_directory
+from flask import abort, g, jsonify, request, send_file, send_from_directory
 
 UUID = re.compile(r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}')
 CAPABILITIES = ('roster', 'events', 'attendance', 'references', 'awards', 'campaigns', 'staff')
@@ -75,6 +75,9 @@ def install(api):
             CREATE TABLE IF NOT EXISTS units (
                 id INTEGER PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE,
                 tag TEXT NOT NULL DEFAULT '', revision INTEGER NOT NULL DEFAULT 1);
+            CREATE TABLE IF NOT EXISTS unit_branding (
+                unit_id INTEGER PRIMARY KEY, description TEXT NOT NULL DEFAULT '',
+                icon BLOB, icon_type TEXT, banner BLOB, banner_type TEXT);
             CREATE TABLE IF NOT EXISTS unit_servers (
                 unit_id INTEGER NOT NULL, server_id TEXT NOT NULL,
                 PRIMARY KEY(unit_id,server_id));
@@ -205,15 +208,17 @@ def install(api):
     api.protect_unit_account = protect_account
 
     endpoints = {'units_list','units_save','unit_detail','unit_roster_save','unit_staff_save',
-                 'unit_identities','unit_roster_export','unit_health','units_page','unit_catalog_save','unit_position_rename','unit_member_record','unit_member_note_save','unit_roster_delete','unit_structure_save','unit_structure_delete','unit_structure_order','unit_primary_assign'}
+                 'unit_identities','unit_roster_export','unit_health','units_page','unit_catalog_save','unit_position_rename','unit_member_record','unit_member_note_save','unit_roster_delete','unit_structure_save','unit_structure_delete','unit_structure_order','unit_primary_assign','unit_branding_save','unit_branding_image'}
     api.PANEL_WIDE_ENDPOINTS.update(endpoints)
     from panel_features import MUTATIONS
     MUTATIONS['unit_staff_save']='view'
+    MUTATIONS['unit_branding_save']='view'
 
     @api.app.errorhandler(400)
     @api.app.errorhandler(403)
     @api.app.errorhandler(404)
     @api.app.errorhandler(409)
+    @api.app.errorhandler(413)
     def unit_error(error):
         if request.endpoint in endpoints or request.endpoint=='users_save':
             return jsonify(ok=False,error=error.description),error.code
@@ -529,6 +534,60 @@ def install(api):
         except ValueError as exc:
             return jsonify(ok=False,error=str(exc)),400
 
+    def branding(conn, unit_id):
+        row = conn.execute('SELECT description,icon IS NOT NULL AS icon,banner IS NOT NULL AS banner FROM unit_branding WHERE unit_id=?',(unit_id,)).fetchone()
+        return dict(row) if row else dict(description='',icon=False,banner=False)
+
+    @api.app.get('/api/units/<int:unit_id>/branding/<kind>')
+    def unit_branding_image(unit_id, kind):
+        if kind not in ('icon','banner'):
+            abort(404)
+        with db() as conn:
+            access(conn,unit_id)
+            row = conn.execute(f'SELECT {kind}, {kind}_type FROM unit_branding WHERE unit_id=?',(unit_id,)).fetchone()
+            if not row or not row[kind]:
+                abort(404,description='No image uploaded')
+        response = send_file(io.BytesIO(row[kind]),mimetype=row[kind+'_type'],max_age=0)
+        response.headers['Cache-Control']='private, no-store'
+        response.headers['X-Content-Type-Options']='nosniff'
+        return response
+
+    @api.app.post('/api/units/<int:unit_id>/branding')
+    def unit_branding_save(unit_id):
+        try:
+            with db() as conn:
+                conn.execute('BEGIN IMMEDIATE')
+                access(conn,unit_id,'staff')
+                try:
+                    version=int(request.form.get('revision',''))
+                except ValueError:
+                    raise ValueError('Reload the unit before saving')
+                revision(conn,unit_id,dict(revision=version))
+                description=text(request.form.get('description',''),'Description',160)
+                images={}
+                for kind in ('icon','banner'):
+                    upload=request.files.get(kind)
+                    if upload and upload.filename:
+                        data=upload.stream.read(4*1024*1024+1)
+                        if len(data)>4*1024*1024:
+                            raise ValueError('Each image must be 4 MB or smaller')
+                        mime=('image/png' if data.startswith(b'\x89PNG\r\n\x1a\n') else
+                              'image/jpeg' if data.startswith(b'\xff\xd8\xff') else
+                              'image/webp' if data[:4]==b'RIFF' and data[8:12]==b'WEBP' else None)
+                        if not mime:
+                            raise ValueError('Upload PNG, JPEG or WebP images')
+                        images[kind]=(data,mime)
+                    elif request.form.get('remove_'+kind)=='on':
+                        images[kind]=(None,None)
+                conn.execute('INSERT OR IGNORE INTO unit_branding(unit_id) VALUES(?)',(unit_id,))
+                conn.execute('UPDATE unit_branding SET description=? WHERE unit_id=?',(description,unit_id))
+                for kind,(data,mime) in images.items():
+                    conn.execute(f'UPDATE unit_branding SET {kind}=?,{kind}_type=? WHERE unit_id=?',(data,mime,unit_id))
+            g.audit_details=dict(unit_id=unit_id,branding=list(images),description_changed=True)
+            return jsonify(ok=True)
+        except ValueError as exc:
+            return jsonify(ok=False,error=str(exc)),400
+
     @api.app.get('/api/units/<int:unit_id>')
     def unit_detail(unit_id):
         with db() as conn:
@@ -540,10 +599,11 @@ def install(api):
             decorate_slots(conn,unit_id,roster,structure)
             for member in roster:
                 member['promotion']=promotion(member,catalog)
+            unit_brand=branding(conn,unit_id)
             admin = panel_admin() or membership['role']=='admin'
             accounts = [dict(r) for r in conn.execute('SELECT id,username,enabled FROM users ORDER BY username')] if panel_admin() else [dict(r) for r in conn.execute('SELECT u.id,u.username,u.enabled FROM users u JOIN unit_staff s ON s.user_id=u.id WHERE s.unit_id=? ORDER BY u.username',(unit_id,))]
             staff = [dict(r,capabilities=json.loads(r['capabilities'])) for r in conn.execute('SELECT s.*,u.username,u.enabled FROM unit_staff s JOIN users u ON u.id=s.user_id WHERE unit_id=? ORDER BY username',(unit_id,))] if admin else []
-        return jsonify(unit=dict(unit,catalog=catalog),structure=structure,roster=roster,staff=staff,can_edit=admin or 'roster' in json.loads(membership['capabilities']),can_staff=admin,can_delete=admin,accounts=accounts,can_settings=panel_admin())
+        return jsonify(unit=dict(unit,catalog=catalog,branding=unit_brand),structure=structure,roster=roster,staff=staff,can_edit=admin or 'roster' in json.loads(membership['capabilities']),can_staff=admin,can_delete=admin,accounts=accounts,can_settings=panel_admin())
 
     def find_member(conn, unit_id, member_id):
         member=conn.execute('SELECT r.*,u.username AS panel_username,u.enabled AS panel_user_enabled FROM unit_roster r LEFT JOIN users u ON u.id=r.panel_user_id WHERE r.unit_id=? AND r.id=?',(unit_id,member_id)).fetchone()

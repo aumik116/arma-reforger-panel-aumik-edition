@@ -27,6 +27,8 @@ Additional servers can start from defaults or copy a managed server's settings a
 
 ## Units and rosters
 
+Unit administrators can use **Administration → Customization** to upload an icon and page banner, or set a short description. Images are private to authorized unit staff, stored in the panel database (include that database in your backups). PNG, JPEG and WebP images up to 4 MB each are supported; uploads can be previewed, replaced or removed. Personal color themes remain independent.
+
 The unit workspace groups pages under **Overview**, **Roster**, **Operations**, **Resources** and **Administration**. Administration appears only when you have permission. The selected unit and page stay in the URL for reloads and bookmarks. Each page loads its data when opened; long tables scroll sideways on smaller screens.
 
 Open **Units & rosters** from the navigation. Panel administrators create units, link servers and create staff accounts. Use **Staff access → Add staff** inside a unit to create a login and assign its permissions in one popup (panel administrators), or assign an existing account (unit administrators). An optional roster link sets their name for unit notes and history. New logins have no server access. Unit administrators manage their own staff and rosters. Other staff see only their assigned units; hosting roles remain separate.

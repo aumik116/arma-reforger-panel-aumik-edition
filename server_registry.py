@@ -251,4 +251,6 @@ class ServerRegistry:
                 conn.execute('DELETE FROM server_launch_options WHERE server_id=?',(server_id,))
             conn.execute('DELETE FROM server_startup WHERE server_id=?', (server_id,))
             conn.execute('DELETE FROM server_ports WHERE server_id=?', (server_id,))
+            if conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='mod_download_index'").fetchone():
+                conn.execute('DELETE FROM mod_download_index WHERE server_id=?',(server_id,))
             conn.execute('DELETE FROM server_instances WHERE id=?', (server_id,))

@@ -1442,6 +1442,10 @@ def stop_server():
 
 
 def start_server():
+    from mod_reuse import remember_actor, report as mod_reuse_report
+    actor=getattr(g,'mod_reuse_actor',None) or (getattr(g,'user',None) or {}).get('id')
+    remember_actor(_STATE_DIR,actor)
+    requested=time.time()
     service_command("start")
     instance = selected_instance()
     service = instance.service_name if instance else 'arma-server.service'
@@ -1449,7 +1453,11 @@ def start_server():
     # health, not a claim that mods have loaded or players can connect yet.
     pid = get_server_pid()
     deadline = time.monotonic() + 10
+    copy_deadline=time.monotonic()+900
     while not pid and time.monotonic() < deadline:
+        reuse=mod_reuse_report(_STATE_DIR)
+        if reuse.get('state')=='running' and reuse.get('started',0)>=requested-1:
+            deadline=min(copy_deadline,time.monotonic()+10)
         time.sleep(0.25)
         pid = get_server_pid()
     if not pid:
@@ -1496,6 +1504,11 @@ install_notifications(sys.modules[__name__])
 from storage_usage import install as install_storage
 install_storage(sys.modules[__name__])
 
+@app.get('/api/mods/reuse-status')
+def mods_reuse_status():
+    from mod_reuse import report
+    return jsonify(ok=True,**report(_STATE_DIR))
+
 from mod_inventory import install as install_mod_inventory
 install_mod_inventory(sys.modules[__name__])
 
@@ -1507,6 +1520,9 @@ install_units(sys.modules[__name__])
 
 from live_metrics import install as install_live_metrics
 install_live_metrics(sys.modules[__name__])
+
+from mod_reuse import install as install_mod_reuse
+install_mod_reuse(sys.modules[__name__])
 
 if __name__ == "__main__":
     notifications.start()

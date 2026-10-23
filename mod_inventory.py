@@ -59,7 +59,7 @@ def dependency_ids(nodes):
     return sorted(result)
 
 
-def scan_downloads(root):
+def scan_downloads(root, measure_sizes=True):
     root = Path(root).absolute()
     if root.resolve() != root:
         raise ValueError('Workshop directory redirects through a link; inventory is unavailable.')
@@ -106,6 +106,8 @@ def scan_downloads(root):
                             partial = True
         except OSError:
             partial = True
+    if not measure_sizes:
+        return dict(mods=rows,partial=partial,checked=time.time(),message='')
     sizes = scan_storage([(str(i), row['name'], root / row['path']) for i,row in enumerate(rows)], seconds=10, max_entries=100000)
     for size, row in zip(sizes['categories'], rows):
         row.update(bytes=size['bytes'], size_partial=bool(size['partial'] or size['errors']))
@@ -253,5 +255,7 @@ def install(api):
                 warning='Configuration updated and downloads detached, but some recovery files could not be deleted: '+str(staging)
         instance=api.selected_instance()
         with lock:cache.pop(instance.id if instance else '',None)
+        from mod_reuse import invalidate_index
+        invalidate_index(api.server_registry,instance.id if instance else '__existing__')
         g.audit_details=dict(mod_ids=sorted(selected),mode=mode,download_folders=len(staged),warning=warning)
         return jsonify(ok=True,mods=remaining,restart_required=bool(api.get_server_pid()),warning=warning,removed=len(selected),download_folders=len(staged))

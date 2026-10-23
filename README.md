@@ -100,7 +100,7 @@ Updates create recovery snapshots under `/var/backups/arma-panel/`. A failed upd
 | Scheduler | Starts, warned stops/restarts, updates, broadcasts and config backups |
 | Persistence | Save settings, detected save points and named backups |
 | Server config | Validated settings, scenario selection and a raw JSON draft |
-| Mods | Workshop browsing, dependencies, version pins, presets and list comparisons |
+| Mods | Workshop browsing, dependencies, version pins, presets, list comparisons and automatic reuse of local downloads |
 | Files | Profile uploads, text editing, downloads and recoverable Trash |
 | Network | Listeners, ports, network settings and host traffic |
 | Administration | Staff access, activity, Discord notifications and maintenance |
@@ -157,3 +157,9 @@ Configuration tests bind temporary UDP ports, so run them where socket binding i
 MIT, as described by the [upstream project](https://github.com/mateuszgolebiewski-code/arma-reforger-panel).
 
 Based on Mateusz Gołębiewski's original panel, including upstream contributions by [YoussefKababe](https://github.com/YoussefKababe). This fork is developed with AI assistance using OpenAI Codex. Bundled Chart.js retains its [MIT license](static/chart.LICENSE.txt).
+
+### Automatic local mod reuse
+
+Adding or changing mods on a stopped server automatically looks for compatible downloads on other servers you can access and copies missing files locally. On a running server, reuse waits until the next start/restart. Imports, presets, config edits and first launch use the same mechanism; no extra checkbox or popup is needed. Known dependencies are included. Pinned mods require the matching local version; unpinned mods use the newest detected local version and Reforger handles any further updates/downloads. Existing destination downloads are never replaced.
+
+Copies use Linux reflinks (copy-on-write, independent files) where supported, with ordinary local copies as fallback. No hardlinks or shared writable Workshop folder are used. Sources can remain running; busy, incomplete, linked or changing downloads are skipped. Missing/unsuitable copies fall back to Reforger’s normal downloader. A host-wide `mod_download_index` table in the existing panel database records mod IDs, versions and locations. The index is refreshed as servers are checked, and source metadata/files are checked again before publishing each copy. Server removal clears that server’s index entry. Per-server `.mod-reuse.json` records copy results for diagnostics.

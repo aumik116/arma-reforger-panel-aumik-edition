@@ -336,6 +336,7 @@ def launch_server(config_path, server_id=None):
         cap = registry.existing_max_fps(settings.get('MAX_FPS',''))
         settings['MAX_FPS'] = str(cap) if cap else ''
     if server_id is not None:
+        settings['LEGACY_WORKSHOP_DIR']=None if settings.get('PANEL_MODE')=='manager' else settings.get('WORKSHOP_DIR',os.path.expanduser('~/.local/share/Arma Reforger/addons'))
         from server_registry import ServerRegistry
         registry = ServerRegistry(settings.get('PANEL_DATA_FILE', os.path.join(state_directory, '.panel-data.sqlite3')),
                                   settings.get('INSTANCE_ROOT', os.path.join(state_directory, 'instances')))
@@ -360,6 +361,16 @@ def launch_server(config_path, server_id=None):
             config = json.load(stream)
     except (OSError, ValueError, TypeError):
         config = None
+    if config is not None and os.path.isfile(database):
+        from mod_reuse import seed_mods
+        reuse_root=instance.paths['workshop'] if instance else settings.get('WORKSHOP_DIR',os.path.expanduser('~/.local/share/Arma Reforger/addons'))
+        if reuse_root:
+            try:
+                # Independent copies only; a reuse failure never prevents normal Workshop downloads.
+                legacy_root=settings.get('LEGACY_WORKSHOP_DIR') if instance else None
+                seed_mods(registry,server_id or '__existing__',reuse_root,state_directory,config,legacy_root)
+            except Exception as exc:
+                print('Local mod reuse skipped: '+str(exc),flush=True)
     properties = ((config.get('game') or {}).get('gameProperties') or {}) if config is not None else {}
     if config is not None and (properties.get('missionHeader') or {}).get('m_eSaveTypes') != 0:
         persistence = properties.get('persistence') or {}

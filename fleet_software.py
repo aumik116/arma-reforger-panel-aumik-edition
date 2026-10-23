@@ -206,6 +206,8 @@ def worker(api, descriptors):
                 try:
                     api.operator_tools.authorized({'owner_id':state['owner_id'], 'server_id':row['id']})
                     with api.operator_tools.selected(row['id']):
+                        from flask import g
+                        g.mod_reuse_actor=state['owner_id']
                         directory = plain_directory(api.SERVER_DIR)
                         public_install(directory)
                         row.update(state='stopping', message='Stopping server before copying files.')

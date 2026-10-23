@@ -81,6 +81,7 @@ class OperatorTools:
         try:
             actor = self.authorized(row)
             with self.selected(row['server_id']):
+                g.mod_reuse_actor=row['owner_id']
                 lock = api.operation_lock._get_current_object()
                 if not lock.acquire(blocking=False):
                     raise ValueError('Another panel operation is active; run skipped')

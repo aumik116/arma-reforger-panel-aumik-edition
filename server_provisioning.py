@@ -254,8 +254,18 @@ def worker(database, root, server_id, executable, lock_fd):
         progress('provisioning', 'Starting the new server…')
         service_command('enable', server_id)
         started = True
+        launch_started=time.time()
         service_command('start', server_id)
         time.sleep(4)
+        from mod_reuse import report as reuse_report
+        reuse_deadline=time.monotonic()+900
+        while True:
+            reuse=reuse_report(server.directory)
+            if reuse.get('state')!='running' or reuse.get('started',0)<launch_started-1:break
+            if time.monotonic()>=reuse_deadline:raise ValueError('Local mod copying exceeded the startup time limit')
+            progress('provisioning','Reusing installed Workshop mods before first launch…')
+            time.sleep(1)
+        time.sleep(1)
         result = subprocess.run(['/usr/bin/systemctl', 'is-active', server.service_name],
                                 capture_output=True, text=True, timeout=10)
         if result.returncode:
@@ -444,6 +454,8 @@ def install(api):
                 options.write_text(json.dumps({'seed_directory':seed_directory,
                                                 'seed_state_directory':seed_state_directory}))
                 options.chmod(0o600)
+                from mod_reuse import remember_actor
+                remember_actor(server.directory,g.user['id'])
                 launch(registry, server.id, steamcmd)
             except Exception:
                 registry.set_state(server.id, 'failed')

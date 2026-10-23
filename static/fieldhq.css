@@ -127,3 +127,14 @@ html[data-theme] .fleet-heading-actions #overview-create{background:var(--accent
 html[data-theme] .dashboard-network-metrics{margin:0 0 14px;min-width:0}
 html[data-theme] .dashboard-network-metrics .chart-card{padding:13px;margin:0}
 html[data-theme] .dashboard-network-metrics .chart-wrap{height:150px}
+
+/* Population shares one wider summary card. */
+html[data-theme] .dashboard-summary{grid-template-columns:minmax(320px,1.7fr) repeat(3,minmax(0,1fr))}
+html[data-theme] .dashboard-summary .dashboard-population{grid-template-columns:26px minmax(0,1fr);gap:12px}
+html[data-theme] .dashboard-population>.ui-icon{grid-column:1;grid-row:1}
+html[data-theme] .population-counts{grid-column:2;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;min-width:0}
+html[data-theme] .population-counts>div+div{border-left:1px solid var(--border);padding-left:12px}
+html[data-theme] .population-counts .card-label{font-size:11px;margin:3px 0 0}
+html[data-theme] .population-counts .chart-value{font-size:24px;margin:0;overflow-wrap:anywhere}
+@media(max-width:1100px){html[data-theme] .dashboard-summary{grid-template-columns:repeat(3,minmax(0,1fr))}html[data-theme] .dashboard-summary .dashboard-population{grid-column:1/-1}}
+@media(max-width:500px){html[data-theme] .dashboard-summary{grid-template-columns:minmax(0,1fr)}html[data-theme] .dashboard-summary .dashboard-population{grid-column:1}html[data-theme] .population-counts{gap:8px}html[data-theme] .population-counts>div+div{padding-left:8px}}

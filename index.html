@@ -114,7 +114,7 @@
 
 </div>
 <div class="dashboard-summary" aria-label="Server summary">
-  <div class="card"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#players"></use></svg><div class="card-label">Players</div><div class="chart-value" id="summary-players">—</div><p class="feature-note">Currently connected</p></div>
+  <div class="card dashboard-population" aria-label="Live server population"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#players"></use></svg><div class="population-counts"><div><div class="chart-value" id="summary-players">—</div><div class="card-label">Players</div></div><div><div class="chart-value" id="ai-count">—</div><div class="card-label">AI</div></div><div><div class="chart-value" id="vehicle-count">—</div><div class="card-label">Vehicles</div></div></div></div>
   <div class="card"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#scheduler"></use></svg><div class="card-label">Uptime</div><div class="chart-value" id="summary-uptime">—</div><p class="feature-note">Since last start</p></div>
   <div class="card"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#cpu"></use></svg><div class="card-label">Server CPU</div><div class="chart-value" id="summary-cpu">—</div><p class="feature-note">Game process usage</p></div>
   <div class="card"><svg class="ui-icon" aria-hidden="true" focusable="false"><use href="/static/icons.svg#memory"></use></svg><div class="card-label">Server memory</div><div class="chart-value" id="summary-ram">—</div><p class="feature-note">Game process resident memory</p></div>
@@ -197,18 +197,6 @@
     </details>
   </div>
 <div class="chart-card dashboard-player-chart"><div class="chart-header"><div><div class="chart-title">Players</div><div class="chart-sub">Last 60 roster readings</div></div></div><div class="chart-wrap"><canvas id="chart-players" aria-label="Connected players over time"></canvas></div></div>
-  <div class="chart-card entity-counters" aria-label="Live server counts">
-    <div class="entity-counter">
-      <div class="chart-title">AI</div>
-      <div class="chart-value" id="ai-count">—</div>
-      <div class="chart-sub">Current server count</div>
-    </div>
-    <div class="entity-counter">
-      <div class="chart-title">Vehicles</div>
-      <div class="chart-value" id="vehicle-count">—</div>
-      <div class="chart-sub">All spawned vehicles</div>
-    </div>
-  </div>
   </div>
 
   <div class="dashboard-console-column">

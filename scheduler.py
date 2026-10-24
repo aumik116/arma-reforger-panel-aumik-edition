@@ -78,6 +78,13 @@ class ScheduleStore:
                     server_id TEXT NOT NULL, identity TEXT NOT NULL, name TEXT NOT NULL,
                     first_seen REAL NOT NULL, last_seen REAL NOT NULL,
                     PRIMARY KEY(server_id,identity));
+                CREATE TABLE IF NOT EXISTS player_sessions (
+                    id INTEGER PRIMARY KEY, server_id TEXT NOT NULL, identity TEXT NOT NULL,
+                    name TEXT NOT NULL, joined REAL NOT NULL, last_seen REAL NOT NULL,
+                    ended REAL, outcome TEXT NOT NULL DEFAULT 'connected', process INTEGER);
+                CREATE INDEX IF NOT EXISTS player_sessions_server ON player_sessions(server_id,id);
+                CREATE UNIQUE INDEX IF NOT EXISTS player_sessions_open ON player_sessions(server_id,identity) WHERE ended IS NULL;
+                CREATE TABLE IF NOT EXISTS player_samples (server_id TEXT PRIMARY KEY, checked REAL NOT NULL);
                 CREATE TABLE IF NOT EXISTS scheduler_health (
                     singleton INTEGER PRIMARY KEY CHECK(singleton=1), heartbeat REAL NOT NULL);
             ''')
@@ -212,13 +219,31 @@ class ScheduleStore:
             return
         observed = snapshot.get('checked_at', time.time())
         with self.connect() as conn:
+            conn.execute('BEGIN IMMEDIATE')
+            previous=conn.execute('SELECT checked FROM player_samples WHERE server_id=?',(server_id,)).fetchone()
+            if previous and observed<=previous[0]:return
+            conn.execute('INSERT INTO player_samples VALUES(?,?) ON CONFLICT(server_id) DO UPDATE SET checked=excluded.checked',(server_id,observed))
+            active={row['identity']:row for row in conn.execute('SELECT * FROM player_sessions WHERE server_id=? AND ended IS NULL',(server_id,))}
+            players={str(p.get('identity','')):p for p in snapshot.get('players',[]) if p.get('identity') and p.get('name')}
+            for identity,session in active.items():
+                gap=observed-session['last_seen']>90
+                restarted=session['process']!=snapshot.get('server_process')
+                if identity not in players or gap or restarted:
+                    conn.execute('UPDATE player_sessions SET ended=last_seen,outcome=? WHERE id=?',('observation gap' if gap else 'server restarted' if restarted else 'left',session['id']))
             for player in snapshot.get('players', []):
                 identity, name = str(player.get('identity', '')), str(player.get('name', ''))
                 if identity and len(identity) <= 128 and name and len(name) <= 256:
                     conn.execute('INSERT INTO player_history VALUES(?,?,?,?,?) ON CONFLICT(server_id,identity) DO UPDATE SET name=excluded.name,last_seen=max(last_seen,excluded.last_seen)',
                                  (server_id,identity,name,observed,observed))
+                    existing=conn.execute('SELECT id FROM player_sessions WHERE server_id=? AND identity=? AND ended IS NULL',(server_id,identity)).fetchone()
+                    if existing:conn.execute('UPDATE player_sessions SET last_seen=?,name=? WHERE id=?',(observed,name,existing['id']))
+                    else:conn.execute('INSERT INTO player_sessions(server_id,identity,name,joined,last_seen,process) VALUES(?,?,?,?,?,?)',(server_id,identity,name,observed,observed,snapshot.get('server_process')))
 
     def history(self, server_id, search, offset):
         with self.connect() as conn:
             return [dict(row) for row in conn.execute('SELECT * FROM player_history WHERE server_id=? AND (name LIKE ? OR identity LIKE ?) ORDER BY last_seen DESC,identity LIMIT 51 OFFSET ?',
                                                       (server_id,'%'+search+'%','%'+search+'%',offset))]
+
+    def sessions(self, server_id, search, before=0):
+        with self.connect() as conn:
+            return [dict(row) for row in conn.execute('SELECT * FROM player_sessions WHERE server_id=? AND (name LIKE ? OR identity LIKE ?) AND (?=0 OR id<?) ORDER BY id DESC LIMIT 51',(server_id,'%'+search+'%','%'+search+'%',before,before))]

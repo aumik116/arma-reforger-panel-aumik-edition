@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const switcher = document.getElementById('instance-switcher');
   const form = document.getElementById('create-instance');
   const result = document.getElementById('instance-result');
+  let cloneSource=new URLSearchParams(location.search).get('clone')||'';
+  let cloneRequest=0,cloneLoading=false;
   let admin = false, jobId = '', poll = null, startupId = '';
   const go = id => { location.href = id ? '/?server=' + encodeURIComponent(id) : '/?legacy=1'; };
   function option(value, label) { const node = document.createElement('option'); node.value = value; node.textContent = label; return node; }
@@ -53,7 +55,26 @@ document.addEventListener('DOMContentLoaded', () => {
       switcher.append(option(selectedServerId, 'Selected instance unavailable'));
     }
     switcher.value = selectedServerId; copy.value = copyValue;
+    if(cloneSource){copy.value=cloneSource;cloneSource='';await prepareClone(true);}
   }
+  async function prepareClone(suggest=false){
+    const source=document.getElementById('instance-copy').value,serial=++cloneRequest;
+    if(!source){cloneLoading=false;result.textContent='';if(setupPage)document.querySelector('#create-instance h3').textContent='Create server';return;}
+    cloneLoading=true;
+    let data;try{data=await readJson(await fetch('/api/clone-source',{headers:{'X-Server-ID':source==='__existing__'?'':source}}));}finally{if(serial===cloneRequest)cloneLoading=false;}
+    if(serial!==cloneRequest)return;
+    document.getElementById('instance-players').value=data.max_players;document.getElementById('instance-fps').value=data.max_fps;
+    if(suggest){
+      document.getElementById('instance-name').value=(data.name+' copy').slice(0,80);
+      let base=(source==='__existing__'?'server':source).slice(0,24),id=base+'-copy',suffix=2;
+      while(Array.from(document.getElementById('instance-copy').options).some(option=>option.value===id)){id=base+'-copy-'+suffix++;}
+      document.getElementById('instance-id').value=id;
+      for(const name of ['game_port','query_port','rcon_port'])form.elements[name].value='';
+    }
+    result.textContent=`Cloning ${data.name}: ${data.mod_count} mods and its scenario/settings. Ports are allocated separately. Passwords, game admins and saves are not copied.`;
+    if(setupPage)document.querySelector('#create-instance h3').textContent='Clone server';
+  }
+  document.getElementById('instance-copy').onchange=()=>prepareClone().catch(error=>result.textContent=error.message);
   async function showJob() {
     const response = await fetch(`/api/servers/${encodeURIComponent(jobId)}/provision`);
     const job = await response.json();
@@ -75,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('close-instances').onclick = () => dialog.close();
   switcher.onchange = () => go(switcher.value);
   form.onsubmit = async event => {
-    event.preventDefault(); const submit = form.querySelector('[type=submit]'); submit.disabled = true;
+    event.preventDefault();if(cloneLoading){result.textContent='Wait for the source configuration to load.';return;} const submit = form.querySelector('[type=submit]'); submit.disabled = true;
     try {
       const data = Object.fromEntries(new FormData(form));
       for (const key of ['max_players', 'max_fps', 'game_port', 'query_port', 'rcon_port']) { if (data[key] === '') delete data[key]; else data[key] = Number(data[key]); }
@@ -86,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
     finally { submit.disabled = false; }
   };
   fetch('/api/me').then(response => response.json()).then(async account => {
-    admin = (account.panel_permissions || account.permissions || []).includes('admin_config'); form.hidden = !admin; await load();
+    admin = (account.panel_permissions || account.permissions || []).includes('users'); form.hidden = !admin; await load();
     jobId=new URLSearchParams(location.search).get('server')||'';if(jobId)await showJob();
   }).catch(error => result.textContent = error.message);
   poll = setInterval(() => { if (dialog.open && jobId) showJob().catch(error => result.textContent = error.message); }, 2500);

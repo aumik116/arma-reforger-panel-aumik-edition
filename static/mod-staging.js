@@ -1,50 +1,63 @@
+// Version choices are shared by Add now and the additions-only queue.
+window.chooseModVersions=conflicts=>new Promise(resolve=>{
+  const dialog=document.createElement('dialog');dialog.className='mods-dialog mod-pin-dialog';dialog.setAttribute('aria-labelledby','mod-pin-title');
+  dialog.innerHTML='<h3 id="mod-pin-title">A running server uses a pinned version</h3><p>Use the latest release, or match a pin below.</p><div data-choices></div><div class="mod-queue-footer"><button type="button" class="btn-logout" data-cancel>Cancel</button><button type="button" class="mod-primary" data-continue>Continue</button></div>';
+  const selects=[];
+  for(const conflict of conflicts){
+    const label=document.createElement('label');label.className='mod-pin-choice';label.append(document.createTextNode(conflict.name));
+    const select=document.createElement('select');select.append(new Option('Latest release',''));
+    for(const option of conflict.versions)select.append(new Option(`Pin v${option.version} · ${option.servers.join(', ')}`,option.version));
+    label.append(select);dialog.querySelector('[data-choices]').append(label);selects.push([conflict.modId,select]);
+  }
+  let done=false;function finish(value){if(done)return;done=true;dialog.close();dialog.remove();resolve(value);}
+  dialog.querySelector('[data-cancel]').onclick=()=>finish(null);
+  dialog.querySelector('[data-continue]').onclick=()=>finish(Object.fromEntries(selects.map(([id,select])=>[id,select.value])));
+  dialog.addEventListener('cancel',event=>{event.preventDefault();finish(null);});document.body.append(dialog);dialog.showModal();
+});
+window.postWithModVersionChoice=async(url,body)=>{
+  let choices={...(body.version_choices||{})};
+  for(;;){
+    const result=await readJson(await postJson(url,{...body,version_choices:choices}));
+    if(!result.needs_version_choice)return result;
+    const selected=await window.chooseModVersions(result.conflicts);if(selected===null)return null;choices={...choices,...selected};
+  }
+};
 (() => {
   const button=document.getElementById('mod-draft-open');
-  const dialog=document.createElement('dialog');dialog.className='mods-dialog';
-  dialog.innerHTML='<div class="mods-dialog-heading"><h3>Review mod queue</h3><button type="button" class="btn-logout" data-close>Close</button></div><p>Queued mods and their known dependencies are saved separately. Ordinary mod actions still change the active configuration. Applying requires a stopped server; downloaded files are retained.</p><p data-summary></p><p data-storage></p><ul data-review></ul><div data-rows></div><button type="button" class="btn-logout" data-add>Add draft mod</button><p data-status role="status"></p><div class="mods-dialog-actions"><button type="button" class="btn-logout" data-save>Save draft</button><button type="button" class="btn-logout" data-discard>Discard draft</button><button type="button" class="btn-save" data-apply>Apply saved draft</button></div>';
-  document.body.append(dialog);
-  const el=selector=>dialog.querySelector(selector);let state,dirty=false,busy=false;
-  const status=text=>el('[data-status]').textContent=text;
-  const collect=()=>Array.from(el('[data-rows]').children,row=>Object.fromEntries(Array.from(row.querySelectorAll('input'),input=>[input.name,input.value])));
-  function summarize(){
-    const rows=collect(), current=new Map(state.current.map(row=>[row.modId,row]));
-    const ids=new Set(rows.map(row=>row.modId.toUpperCase()));
-    const added=rows.filter(row=>!current.has(row.modId.toUpperCase())).length;
-    const removed=state.current.filter(row=>!ids.has(row.modId)).length;
-    const changed=rows.filter(row=>current.has(row.modId.toUpperCase())&&['name','version'].some(key=>(row[key]||'')!==(current.get(row.modId.toUpperCase())[key]||''))).length;
-    const review=el('[data-review]');review.replaceChildren();
-    for(const old of state.current){const next=rows.find(row=>row.modId.toUpperCase()===old.modId);if(!next||['name','version'].some(key=>(next[key]||'')!==(old[key]||''))){const item=document.createElement('li');item.textContent=!next?`Remove: ${old.name||old.modId}`:`Edit: ${old.name||old.modId} → ${next.name||next.modId} (${old.version||'latest'} → ${next.version||'latest'})`;review.append(item);}}
-    for(const row of rows.filter(row=>!current.has(row.modId.toUpperCase()))){const item=document.createElement('li');const estimate=state.draft?.sizes?.[row.modId.toUpperCase()];item.textContent=`Add: ${row.name||row.modId} (${row.version||'latest'}) · ${estimate&&estimate.version===(row.version||'')&&Number.isFinite(estimate.bytes)&&estimate.bytes>=0?(estimate.bytes/1e6).toFixed(1)+' MB estimated':'size unknown'}`;review.append(item);}
-    const additions=rows.filter(row=>!current.has(row.modId.toUpperCase()));let known=0,unknown=0;
-    for(const row of additions){const size=state.draft?.sizes?.[row.modId.toUpperCase()];if(size&&size.version===(row.version||'')&&Number.isFinite(size.bytes)&&size.bytes>=0)known+=size.bytes;else unknown++;}
-    el('[data-storage]').textContent=`Additions: ${(known/1e9).toFixed(2)} GB estimated from Workshop metadata${unknown?` + ${unknown} mod(s) with unknown size`:''}. Includes queued dependencies once. This is a logical size estimate, not measured disk use or download traffic; existing downloads and copy-on-write may reduce space needed. Updates, extraction and temporary files may need extra space. Removals do not delete files.`;
-    el('[data-summary]').textContent=`${rows.length} draft mods · ${added} added · ${removed} removed · ${changed} edited`;
-  }
-  function add(row={}){
-    const line=document.createElement('div');line.className='mod-draft-row';
-    for(const [name,label] of [['modId','Workshop ID'],['name','Mod name'],['version','Version (blank = latest)']]){
-      const input=document.createElement('input');input.name=name;input.value=row[name]||'';input.placeholder=label;input.setAttribute('aria-label',label);
-      input.oninput=()=>{dirty=true;summarize();};line.append(input);
+  const dialog=document.createElement('dialog');dialog.className='mods-dialog mod-queue-dialog';dialog.setAttribute('aria-labelledby','mod-queue-title');
+  dialog.innerHTML='<h3 id="mod-queue-title">Review queue</h3><div class="card mod-queue-storage"><svg class="ui-icon" aria-hidden="true"><use href="/static/icons.svg#disk"></use></svg><div><div class="chart-value" data-bytes>—</div><div class="card-label">Estimated size of additions</div><small data-count></small></div></div><p class="feature-note" data-estimate-note></p><div class="mod-queue-list" data-rows></div><p role="status" data-status></p><div class="mod-queue-footer"><button type="button" class="btn-logout" data-cancel>Cancel</button><button type="button" class="mod-primary" data-apply>Add queued mods</button></div>';
+  document.body.append(dialog);const el=selector=>dialog.querySelector(selector);let state=null,busy=false;
+  const size=bytes=>bytes>=1e9?(bytes/1e9).toFixed(2)+' GB':(bytes/1e6).toFixed(1)+' MB';
+  function render(){
+    const rows=state.entries;el('[data-rows]').replaceChildren();let total=0,unknown=0;
+    for(const mod of rows){
+      const estimate=state.sizes[mod.modId.toUpperCase()];const known=estimate&&estimate.version===(mod.version||'')&&Number.isFinite(estimate.bytes)&&estimate.bytes>=0;
+      if(known)total+=estimate.bytes;else unknown++;
+      const row=document.createElement('div');row.className='mod-queue-row';const info=document.createElement('div'),name=document.createElement('strong'),detail=document.createElement('small');
+      name.textContent=mod.name||mod.modId;detail.textContent=`${mod.version?'Pinned v'+mod.version:'Latest release'} · ${known?size(estimate.bytes):'Size unknown'}`;info.append(name,detail);
+      const remove=document.createElement('button');remove.type='button';remove.className='btn-logout';remove.textContent='Remove';remove.setAttribute('aria-label','Remove '+(mod.name||mod.modId)+' from queue');remove.onclick=()=>removeEntry(mod.modId);row.append(info,remove);el('[data-rows]').append(row);
     }
-    const remove=document.createElement('button');remove.type='button';remove.className='btn-logout';remove.textContent='Remove';remove.onclick=()=>{line.remove();dirty=true;summarize();};line.append(remove);el('[data-rows]').append(line);
+    if(!rows.length)el('[data-rows]').textContent='No mods queued. Use Add to queue on Workshop cards.';
+    el('[data-bytes]').textContent=size(total)+(unknown?' + unknown':'');el('[data-count]').textContent=`${rows.length} mod${rows.length===1?'':'s'} to add${unknown?' · '+unknown+' size'+(unknown===1?'':'s')+' unavailable':''}`;
+    el('[data-estimate-note]').textContent='Workshop size estimate, including queued dependencies. Actual disk use varies with existing files and copy-on-write.';
+    el('[data-apply]').disabled=busy||!rows.length;
   }
-  async function load(){state=await readJson(await fetch('/api/mods/draft'));el('[data-rows]').replaceChildren();(state.draft?.mods||state.current).forEach(add);dirty=false;summarize();status(state.draft?'Saved draft loaded.':'No saved draft. Start with the active mod list.');}
-  function close(){if(!busy&&(!dirty||confirm('Discard unsaved draft edits?')))dialog.close();}
-  el('[data-close]').onclick=close;dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
-  el('[data-add]').onclick=()=>{add();dirty=true;summarize();};
-  button.onclick=async()=>{dialog.showModal();try{await load();}catch(error){status(error.message);}};
+  async function load(){state=await readJson(await fetch('/api/mods/draft'));render();}
+  function lock(value){busy=value;dialog.querySelectorAll('button').forEach(button=>button.disabled=value);if(!value&&state)render();}
+  async function removeEntry(id){
+    if(busy)return;lock(true);el('[data-status]').textContent='';
+    try{await readJson(await postJson('/api/mods/draft/save',{revision:state.revision,mods:state.entries.filter(row=>row.modId!==id)}));await load();}
+    catch(error){el('[data-status]').textContent=error.message;}finally{lock(false);}
+  }
+  const close=()=>{if(!busy)dialog.close();};el('[data-cancel]').onclick=close;dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
+  button.onclick=async()=>{state=null;el('[data-status]').textContent='Loading queue…';el('[data-rows]').replaceChildren();dialog.showModal();lock(true);try{await load();el('[data-status]').textContent='';}catch(error){el('[data-status]').textContent=error.message;}finally{lock(false);if(!state)el('[data-apply]').disabled=true;}};
   document.getElementById('workshop-queue-open').onclick=()=>button.click();
-  async function action(kind){
-    if(busy||!state)return;
-    if(kind==='apply'&&dirty){status('Save your draft edits before applying.');return;}
-    if(kind==='discard'&&!confirm('Discard this mod draft?'))return;
-    if(kind==='apply'&&!confirm('Apply this saved draft to the stopped server? Review the added, removed and edited rows first.'))return;
-    busy=true;dialog.querySelectorAll('button,input').forEach(node=>node.disabled=true);
+  el('[data-apply]').onclick=async()=>{
+    if(busy||!state?.entries.length)return;lock(true);el('[data-status]').textContent='Adding queued mods…';
     try{
-      await readJson(await postJson('/api/mods/draft/'+kind,{revision:state.draft?.updated??null,...(kind==='save'?{mods:collect()}:{})}));
-      if(kind==='apply'){dirty=false;location.reload();return;}
-      await load();if(kind==='save')status('Draft saved. Active configuration is unchanged.');
-    }catch(error){status(error.message);}finally{busy=false;dialog.querySelectorAll('button,input').forEach(node=>node.disabled=false);}
-  }
-  for(const kind of ['save','apply','discard'])el('[data-'+kind+']').onclick=()=>action(kind);
+      const result=await window.postWithModVersionChoice('/api/mods/draft/apply',{revision:state.revision});
+      if(result===null){el('[data-status]').textContent='No changes made.';return;}
+      dialog.close();await fetchStatus();modEl('workshop-status').textContent=result.restart_required?'Queued mods added. Restart the server when ready to load them.':'Queued mods added. They will load on the next start.';
+    }catch(error){el('[data-status]').textContent=error.message;}finally{lock(false);}
+  };
 })();

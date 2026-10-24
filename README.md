@@ -166,13 +166,16 @@ Copies use Linux reflinks (copy-on-write, independent files) where supported, wi
 
 ### Mod drafts and host storage
 
-On **Mods → Review queue**, build and save a separate list of mod IDs, names,
-and optional version pins. Review additions, removals, and edits before applying.
-The active configuration remains unchanged until **Apply saved draft** is used
-while the server is stopped. Applying uses the normal configuration backup and
-local mod reuse flow. Start the server afterward when ready. Other mod controls
-still edit the active list directly; drafts reject application if that list changed.
-Discarding a draft never deletes downloaded files.
+On **Mods → Review queue**, see only pending additions, remove individual queued
+mods, and review their estimated size in a storage counter. **Cancel** closes the
+review and keeps the queue; **Add queued mods** merges additions into the current
+configuration without removing existing mods or restarting the server. Local
+copies are reused when available; running servers load additions on their next
+restart. Older full-list drafts are read as additions only.
+
+Latest is the default. If an addition is pinned on another accessible running
+server, a dialog offers Latest or each available pin and names its source servers.
+Explicit choices are kept with the queue. Add now uses the same version prompt.
 
 Panel administrators can open **All servers → Host storage** for a background
 measurement of server installations, mods, logs, profiles, backups and recognized
@@ -186,3 +189,32 @@ Queueing includes known dependencies and leaves the active configuration untouch
 Review queue lists additions with available Workshop size estimates, totals them
 once per mod, and flags unknown sizes. Estimates exclude temporary download space
 and are not a measurement of physical disk use or network traffic.
+
+### Scenarios, operations and player tools
+
+- **Server config → Browse maps & scenarios** (also in Workshop): search installed
+  scenarios and filter built-in/Workshop content. Workshop thumbnails appear when
+  metadata is available. Selecting a locally identified mod scenario can also add
+  its owning mod, with mod permission; it does not restart the server. Rescan after
+  installing new content. Unidentified Workshop ownership is shown explicitly.
+- **Mods → Presets → Operation presets**: save the current scenario, mod list,
+  player limit, crossplay, visibility, gameplay and AI settings. Presets belong to
+  the selected server. Review settings and mod differences before switching while
+  stopped. Ports, passwords, admins, persistence configuration and save files are
+  excluded. Existing scenario/mod presets remain available below.
+- **Players → Player sessions**: searchable visits with observed join/last-seen
+  times and approximate duration. Successful samples normally run every 30 seconds
+  in the Linux panel service (more often while viewed). Brief connections can be
+  missed. Query errors never mean a confirmed disconnect; observation gaps over
+  90 seconds and changed server processes split visits. Earlier aggregate history
+  cannot reconstruct past sessions.
+- **All servers → Clone**: opens creation with the source selected, a suggested
+  name/ID, player limit and FPS cap. Fresh ports are allocated by the existing
+  provisioning flow. Credentials, game admins and saves are excluded. Review the
+  form, then use **Create and start server**. Only panel administrators can clone
+  servers they can access.
+- **Players / Scheduler → Player announcement / warned restart**: send a message
+  now, schedule one for later, or queue a restart with 5-minute and 1-minute warnings.
+  Uses existing admin RCON and Server Admin Tools `#message` support. Delayed work
+  requires the Linux scheduler; permission and warning checks still apply at run
+  time. Review or cancel pending announcements/restarts in Scheduler.

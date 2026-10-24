@@ -606,12 +606,15 @@ def install(api):
                 app.logger.exception('Unit attendance sample could not be saved')
 
     def player_snapshot():
-        if not api.get_server_pid():
+        pid=api.get_server_pid()
+        if not pid:
             query.clear()
             snapshot = dict(available=True, players=[], message="Server is offline", checked_at=time.time())
+            tools=getattr(api,'operator_tools',None)
+            if tools:tools.store.observe(api.selected_instance().id if api.selected_instance() else '',snapshot)
             record_unit_attendance(dict(snapshot, available=False))
             return snapshot
-        snapshot = query.read(api.read_config().get("rcon", {}), api._cfg)
+        snapshot = dict(query.read(api.read_config().get("rcon", {}), api._cfg),server_process=pid)
         tools = getattr(api, 'operator_tools', None)
         if tools:
             tools.store.observe(api.selected_instance().id if api.selected_instance() else '',snapshot)

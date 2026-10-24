@@ -100,7 +100,7 @@ def instance_config(server, source=None, max_players=64, public_address=''):
                   a2s={'address':'0.0.0.0', 'port':server.query_port},
                   rcon={'address':'127.0.0.1', 'port':server.rcon_port,
                         'password':secrets.token_hex(16), 'permission':'admin'})
-    config['game'].update(name=server.name, maxPlayers=max_players, password='', passwordAdmin='')
+    config['game'].update(name=server.name, maxPlayers=max_players, password='', passwordAdmin='', admins=[])
     persistence = config['game'].get('gameProperties', {}).get('persistence')
     if isinstance(persistence, dict):
         persistence['hiveId'] = 0

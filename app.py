@@ -14,6 +14,7 @@ Developed with AI assistance using OpenAI Codex. Fork modifications:
 
 from flask import Flask, request, jsonify, session, redirect, Response, send_from_directory, g
 import bcrypt
+from pathlib import Path
 from mod_validation import normalize_mod_entry
 import hmac
 import re
@@ -484,7 +485,8 @@ def _discover_locked(force_rescan):
                 diag["errors"].append(f"{cache_key}: stat failed ({e})")
                 continue
 
-            if cache_mtimes.get(cache_key) == mtime and cache_key in cache_mods:
+            if (cache_mtimes.get(cache_key) == mtime and cache_key in cache_mods
+                    and all('owner_mod' in row for row in cache_mods[cache_key])):
                 fresh_mods[cache_key] = cache_mods[cache_key]
                 fresh_mtimes[cache_key] = mtime
                 continue
@@ -516,8 +518,17 @@ def _discover_locked(force_rescan):
             if len(scenarios) == 1 and not is_vanilla and mod_name:
                 if scenarios[0]["id"] not in _SCENARIO_NAME_OVERRIDES:
                     scenarios[0]["name"] = mod_name
+            # Keep local ownership even when published scenario metadata is absent.
+            owner_mod=None
+            if not is_vanilla:
+                from mod_inventory import read_metadata, mod_id
+                metadata=read_metadata(Path(addon_dir))
+                owner_mod=mod_id(metadata.get('id') or metadata.get('modId'))
+                suffix=re.search(r'(?:^|_)([0-9a-fA-F]{8,32})$',os.path.basename(addon_dir))
+                if not owner_mod and suffix:owner_mod=suffix[1].upper()
             # 5. Apply our curated friendly-name overrides (mainly RHS).
             for s in scenarios:
+                s['owner_mod']=owner_mod
                 _apply_name_override(s)
 
             if scenarios:
@@ -1528,6 +1539,9 @@ from mod_staging import install as install_mod_staging
 install_mod_staging(sys.modules[__name__])
 from storage_usage import install_host
 install_host(sys.modules[__name__])
+
+from server_experience import install as install_server_experience
+install_server_experience(sys.modules[__name__])
 
 if __name__ == "__main__":
     notifications.start()

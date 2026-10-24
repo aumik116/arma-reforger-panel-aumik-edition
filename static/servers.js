@@ -156,6 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (server.state === 'ready') { const manage = element('a','Open','manager-link'); manage.href = workspace(server); actions.prepend(manage); }
       else if (permissions.includes('admin_config')) { const progress = element('a','Progress / retry','manager-link'); progress.href = '/setup?server='+encodeURIComponent(server.id); actions.append(progress); }
+      if(server.state==='ready'&&permissions.includes('users')){const clone=element('a','Clone','manager-link');clone.href='/setup?clone='+encodeURIComponent(server.id||'__existing__');actions.append(clone);}
       if(server.state==='ready'&&(server.permissions||[]).includes('admin_config')){const startup=element('a','Startup','manager-link');startup.href=workspace(server)+'#startup';actions.append(startup);}
       if(server.id&&permissions.includes('admin_config')){const remove=element('button','Remove','btn-logout');remove.disabled=busy.has(server.id);remove.onclick=async()=>{
         openServerRemoval(server,()=>refresh(false));

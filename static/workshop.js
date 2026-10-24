@@ -71,7 +71,7 @@ async function previewWorkshop(asset,action,version='',dependencies=false,scenar
     for(const [id,mod] of before)if(!after.has(id))panel.append(workshopNode('p','Remove: '+(mod.name||id)));
     if(data.scenario)panel.append(workshopNode('p','Use scenario: '+data.scenario));
     for(const note of data.notes)panel.append(workshopNode('p',note,'feature-note'));
-    panel.append(workshopButton('Save changes',async function(){this.disabled=true;try{await changeFeature('/api/mods/workshop/apply',{token:data.token});await fetchStatus();await openWorkshopDetails(asset.modId);}catch(error){status.textContent=error.message;this.disabled=false;}},true));panel.scrollIntoView({block:'nearest'});
+    panel.append(workshopButton('Save changes',async function(){this.disabled=true;try{const result=await window.postWithModVersionChoice('/api/mods/workshop/apply',{token:data.token});if(result===null){status.textContent='No changes made.';return;}await fetchStatus();await openWorkshopDetails(asset.modId);}catch(error){status.textContent=error.message;}finally{this.disabled=false;}},true));panel.scrollIntoView({block:'nearest'});
   }catch(error){if(serial===workshopState.detailRequest)status.textContent=error.message;}
 }
 modEl('workshop-search-form').onsubmit=event=>{event.preventDefault();loadWorkshop(true);};
@@ -82,6 +82,6 @@ for(const category of ['',...'TERRAINS WEAPONS VEHICLES STRUCTURES CHARACTERS AN
 async function queueWorkshopMod(modId){
   const status=modEl('workshop-detail').open?modEl('workshop-detail-status'):modEl('workshop-status');
   status.textContent='Adding mod and dependencies to queue…';
-  try{await readJson(await postJson('/api/mods/draft/queue',{modId}));status.textContent='Added to queue with known dependencies. Open Review queue to review changes and size estimates.';}
+  try{const result=await window.postWithModVersionChoice('/api/mods/draft/queue',{modId});status.textContent=result===null?'No changes made.':result.already_configured?'This mod is already configured on this server.':'Added to queue. Open Review queue to add the pending mods.';}
   catch(error){status.textContent=error.message;}
 }

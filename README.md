@@ -1,3 +1,8 @@
+> **Development has moved to [FIELDHQ](https://github.com/aumik116/fieldhq).**
+>
+> This repository remains available for historical reference. Existing installations
+> can keep their folders and data; follow the [production migration guide](https://github.com/aumik116/fieldhq/blob/main/docs/migrate-to-fieldhq.md) to switch the Git remote and run the normal update.
+
 # Arma Reforger Server Management Panel
 
 Manage multiple Arma Reforger dedicated servers on one Ubuntu VM: mods, performance, players, configuration, files and scheduled operations.

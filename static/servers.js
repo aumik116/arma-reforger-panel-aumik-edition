@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const rows = document.getElementById('overview-rows'), feedback = document.getElementById('overview-feedback');
   let loading = false, permissions = [], timer;
   const busy = new Set();
-  let snapshots = [], measureStorage = false, events = [], eventError = '', host = null;
+  let snapshots = [], events = [], eventError = '', host = null;
   let fleetUnits = [];
   const unitFilter = document.getElementById('overview-unit');
   function inSelectedUnit(server) { return !unitFilter.value || fleetUnits.find(u => String(u.id) === unitFilter.value)?.servers.includes(server.id); }
@@ -84,14 +84,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const image = await read('/api/scenario-preview', server.id);
         if (image.scenario_id === status.scenario_id) preview = image;
       } catch (_) {} // Workshop failures must not hide server status or controls.
-      let storage = null;
-      if (measureStorage) { try { storage = await read('/api/storage', server.id); } catch (_) {} }
-      return {...server, storage, preview, ...status, ...(live || {}), name:status.server_name || server.name, status:(live || status).running ? 'online' : 'offline', players};
+      return {...server, preview, ...status, ...(live || {}), name:status.server_name || server.name, status:(live || status).running ? 'online' : 'offline', players};
     } catch (error) { return {...server, status:'unavailable', error:error.message}; }
   }
   async function action(server, command, button) {
     if (busy.has(server.id)) return;
-    if (command !== 'start' && !confirm(`${command === 'stop' ? 'Stop' : 'Restart'} ${server.name}? Connected players will be disconnected.`)) return;
+    if (command !== 'start' && !await PanelUI.confirm(`${command === 'stop' ? 'Stop' : 'Restart'} ${server.name}? Connected players will be disconnected.`)) return;
     busy.add(server.id); button.disabled = true;
     try {
       await controlServer(command, server.id);
@@ -144,10 +142,6 @@ document.addEventListener('DOMContentLoaded', () => {
         stats.append(stat);
       }
       row.append(stats);
-      if (measureStorage) {
-        const storage = server.storage;
-        row.append(element('p','Storage · ' + (storage && Number.isFinite(storage.total_bytes) ? storageSize(storage.total_bytes) + (storage.status === 'partial' ? ' (partial)' : '') : storage?.status === 'pending' ? 'Measuring…' : 'Unavailable'), 'fleet-storage'));
-      }
       const actions = element('div','', 'manager-actions');
       if ((server.permissions || []).includes('control') && ['online','offline'].includes(server.status)) {
         const command = server.running ? 'stop' : 'start';
@@ -271,7 +265,6 @@ document.addEventListener('DOMContentLoaded', () => {
   unitFilter.onchange=()=>{if(playerChart){playerChart.data.datasets.forEach(s=>s.data=[]);playerChart.update('none');}render(snapshots);};
   document.getElementById('overview-search').oninput = () => render(snapshots);
   document.getElementById('overview-filter').onchange = () => render(snapshots);
-  document.getElementById('overview-storage').onclick = () => { measureStorage = true; refresh(); };
   document.getElementById('overview-refresh').onclick = () => refresh();
   document.getElementById('overview-logout').onclick = async () => { await postJson('/logout',{}); location.href = '/login'; };
   read('/api/me').then(account => { permissions = account.panel_permissions || account.permissions || []; document.getElementById('overview-account').textContent = account.username; document.getElementById('overview-create').hidden = !permissions.includes('admin_config'); document.getElementById('server-cleanup-open').hidden=!permissions.includes('users'); return refresh(); }).catch(error => feedback.textContent = error.message);

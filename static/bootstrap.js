@@ -9,18 +9,19 @@ function startCountdown() {
   document.getElementById('refresh-timer').textContent = countdown;
   clearInterval(refreshInterval);
   refreshInterval = setInterval(() => {
+    if(document.hidden)return;
     countdown--;
     document.getElementById('refresh-timer').textContent = countdown;
-    if (countdown <= 0) { fetchStatus(); loadNotifications(); countdown = 10; }
+    if (countdown <= 0) { fetchStatus(); if(!document.getElementById('panel-dashboard').hidden||!document.getElementById('panel-administration').hidden)loadNotifications(); countdown = 10; }
   }, 1000);
 }
 
-setInterval(() => { if (!window.liveMetrics?.healthy()) fetchMetrics(); }, 10000);
+setInterval(() => { if (!document.hidden&&!document.getElementById('panel-dashboard').hidden&&!window.liveMetrics?.healthy()) fetchMetrics(); }, 10000);
 document.addEventListener('live-metrics', event => {
   const data = event.detail.servers[selectedServerId];
   if (!data) { window.liveMetrics.last = 0; return; }
-  fetchMetrics(data);
-  fetchNetworkMetrics(data);
+  if(!document.getElementById('panel-dashboard').hidden)fetchMetrics(data);
+  if(!document.getElementById('panel-network').hidden)fetchNetworkMetrics(data);
   window.consoleServerRunning = data.running;
   document.getElementById('dot').className = 'dot ' + (data.running ? 'online' : 'offline');
   const status = document.getElementById('status-text');
@@ -32,6 +33,7 @@ document.addEventListener('live-metrics', event => {
 });
 fetchMetrics();
 startLogStream();
-fetchStatus().then(() => { fetchPersistence(); startCountdown(); });
+fetchStatus().then(startCountdown);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){fetchStatus();if(!document.getElementById('panel-dashboard').hidden)fetchMetrics();}});
 
 loadNotifications();

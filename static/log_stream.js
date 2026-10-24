@@ -61,7 +61,7 @@ function startLogStream() {
   fetchLogs(80);
 
   // Then poll every 2 seconds for new lines
-  evtSource = setInterval(() => fetchLogs(30), 2000);
+  evtSource = setInterval(() => {if(!document.hidden&&(!document.getElementById('panel-dashboard').hidden||!document.getElementById('panel-console').hidden))fetchLogs(30);}, 2000);
   document.getElementById('log-live-dot').classList.remove('off');
 }
 

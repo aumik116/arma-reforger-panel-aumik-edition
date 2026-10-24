@@ -76,3 +76,12 @@ async function postForm(url, formData, options = {}) {
 function escHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// Coalesce identical GETs; only live roster reads get a short display cache.
+const panelReads=new Map();
+function readPanelData(url){
+  const previous=panelReads.get(url),now=Date.now(),ttl=url==='/api/players'?2500:0;
+  if(previous&&(previous.pending||now-previous.at<ttl))return previous.promise;
+  const entry={at:now,pending:true};entry.promise=fetch(url).then(readJson).then(data=>{entry.at=Date.now();return data;}).catch(error=>{if(panelReads.get(url)===entry)panelReads.delete(url);throw error;}).finally(()=>{entry.pending=false;if(!ttl&&panelReads.get(url)===entry)panelReads.delete(url);});panelReads.set(url,entry);return entry.promise;
+}
+document.addEventListener('panel-change',()=>panelReads.clear());

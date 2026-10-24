@@ -30,7 +30,7 @@
 .mods-heading,.mods-heading>div,.mods-toolbar,.mods-actions,.mods-footer,.mods-page-size,.mods-dialog-heading { display:flex; align-items:center; gap:12px; }
 .mods-heading { justify-content:space-between; margin-bottom:22px; }
 .mods-heading h2 { font-size:28px; color:#f4f0e5; }
-:is(#panel-mods, #activity-mods) button,.mods-dialog button,:is(#panel-mods, #activity-mods) select { border:1px solid var(--border); border-radius:6px; padding:10px 14px; background:#101216; color:var(--text); font:500 13px 'Barlow',sans-serif; cursor:pointer; }
+:is(#panel-mods, #activity-mods) select { border:1px solid var(--border); border-radius:6px; padding:10px 14px; background:var(--surface2); color:var(--text); font:500 13px 'Barlow',sans-serif; cursor:pointer; }
 :is(#panel-mods, #activity-mods) button:hover,.mods-dialog button:hover { border-color:var(--accent); }
 :is(#panel-mods, #activity-mods) button:disabled { opacity:.4; cursor:default; }
 :is(#panel-mods, #activity-mods) .mod-primary,.mods-dialog .mod-primary { background:var(--accent); color:#14120c; border-color:var(--accent); }
@@ -39,7 +39,7 @@
 :is(#panel-mods, #activity-mods) button[aria-selected="true"],:is(#panel-mods, #activity-mods) button[aria-pressed="true"],:is(#panel-mods, #activity-mods) button[aria-current="page"] { color:var(--accent2); background:#2b2619; box-shadow:inset 0 0 0 1px #625535; }
 .mods-notice { color:#c9bd9e; background:#1d1c17; border:1px solid #51462d; padding:13px 17px; border-radius:7px; font-size:13px; margin-bottom:20px; }
 .mods-toolbar { flex-wrap:wrap; margin-bottom:20px; }
-#mods-search { flex:1; min-width:170px; max-width:320px; background:#101216; color:var(--text); border:1px solid var(--border); border-radius:6px; padding:12px 15px; font:14px 'Barlow',sans-serif; }
+#mods-search { flex:1; min-width:170px; max-width:320px; background:var(--surface2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:12px 15px; font:14px 'Barlow',sans-serif; }
 .mods-actions { margin-left:auto; flex-wrap:wrap; gap:8px; }
 .mods-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; }
 .mod-tile { overflow:hidden; background:var(--surface); border:1px solid var(--border); border-radius:9px; min-width:0; }
@@ -145,6 +145,6 @@ html[data-theme] .mods-grid.mods-details-view .mod-tile{padding-left:38px}.mods-
 
 .mod-queue-dialog{width:min(640px,calc(100% - 32px));padding:24px;max-height:85vh;overflow:auto}
 .mod-queue-dialog h3{margin:0 0 18px}.mod-queue-storage{display:flex;align-items:center;gap:18px;margin:0 0 10px;padding:18px}.mod-queue-storage>.ui-icon{width:28px;height:28px;color:var(--accent)}
-.mod-queue-list{max-height:42vh;overflow:auto}.mod-queue-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)}
-.mod-queue-row>div{min-width:0}.mod-queue-row strong,.mod-queue-row small{display:block;overflow-wrap:anywhere}.mod-queue-row small{margin-top:4px;color:var(--muted)}
+.mod-queue-list{max-height:42vh;overflow:auto}
+
 .mod-queue-footer{display:flex;justify-content:flex-end;gap:10px;padding-top:16px}.mod-pin-choice{display:grid;gap:8px;margin:16px 0}.mod-pin-choice select{width:100%;min-width:0}

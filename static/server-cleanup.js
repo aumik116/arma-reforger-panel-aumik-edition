@@ -18,7 +18,7 @@ function showServerRemoval(target){
  cleanupEl('server-remove-title').textContent=target.orphan?'Delete retained server files':'Remove '+target.name;
  cleanupEl('server-remove-description').textContent=target.orphan?'This server was previously removed from the panel. Review the folder before deleting it.':'The server will be stopped before removal.';
  cleanupEl('server-remove-path').textContent=target.path;cleanupEl('server-remove-id').textContent=target.id||target.server_id;cleanupEl('server-remove-options').hidden=!!target.orphan;
- removalWarning();cleanupEl('server-remove-dialog').showModal();form.elements.confirm_id.focus();
+ removalWarning();PanelUI.open(cleanupEl('server-remove-dialog'));form.elements.confirm_id.focus();
 }
 cleanupEl('server-remove-form').onchange=removalWarning;
 cleanupEl('server-remove-close').onclick=closeServerRemoval;cleanupEl('server-remove-cancel').onclick=closeServerRemoval;
@@ -54,5 +54,5 @@ async function loadServerCleanup(){
  }catch(error){cleanupEl('server-cleanup-status').textContent=error.message;}
  finally{cleanupLoading=false;cleanupEl('server-cleanup-refresh').disabled=false;}
 }
-cleanupEl('server-cleanup-open').onclick=()=>{cleanupEl('server-cleanup-dialog').showModal();loadServerCleanup();};
+cleanupEl('server-cleanup-open').onclick=()=>{PanelUI.open(cleanupEl('server-cleanup-dialog'));loadServerCleanup();};
 cleanupEl('server-cleanup-close').onclick=()=>cleanupEl('server-cleanup-dialog').close();cleanupEl('server-cleanup-refresh').onclick=loadServerCleanup;

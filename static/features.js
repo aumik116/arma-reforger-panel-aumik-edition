@@ -1,6 +1,5 @@
 // Accounts, mod presets, player roster and activity history.
 let currentAccount = {permissions: []};
-let savedPresets = [];
 let roster = [];
 let activityCursor = null;
 const can = permission => currentAccount.permissions.includes(permission);
@@ -48,7 +47,7 @@ function selectPanelTab(tab) {
   if (tab.id === 'tab-mods') { renderModUpdates(); refreshModMetadata(); }
   if (tab.id === 'tab-dashboard') {
     requestAnimationFrame(() => { playersChart.resize(); cpuChart.resize(); ramChart.resize(); networkChart.resize(); diskChart.resize(); Object.values(extraCharts).forEach(chart => chart.resize()); });
-    fetchMetrics();
+    fetchMetrics();if(byId('player-details-disclosure').open)loadPlayers();
   }
 }
 
@@ -88,7 +87,7 @@ document.querySelectorAll('.panel-tab').forEach(tab => {
 });
 
 async function getFeature(url) {
-  return readJson(await fetch(url));
+  return readPanelData(url);
 }
 
 async function changeFeature(url, data) {
@@ -163,67 +162,7 @@ function showPlayer() {
     `Username: ${player.name} · Player ID: ${player.id}${hasUuid ? '' : ` · Identity: ${player.identity}`} · First observed by panel: ${new Date(player.first_seen * 1000).toLocaleString('en-US')}` : '';
 }
 
-async function loadPresets() {
-  const data = await getFeature('/api/presets');
-  savedPresets = data.presets;
-  const shortcuts = byId('mods-preset-shortcuts');
-  const focusedPreset = shortcuts.contains(document.activeElement) ? document.activeElement.dataset.presetId : null;
-  shortcuts.replaceChildren();
-  for (const preset of savedPresets) {
-    const button = document.createElement('button'); button.type = 'button';
-    button.className = 'mod-preset-shortcut'; button.dataset.presetId = String(preset.id);
-    button.textContent = preset.name;
-    const detail = document.createElement('small');
-    detail.textContent = `${preset.mods.length} mods${preset.active ? ' · Active' : ''}`;
-    button.append(detail);
-    button.onclick = () => {
-      byId('section-tab-mods-presets').click();
-      byId('preset-select').value = String(preset.id); showPreset(); byId('preset-select').focus();
-    };
-    shortcuts.append(button);
-  }
-  if (focusedPreset) Array.from(shortcuts.children).find(button => button.dataset.presetId === focusedPreset)?.focus({preventScroll:true});
-  if (!savedPresets.length) {
-    const empty = document.createElement('p'); empty.className = 'feature-note';
-    empty.textContent = 'No saved mod sets yet.'; shortcuts.append(empty);
-  }
-  const selected = byId('preset-select').value;
-  byId('preset-select').replaceChildren(new Option('Select a saved mod preset', ''));
-  savedPresets.forEach(p => byId('preset-select').add(new Option(`${p.name} · ${p.scenario_name || 'Mods only'} · ${p.mods.length} mods${p.active ? ' · Active' : ''}`, p.id)));
-  byId('preset-select').value = selected;
-  showPreset();
-}
-
-function showPreset() {
-  const p = savedPresets.find(p => String(p.id) === byId('preset-select').value);
-  byId('preset-details').textContent = p ? `${p.scenario_name ? `Scenario: ${p.scenario_name}` : 'Legacy preset: mods only'} · ${p.mods.length} mods · Saved by ${p.updated_by}${p.mods.length ? ` · ${p.mods.slice(0, 6).map(m => m.name || m.modId).join(', ')}${p.mods.length > 6 ? ` and ${p.mods.length - 6} more` : ''}` : ''}` : '';
-}
-
-async function savePreset(overwrite = false) {
-  try {
-    const selected = savedPresets.find(p => String(p.id) === byId('preset-select').value);
-    if (overwrite && !selected) throw new Error('Select a preset to overwrite');
-    if (overwrite && !confirm(`Replace the scenario and mods saved in "${selected.name}" with the current configuration?`)) return;
-    await changeFeature('/api/presets', {name: overwrite ? selected.name : byId('preset-name').value.trim(), ...(overwrite ? {id:selected.id} : {})});
-    byId('preset-name').value = '';
-    await loadPresets();
-  } catch (e) { setLog(e.message, 'error'); }
-}
-
-async function presetAction(action) {
-  try {
-    const selected = savedPresets.find(p => String(p.id) === byId('preset-select').value);
-    if (!selected) throw new Error('Select a preset first');
-    if (action === 'apply' && Object.keys(configChanges).length) throw new Error('Save or discard your unsaved configuration edits before applying a preset.');
-    const target = selected.scenario_name ? `scenario and mod list` : 'mod list';
-    if (!confirm(action === 'apply' ? `Replace the configured ${target} with "${selected.name}"? Restart a running server afterward to use it.` : `Delete preset "${selected.name}"?`)) return;
-    await changeFeature(`/api/presets/${action}`, {id: selected.id});
-    await fetchStatus();
-    if (action === 'apply' && can('configure')) await loadConfiguration(true);
-    await loadPresets();
-  } catch (e) { setLog(e.message, 'error'); }
-}
-
+function loadPresets() { return window.loadUnifiedPresets?.() || Promise.resolve(); }
 
 async function loadActivity(older = false) {
   try {
@@ -254,12 +193,12 @@ async function initFeatures() {
     applyPermissions();
     document.dispatchEvent(new Event('panel-ready'));
     await Promise.all([loadPlayers(), loadPresets(), can('users') ? loadUsers() : Promise.resolve(), can('activity') ? loadActivity() : Promise.resolve()]);
-    setInterval(loadPlayers, 10000);
+    setInterval(()=>{if(!document.hidden&&!byId('panel-dashboard').hidden&&byId('player-details-disclosure').open)loadPlayers();},10000);
   } catch(e) { setLog(e.message, 'error'); }
 }
 document.addEventListener('panel-change', event => {
-  if (can('activity')) loadActivity();
-  if (event.detail.startsWith('/api/mods/')) loadPresets().catch(e => setLog(e.message, 'error'));
+  if (!document.hidden&&!byId('panel-administration').hidden&&can('activity')) loadActivity();
+  if (!byId('section-mods-presets').hidden&&(event.detail.startsWith('/api/mods/')||event.detail.startsWith('/api/operations'))) loadPresets().catch(e => setLog(e.message, 'error'));
 });
 initFeatures();
 
@@ -269,3 +208,5 @@ async function copyPlayerUuid() {
   try { await navigator.clipboard.writeText(field.value); byId('uuid-copy-status').textContent = 'UUID copied'; }
   catch (_) { field.focus(); field.select(); byId('uuid-copy-status').textContent = 'Press Ctrl+C to copy the selected UUID.'; }
 }
+
+byId('player-details-disclosure').addEventListener('toggle',()=>{if(byId('player-details-disclosure').open&&!document.hidden)loadPlayers();});

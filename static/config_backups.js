@@ -53,7 +53,7 @@ async function restoreConfigBackup() {
     byId('config-backup-status').textContent = 'Save or discard your unsaved configuration edits before restoring a backup.';
     return;
   }
-  if (!confirm('Restore this reviewed server configuration? The current config will be backed up first. Restart the game server afterward to apply the restored settings.')) return;
+  if (!await PanelUI.confirm('Restore this reviewed server configuration? The current config will be backed up first. Restart the game server afterward to apply the restored settings.')) return;
   byId('config-backup-restore').disabled = true;
   try {
     const response = await postJson('/api/config/backups/restore', reviewed);

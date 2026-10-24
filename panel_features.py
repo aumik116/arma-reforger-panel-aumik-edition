@@ -471,57 +471,6 @@ def install(api):
         g.audit_details = {"username": user["username"]}
         return jsonify(ok=True)
 
-    @app.get("/api/presets")
-    def presets_list():
-        with db() as conn:
-            rows = conn.execute("SELECT * FROM presets ORDER BY name").fetchall()
-        game = api.read_config().get('game', {})
-        scenarios = {item['id']: item.get('name') or item['id'] for item in api.all_scenarios_cached()}
-        return jsonify(presets=[dict(row, mods=json.loads(row['mods']),
-                                     scenario_name=scenarios.get(row['scenario_id'], row['scenario_id']),
-                                     active=json.loads(row['mods']) == game.get('mods', []) and
-                                     (row['scenario_id'] is None or row['scenario_id'] == game.get('scenarioId'))) for row in rows])
-
-    @app.post("/api/presets")
-    def presets_save():
-        data = body()
-        name = data.get("name", "")
-        if not isinstance(name, str) or not 1 <= len(name.strip()) <= 80:
-            return jsonify(ok=False, error="Enter a preset name of 1–80 characters"), 400
-        game = api.read_config().get('game', {})
-        mods, scenario_id = game.get('mods', []), game.get('scenarioId')
-        if not isinstance(scenario_id, str) or not scenario_id:
-            return jsonify(ok=False, error='Select a scenario before saving a server preset'), 400
-        with db() as conn:
-            if data.get("id") is not None:
-                if not conn.execute("SELECT 1 FROM presets WHERE id=?", (data["id"],)).fetchone():
-                    return jsonify(ok=False, error="Preset not found"), 404
-            try:
-                if data.get("id") is None:
-                    conn.execute("INSERT INTO presets(name,mods,scenario_id,updated_by,updated_at) VALUES(?,?,?,?,?)",
-                                 (name.strip(), json.dumps(mods), scenario_id, g.user["username"], time.time()))
-                else:
-                    conn.execute("UPDATE presets SET name=?,mods=?,scenario_id=?,updated_by=?,updated_at=? WHERE id=?",
-                                 (name.strip(), json.dumps(mods), scenario_id, g.user["username"], time.time(), data["id"]))
-            except sqlite3.IntegrityError:
-                return jsonify(ok=False, error="A preset with this name already exists"), 400
-        g.audit_details = {"preset": name.strip(), "mod_count": len(mods), "scenario": scenario_id}
-        return jsonify(ok=True)
-
-    @app.post("/api/presets/apply")
-    def presets_apply():
-        with db() as conn:
-            row = conn.execute("SELECT * FROM presets WHERE id=?", (body().get("id"),)).fetchone()
-        if not row:
-            return jsonify(ok=False, error="Preset not found"), 404
-        cfg = api.read_config()
-        cfg.setdefault("game", {})["mods"] = json.loads(row["mods"])
-        if row['scenario_id'] is not None:
-            cfg['game']['scenarioId'] = row['scenario_id']
-        api.write_config(cfg)
-        g.audit_details = {"preset": row["name"], "scenario": row['scenario_id']}
-        return jsonify(ok=True, restart_required=api.get_server_pid() is not None)
-
     @app.get('/api/config/backups')
     def config_backups_list():
         try:
@@ -559,16 +508,6 @@ def install(api):
             return jsonify(ok=False, error=str(exc)), 400
         except OSError:
             return jsonify(ok=False, error='Unable to restore configuration backup'), 500
-
-    @app.post("/api/presets/delete")
-    def presets_delete():
-        with db() as conn:
-            row = conn.execute("SELECT * FROM presets WHERE id=?", (body().get("id"),)).fetchone()
-            if not row:
-                return jsonify(ok=False, error="Preset not found"), 404
-            conn.execute("DELETE FROM presets WHERE id=?", (row["id"],))
-        g.audit_details = {"preset": row["name"]}
-        return jsonify(ok=True)
 
     @app.get("/api/activity")
     def activity_list():

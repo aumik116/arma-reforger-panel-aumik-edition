@@ -1,4 +1,4 @@
-/* Compact, terminal-first console. Shared chrome lives in field.css. */
+/* Compact, terminal-first console. Shared chrome lives in panel.css. */
 
 
 .layout:has(#panel-console:not([hidden])) { max-width:none; padding-top:78px; }

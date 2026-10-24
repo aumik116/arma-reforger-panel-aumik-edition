@@ -1308,6 +1308,8 @@ def api_mods_server_apply():
     try:
         mods, counts = _armahq_compare.apply(data.get('token'), data.get('selected'),
             (cfg.get('game') or {}).get('mods', []), g.user['id'])
+        mods,conflicts=resolve_mod_version_choices(mods,(cfg.get('game') or {}).get('mods',[]),data.get('version_choices',{}))
+        if conflicts:return jsonify(ok=True,needs_version_choice=True,conflicts=conflicts)
         cfg.setdefault('game', {})['mods'] = mods
         write_config(cfg)
         return jsonify(ok=True, mods=mods, counts=counts, restart_required=get_server_pid() is not None)

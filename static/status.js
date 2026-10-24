@@ -3,7 +3,12 @@ let refreshInterval = null;
 let countdown = 10;
 let busy = false;
 
-async function fetchStatus() {
+let statusPending=null;
+function fetchStatus(){
+  if(statusPending)return statusPending;
+  statusPending=readStatus().finally(()=>statusPending=null);return statusPending;
+}
+async function readStatus() {
   try {
     updateUI(await readJson(await fetch('/api/status')));
   } catch (error) {

@@ -158,7 +158,7 @@ async function fetchPersistence() {
 }
 
 async function flushPersistence() {
-  if (!confirm('Delete world-session saves (.save/game and .save/session[s]) and per-player saves (.save/playersave)? Server settings are kept. The next launch starts a fresh world. This cannot be undone.')) return;
+  if (!await PanelUI.confirm('Delete world-session saves (.save/game and .save/session[s]) and per-player saves (.save/playersave)? Server settings are kept. The next launch starts a fresh world. This cannot be undone.')) return;
   setBusy(true);
   setLog('Flushing saves...', 'info');
   try {

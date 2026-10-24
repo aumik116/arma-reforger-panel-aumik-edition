@@ -18,7 +18,7 @@ async function loadSoftware() {
   } finally { softwarePending = false; }
 }
 async function runSoftwareJob(action) {
-  if (action === 'update' && !confirm('Update the stopped game server to the public Steam release? It will remain stopped afterward.')) return;
+  if (action === 'update' && !await PanelUI.confirm('Update the stopped game server to the public Steam release? It will remain stopped afterward.')) return;
   document.getElementById('software-check').disabled = true;
   document.getElementById('software-update').disabled = true;
   try {

@@ -24,7 +24,7 @@ async function loadWorkshop(reset=false){
   }catch(error){if(serial===workshopState.request){status.textContent=error.message;modEl('workshop-grid').replaceChildren(workshopButton('Retry',()=>loadWorkshop()));}}
 }
 async function openWorkshopDetails(id){
-  const serial=++workshopState.detailRequest;const dialog=modEl('workshop-detail');const body=modEl('workshop-detail-content');body.replaceChildren(workshopNode('h2','Loading mod…'));modEl('workshop-preview').replaceChildren();modEl('workshop-detail-status').textContent='';if(!dialog.open)dialog.showModal();
+  const serial=++workshopState.detailRequest;const dialog=modEl('workshop-detail');const body=modEl('workshop-detail-content');body.replaceChildren(workshopNode('h2','Loading mod…'));modEl('workshop-preview').replaceChildren();modEl('workshop-detail-status').textContent='';if(!dialog.open)PanelUI.open(dialog);
   try{
     const {asset}=await workshopGet('/api/mods/workshop/'+encodeURIComponent(id));if(serial!==workshopState.detailRequest)return;
     body.replaceChildren(workshopImage(asset),workshopNode('h2',asset.name));body.querySelector('h2').id='workshop-title';
@@ -66,9 +66,7 @@ async function previewWorkshop(asset,action,version='',dependencies=false,scenar
   try{
     const query=new URLSearchParams({action,version,dependencies:dependencies?'1':'0',scenario});const data=await workshopGet(`/api/mods/workshop/${asset.modId}/preview?${query}`);if(serial!==workshopState.detailRequest||previewSerial!==workshopState.previewRequest)return;
     status.textContent='Review changes before saving. Restart the server after saving to apply them.';
-    const before=new Map(modLibrary.mods.map(m=>[m.modId.toUpperCase(),m]));const after=new Map(data.mods.map(m=>[m.modId.toUpperCase(),m]));
-    for(const [id,mod] of after)if(JSON.stringify(before.get(id))!==JSON.stringify(mod))panel.append(workshopNode('p',`${before.has(id)?'Change':'Add'}: ${mod.name||id} · ${mod.version?'pin v'+mod.version:'latest'}`));
-    for(const [id,mod] of before)if(!after.has(id))panel.append(workshopNode('p','Remove: '+(mod.name||id)));
+    PanelUI.modRows(panel,PanelUI.modChanges(modLibrary.mods,data.mods),{sizes:data.sizes,summary:true});
     if(data.scenario)panel.append(workshopNode('p','Use scenario: '+data.scenario));
     for(const note of data.notes)panel.append(workshopNode('p',note,'feature-note'));
     panel.append(workshopButton('Save changes',async function(){this.disabled=true;try{const result=await window.postWithModVersionChoice('/api/mods/workshop/apply',{token:data.token});if(result===null){status.textContent='No changes made.';return;}await fetchStatus();await openWorkshopDetails(asset.modId);}catch(error){status.textContent=error.message;}finally{this.disabled=false;}},true));panel.scrollIntoView({block:'nearest'});

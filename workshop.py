@@ -168,7 +168,18 @@ class Workshop:
             self.plans[token] = (time.monotonic(), identity, copy.deepcopy(current), result, current_scenario, scenario)
             while len(self.plans) > 64:
                 self.plans.pop(next(iter(self.plans)))
-        return dict(ok=True, token=token, mods=result, notes=notes, scenario=scenario)
+        sizes={value:dict(bytes=asset['size'],version='')}
+        if version:
+            release=next((row for row in asset['versions'] if row['version']==version),{})
+            sizes[value]=dict(bytes=release.get('size'),version=version)
+        pending=list(asset['dependencies']);visited=0
+        while pending:
+            dependency=pending.pop();visited+=1
+            if visited>1024:break
+            key=str((dependency.get('asset') or {}).get('id','')).upper()
+            if key:sizes[key]=dict(bytes=dependency.get('totalFileSize'),version='')
+            pending.extend(dependency.get('dependencies',[]))
+        return dict(ok=True, token=token, mods=result, notes=notes, scenario=scenario,sizes=sizes)
 
     def apply(self, token, identity, current, current_scenario=None, configure=False, with_scenario=False):
         if not isinstance(token, str):

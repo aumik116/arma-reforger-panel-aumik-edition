@@ -130,19 +130,16 @@ function reviewServerModChanges() {
   const selected=selectedComparisonChanges();if(!Object.values(selected).some(ids=>ids.length))return;
   serverComparison.draft={token:serverComparison.data.token,selected};
   const preview=modEl('mods-compare-preview');preview.replaceChildren();
-  for(const kind of ['missing','extra','versions'])for(const id of selected[kind]){
-    const mod=serverComparison.data[kind].find(m=>m.modId===id),row=document.createElement('div');row.className='mods-update-preview-row';
-    const name=document.createElement('strong'),action=document.createElement('span');name.textContent=mod.name||id;
-    action.textContent=kind==='missing'?`ADD · ${mod.version||'Latest'}`:kind==='extra'?'REMOVE':`${mod.localVersion||'Latest'} → ${mod.remoteVersion}`;
-    row.append(name,action);preview.append(row);
-  }
-  modEl('mods-compare-error').textContent='';modEl('mods-compare-dialog').showModal();
+  const rows=[];
+  for(const kind of ['missing','extra','versions'])for(const id of selected[kind]){const mod=serverComparison.data[kind].find(row=>row.modId===id);rows.push({...mod,kind:kind==='missing'?'add':kind==='extra'?'remove':'edit',beforeVersion:mod.localVersion||'',version:kind==='versions'?mod.remoteVersion:mod.version});}
+  PanelUI.modRows(preview,rows,{summary:true});
+  modEl('mods-compare-error').textContent='';PanelUI.open(modEl('mods-compare-dialog'));
 }
 async function applyServerModChanges() {
   if(!serverComparison.draft)return;
   const button=modEl('mods-compare-save');button.disabled=true;
   try {
-    const result=await changeFeature('/api/mods/servers/apply',serverComparison.draft);
+    const result=await window.postWithModVersionChoice('/api/mods/servers/apply',serverComparison.draft);if(result===null)return;
     modEl('mods-compare-dialog').close();clearServerComparison();
     const message=`${result.counts.missing} added · ${result.counts.extra} removed · ${result.counts.versions} version pins changed. Restart the game server to apply. Compare again to review remaining differences.`;
     setLog(message,'ok');comparisonStatus(message);await fetchStatus();

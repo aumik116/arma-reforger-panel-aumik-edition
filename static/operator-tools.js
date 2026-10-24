@@ -50,7 +50,7 @@ async function loadOperatorPlayers(force=false) {
         const granted=access.admins.some(id=>id.toLowerCase()===identity.toLowerCase());
         const button=operationElement('button',granted?'Remove game admin':'Grant game admin','config-button');button.type='button';
         button.onclick=async()=>{
-          if(!confirm(`${granted?'Remove':'Grant'} in-game administrator access for ${player.name}? A game-server restart is required.`))return;
+          if(!await PanelUI.confirm(`${granted?'Remove':'Grant'} in-game administrator access for ${player.name}? A game-server restart is required.`))return;
           button.disabled=true;
           try{await changeFeature('/api/players/admin',{identity,grant:!granted,revision:access.revision});byId('operator-player-feedback').textContent='Game administrator list saved. Restart the server to apply it.';await loadOperatorPlayers(true);}
           catch(error){byId('operator-player-feedback').textContent=error.message;}
@@ -160,7 +160,7 @@ async function loadStartup(){
 for(const id of ['operator-startup-fps','operator-startup-cpus','operator-startup-memory-high','operator-startup-memory-max','startup-no-sound','startup-force-update','startup-ai-limit','startup-ai-partial','startup-log-stats','startup-no-throw','startup-single-threaded'])byId(id).addEventListener('input',()=>{startupChanged();if(id==='operator-startup-cpus')renderStartupCpus();});
 window.addEventListener('beforeunload',event=>{if(startupDirty){event.preventDefault();event.returnValue='';}});
 byId('startup-discard').onclick=async()=>{
-  if(!confirm('Discard unsaved startup changes?'))return;
+  if(!await PanelUI.confirm('Discard unsaved startup changes?'))return;
   startupDirty=false;
   if(!await loadStartup()){startupDirty=true;byId('startup-draft-state').textContent='Unsaved startup changes';}
 
@@ -195,9 +195,9 @@ async function loadSchedules(){
       if(job.enabled){const countdown=operationElement('small','','schedule-countdown');countdown.dataset.runAt=job.run_at;row.append(countdown);}
       if(job.warning_error)info.append(operationElement('small','Warning: '+job.warning_error));row.append(info);
       const toggle=operationElement('button',job.enabled?'Pause':'Enable','config-button');toggle.onclick=()=>{toggle.blur();changeSchedule(job.id,{enabled:!job.enabled});};
-      const remove=operationElement('button','Remove','config-button');remove.onclick=()=>{if(confirm(`Remove schedule "${job.name}"? This does not interrupt an already running operation.`)){remove.blur();changeSchedule(job.id,{remove:true});}};
+      const remove=operationElement('button','Remove','config-button');remove.onclick=async()=>{if(await PanelUI.confirm(`Remove schedule "${job.name}"? This does not interrupt an already running operation.`)){remove.blur();changeSchedule(job.id,{remove:true});}};
       const edit=operationElement('button','Edit','config-button');edit.onclick=()=>editSchedule(job);
-      const warned=['restart','stop','update'].includes(job.action);const run=operationElement('button',warned?'Queue with warnings':'Run on next tick','config-button');run.disabled=!scheduleReady;run.onclick=()=>{if(confirm(`Queue "${job.name}" on this server? ${warned?'Runs in six minutes with player warnings.':'Runs on the next scheduler tick.'} The original schedule stays unchanged.`)){run.blur();run.disabled=true;changeSchedule(job.id,{run_now:true});}};
+      const warned=['restart','stop','update'].includes(job.action);const run=operationElement('button',warned?'Queue with warnings':'Run on next tick','config-button');run.disabled=!scheduleReady;run.onclick=async()=>{if(await PanelUI.confirm(`Queue "${job.name}" on this server? ${warned?'Runs in six minutes with player warnings.':'Runs on the next scheduler tick.'} The original schedule stays unchanged.`)){run.blur();run.disabled=true;changeSchedule(job.id,{run_now:true});}};
       row.append(run,edit,toggle,remove);list.append(row);
     }
     if(!data.schedules.length)list.append(operationElement('p','No schedules for this server.','feature-note'));
@@ -213,7 +213,7 @@ byId('schedule-form').addEventListener('submit',async event=>{
   try{const repeat=byId('schedule-repeat').value;const data={name:byId('schedule-name').value,action:byId('schedule-action').value,broadcast:byId('schedule-message').value,local_run_at:byId('schedule-time').value,interval_seconds:(repeat==='custom'?Number(byId('schedule-custom-hours').value):Number(repeat)||0)*3600,recurrence:['daily','weekly'].includes(repeat)?repeat:'interval'};await changeFeature(scheduleEditing?`/api/schedules/${scheduleEditing}`:'/api/schedules',{...data,...(scheduleEditing?{edit:true}:{})});resetScheduleEdit();byId('schedule-feedback').textContent='Schedule saved on this server.';byId('schedule-name').value='';await loadSchedules();}
   catch(error){byId('schedule-feedback').textContent=error.message;button.disabled=!scheduleReady;}
 });
-setInterval(()=>{if(!byId('panel-players').hidden)loadOperatorPlayers();if(!byId('panel-scheduler').hidden)loadSchedules();},10000);
+setInterval(()=>{if(document.hidden)return;if(!byId('panel-players').hidden)loadOperatorPlayers();if(!byId('panel-scheduler').hidden)loadSchedules();},10000);
 
 function resetScheduleEdit(){scheduleEditing=null;delete byId('schedule-time').dataset.edited;byId('schedule-save').textContent='Create schedule';byId('schedule-cancel-edit').hidden=true;}
 function editSchedule(job){

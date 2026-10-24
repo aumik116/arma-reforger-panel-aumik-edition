@@ -313,13 +313,13 @@ async function loadConfiguration(force = false) {
   finally { configPending = false; if (typeof syncNetworkForm === 'function') syncNetworkForm(); }
 }
 
-function reloadConfiguration() {
-  if (Object.keys(configChanges).length && !confirm('Discard your unsaved configuration edits and reload from disk?')) return;
+async function reloadConfiguration() {
+  if (Object.keys(configChanges).length && !await PanelUI.confirm('Discard your unsaved configuration edits and reload from disk?')) return;
   loadConfiguration(true);
 }
 
-function resetConfiguration() {
-  if (!confirm('Discard the current unsaved configuration edits?')) return;
+async function resetConfiguration() {
+  if (!await PanelUI.confirm('Discard the current unsaved configuration edits?')) return;
   configChanges = {};
   renderConfigFields(configMissions);
   updateConfigDraft();

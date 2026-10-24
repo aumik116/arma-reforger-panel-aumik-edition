@@ -177,7 +177,7 @@ Latest is the default. If an addition is pinned on another accessible running
 server, a dialog offers Latest or each available pin and names its source servers.
 Explicit choices are kept with the queue. Add now uses the same version prompt.
 
-Panel administrators can open **All servers → Host storage** for a background
+Panel administrators can open **All servers → Storage** for a background
 measurement of server installations, mods, logs, profiles, backups and recognized
 retained server folders. Measurements are cached for ten minutes and bounded to
 30 seconds / 500,000 filesystem entries; partial results are labeled. Category
@@ -197,11 +197,11 @@ and are not a measurement of physical disk use or network traffic.
   metadata is available. Selecting a locally identified mod scenario can also add
   its owning mod, with mod permission; it does not restart the server. Rescan after
   installing new content. Unidentified Workshop ownership is shown explicitly.
-- **Mods → Presets → Operation presets**: save the current scenario, mod list,
-  player limit, crossplay, visibility, gameplay and AI settings. Presets belong to
-  the selected server. Review settings and mod differences before switching while
-  stopped. Ports, passwords, admins, persistence configuration and save files are
-  excluded. Existing scenario/mod presets remain available below.
+- **Mods → Presets**: one page for mods only, scenario + mods, or a full gameplay
+  setup (player limit, crossplay, visibility, gameplay and AI settings). New presets
+  belong to the selected server. Existing shared presets are migrated and labeled
+  Shared legacy. Full setups require a stopped server; review differences before
+  applying. Ports, passwords, admins, persistence configuration and saves are excluded.
 - **Players → Player sessions**: searchable visits with observed join/last-seen
   times and approximate duration. Successful samples normally run every 30 seconds
   in the Linux panel service (more often while viewed). Brief connections can be
@@ -218,3 +218,20 @@ and are not a measurement of physical disk use or network traffic.
   Uses existing admin RCON and Server Admin Tools `#message` support. Delayed work
   requires the Linux scheduler; permission and warning checks still apply at run
   time. Review or cancel pending announcements/restarts in Scheduler.
+
+### Interface consolidation
+
+Presets now use one store and one editor. Existing shared presets are migrated
+once into the active store; the original table is retained for recovery. Deleting
+a migrated preset also deletes its recovery row so it cannot reappear at startup.
+The preset contents selector controls whether gameplay/scenario fields are saved.
+
+**All servers → Storage** combines measurements, free-space counters and retained
+server cleanup. Panel administrators see host measurements; other staff see only
+servers they can access. Cleanup remains restricted to panel administrators.
+
+Shared dialog controls, confirmations and mod change rows keep queue, Workshop,
+comparison and preset reviews consistent. Routine polling pauses in hidden browser
+tabs, charts update only in their visible workspace, and concurrent roster/status
+reads are coalesced. Durable player-history collection and scheduled jobs continue
+in the service independently of browser visibility. Theme palettes remain available.

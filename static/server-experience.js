@@ -34,7 +34,7 @@
       if(row.needs_mod)card.append(node('p','Also adds '+row.source+' to configured mods.','feature-note'));
       const choose=button(row.id===galleryData.current?'Selected':row.needs_mod?'Use scenario + add mod':'Use scenario',async()=>{
         try{
-          safeDraft();if(!confirm(`Use “${row.name}”${row.needs_mod?' and add its Workshop mod to configuration':''}? A running server needs a restart afterward.`))return;
+          safeDraft();if(!await PanelUI.confirm(`Use “${row.name}”${row.needs_mod?' and add its Workshop mod to configuration':''}? A running server needs a restart afterward.`))return;
           choose.disabled=true;await readJson(await postJson('/api/scenarios/choose',{scenario:row.id,revision:galleryData.revision}));
           galleryStatus.textContent='Scenario saved. Start or restart the server when ready.';await fetchStatus();if(can('configure'))await loadConfiguration(true);await loadGallery();
         }catch(error){galleryStatus.textContent=message(error);}finally{choose.disabled=row.id===galleryData.current;}
@@ -52,8 +52,8 @@
     }catch(error){if(serial===gallerySerial)galleryStatus.textContent=message(error);}
   }
   gallery.addEventListener('close',()=>{clearTimeout(galleryTimer);gallerySerial++;});search.oninput=source.onchange=()=>{if(galleryData)renderGallery();};
-  const openGallery=()=>{gallery.showModal();loadGallery();};
-  const scenarioToolbar=node('div',undefined,'workshop-toolbar');scenarioToolbar.append(button('Browse maps & scenarios',openGallery,'configure'),button('Operation presets',()=>{selectPanelTab(document.getElementById('tab-mods'));document.getElementById('section-tab-mods-presets').click();},'mods'));
+  const openGallery=()=>{PanelUI.open(gallery);loadGallery();};
+  const scenarioToolbar=node('div',undefined,'workshop-toolbar');scenarioToolbar.append(button('Browse maps & scenarios',openGallery,'configure'),button('Presets',()=>{selectPanelTab(document.getElementById('tab-mods'));document.getElementById('section-tab-mods-presets').click();},'mods'));
   document.getElementById('panel-configuration').prepend(scenarioToolbar);
   document.getElementById('workshop-search-form').append(button('Browse installed scenarios',openGallery,'configure'));
 
@@ -77,45 +77,45 @@
   }
   sessions.ontoggle=()=>{if(sessions.open)loadSessions();};sessionToolbar.onsubmit=event=>{event.preventDefault();loadSessions();};
 
-  // Operation presets include gameplay settings as well as scenario/mod selections.
-  const operations=node('section',undefined,'card');operations.append(node('h3','Operation presets'),node('p','Save this server’s scenario, mods, player limit, visibility, crossplay, gameplay and AI settings together. Ports, credentials, administrator identities, saves and persistence settings stay with the server. Switch operations while stopped.','feature-note'));
-  const opsToolbar=node('div',undefined,'workshop-toolbar'),opsSelect=node('select');opsSelect.setAttribute('aria-label','Operation preset');const opsName=node('input');opsName.maxLength=80;opsName.placeholder='New operation name';opsName.setAttribute('aria-label','New operation preset name');
+  // Presets include gameplay settings as well as scenario/mod selections.
+  const operations=node('section',undefined,'card');operations.append(node('h3','Presets'),node('p','Save mods only, scenario and mods, or a full gameplay setup. Full setups require a stopped server to apply. Credentials, ports and saves stay with the server.','feature-note'));
+  const opsToolbar=node('div',undefined,'workshop-toolbar'),opsSelect=node('select');opsSelect.setAttribute('aria-label','Preset');const opsName=node('input');opsName.maxLength=80;opsName.placeholder='New preset name';opsName.setAttribute('aria-label','New preset name');
+  const opsKind=node('select');opsKind.setAttribute('aria-label','Preset contents');opsKind.append(new Option('Scenario + mods','scenario_mods'),new Option('Mods only','mods'),new Option('Full gameplay setup','operation'));
   const opsStatus=node('p');opsStatus.setAttribute('role','status');let presets=[],opsBusy=false;
   opsToolbar.append(opsSelect,button('Refresh',()=>loadOperations()));operations.append(opsToolbar);
   const opsActions=node('div',undefined,'workshop-toolbar');opsActions.dataset.permission='mods';opsActions.hidden=true;
-  opsActions.append(opsName,button('Save current setup',()=>saveOperation(false)),button('Overwrite selected',()=>saveOperation(true)),button('Review / switch',()=>previewOperation()),button('Delete',()=>deleteOperation()));operations.append(opsActions,opsStatus);
+  opsActions.append(opsName,opsKind,button('Save current setup',()=>saveOperation(false)),button('Overwrite selected',()=>saveOperation(true)),button('Review / switch',()=>previewOperation()),button('Delete',()=>deleteOperation()));operations.append(opsActions,opsStatus);
   document.getElementById('section-mods-presets').prepend(operations);
   const selectedOperation=()=>presets.find(row=>String(row.id)===opsSelect.value);
   async function loadOperations(){
-    try{const selected=opsSelect.value;const data=await readJson(await fetch('/api/operations'));presets=data.presets;opsSelect.replaceChildren(new Option('Select an operation',''));for(const row of presets)opsSelect.append(new Option(`${row.name} · ${row.mods.length} mods${row.active?' · Active':''}`,row.id));opsSelect.value=selected;opsStatus.textContent=presets.length?`${presets.length} saved operations on this server.`:'No saved operations yet. Configure the server, then save the setup here.';}
+    try{const selected=opsSelect.value;const data=await readJson(await fetch('/api/operations'));presets=data.presets;opsSelect.replaceChildren(new Option('Select a preset',''));for(const row of presets)opsSelect.append(new Option(`${row.name}${row.server_id==='*legacy*'?' · Shared legacy':''} · ${row.mods.length} mods${row.active?' · Active':''}`,row.id));opsSelect.value=selected;opsStatus.textContent=presets.length?`${presets.length} presets available.`:'No saved presets yet. Configure the server, then save the setup here.';}
     catch(error){opsStatus.textContent=message(error);}
   }
+  window.loadUnifiedPresets=loadOperations;
+  opsSelect.onchange=()=>{const row=selectedOperation();if(row){opsKind.value=Object.keys(row.settings).length>1?'operation':row.settings['game.scenarioId']?'scenario_mods':'mods';opsStatus.textContent=`${row.mods.length} mods · ${row.server_id==='*legacy*'?'Shared legacy preset':'This server'} · Saved by ${row.actor}`;}};
   async function saveOperation(overwrite){
     if(opsBusy)return;
-    try{safeDraft();if(!can('configure'))throw new Error('Configuration permission is also required.');const selected=selectedOperation();if(overwrite&&!selected)throw new Error('Select an operation first.');if(overwrite&&!confirm(`Overwrite “${selected.name}” with the current setup?`))return;opsBusy=true;await readJson(await postJson('/api/operations/save',overwrite?{id:selected.id,updated:selected.updated,name:selected.name}:{name:opsName.value}));opsName.value='';await loadOperations();opsStatus.textContent='Operation saved from the current configuration.';}
+    try{safeDraft();if(opsKind.value!=='mods'&&!can('configure'))throw new Error('Configuration permission is also required.');const selected=selectedOperation();if(overwrite&&!selected)throw new Error('Select a preset first.');if(overwrite&&!await PanelUI.confirm(`Overwrite “${selected.name}” with the current setup?`))return;opsBusy=true;await readJson(await postJson('/api/operations/save',overwrite?{id:selected.id,updated:selected.updated,name:selected.name,kind:opsKind.value}:{name:opsName.value,kind:opsKind.value}));opsName.value='';await loadOperations();opsStatus.textContent='Preset saved from the current configuration.';}
     catch(error){opsStatus.textContent=message(error);}finally{opsBusy=false;}
   }
   async function deleteOperation(){
-    if(opsBusy)return;const selected=selectedOperation();if(!selected){opsStatus.textContent='Select an operation first.';return;}if(!confirm(`Delete operation preset “${selected.name}”?`))return;
+    if(opsBusy)return;const selected=selectedOperation();if(!selected){opsStatus.textContent='Select a preset first.';return;}if(!await PanelUI.confirm(`Delete preset “${selected.name}”?`))return;
     opsBusy=true;try{await readJson(await postJson('/api/operations/delete',{id:selected.id,updated:selected.updated}));await loadOperations();}catch(error){opsStatus.textContent=message(error);}finally{opsBusy=false;}
   }
-  const review=modal('Review operation switch'),reviewList=node('div'),reviewStatus=node('p');reviewStatus.setAttribute('role','status');let operationPlan=null;
-  const applyOperation=button('Apply to stopped server',async()=>{
+  const review=modal('Review preset'),reviewList=node('div'),reviewStatus=node('p');reviewStatus.setAttribute('role','status');let operationPlan=null;
+  const applyOperation=button('Apply preset',async()=>{
     if(opsBusy||!operationPlan)return;
-    try{safeDraft();opsBusy=true;applyOperation.disabled=true;await readJson(await postJson('/api/operations/apply',{id:operationPlan.id,updated:operationPlan.updated,revision:operationPlan.revision}));review.close();opsStatus.textContent='Operation applied. Start the server when ready.';await fetchStatus();if(can('configure'))await loadConfiguration(true);await loadOperations();}
+    try{safeDraft();opsBusy=true;applyOperation.disabled=true;const result=await window.postWithModVersionChoice('/api/operations/apply',{id:operationPlan.id,updated:operationPlan.updated,revision:operationPlan.revision});if(result===null)return;review.close();opsStatus.textContent='Preset applied. Start or restart the server when ready.';await fetchStatus();if(can('configure'))await loadConfiguration(true);await loadOperations();}
     catch(error){reviewStatus.textContent=message(error);}finally{opsBusy=false;applyOperation.disabled=false;}
   });review.append(node('p','Review every change below. Applying saves configuration, retains downloaded mod files and uses normal local mod reuse. It does not start the server.','feature-note'),reviewList,reviewStatus,applyOperation);
   async function previewOperation(){
-    try{safeDraft();const selected=selectedOperation();if(!selected)throw new Error('Select an operation first.');operationPlan=await readJson(await fetch(`/api/operations/${selected.id}/preview`));reviewList.replaceChildren(node('h3',operationPlan.name));
+    try{safeDraft();const selected=selectedOperation();if(!selected)throw new Error('Select a preset first.');operationPlan=await readJson(await fetch(`/api/operations/${selected.id}/preview`));reviewList.replaceChildren(node('h3',operationPlan.name));
       for(const change of operationPlan.changes)reviewList.append(node('p',`${change.label}: ${change.before??'Default'} → ${change.after??'Default'}`));
-      for(const mod of operationPlan.added)reviewList.append(node('p','Add mod: '+(mod.name||mod.modId)+(mod.version?' · '+mod.version:'')));
-      for(const mod of operationPlan.removed)reviewList.append(node('p','Remove from configuration: '+(mod.name||mod.modId)));
-      for(const mod of operationPlan.edited)reviewList.append(node('p',`Edit mod: ${mod.before.name||mod.before.modId} (${mod.before.version||'latest'} → ${mod.after.version||'latest'})`));
+      const modRows=node('div');PanelUI.modRows(modRows,[...operationPlan.added.map(mod=>({...mod,kind:'add'})),...operationPlan.removed.map(mod=>({...mod,kind:'remove'})),...operationPlan.edited.map(mod=>({...mod.after,kind:'edit',beforeVersion:mod.before.version||''}))],{sizes:operationPlan.sizes,summary:true});reviewList.append(modRows);
       if(!operationPlan.changes.length&&!operationPlan.added.length&&!operationPlan.removed.length&&!operationPlan.edited.length)reviewList.append(node('p','This setup is already configured.'));
-      reviewStatus.textContent='';applyOperation.disabled=!can('mods')||!can('configure');review.showModal();
+      reviewStatus.textContent='';applyOperation.disabled=!can('mods')||(Object.keys(selected.settings).length>0&&!can('configure'));PanelUI.open(review);
     }catch(error){opsStatus.textContent=message(error);}
   }
-  document.getElementById('section-tab-mods-presets').addEventListener('click',()=>loadOperations());
 
   // Announcement composer, backed by the existing durable scheduler and RCON.
   const announcements=modal('Player announcement'),announcementForm=node('form'),delivery=node('select');delivery.setAttribute('aria-label','Delivery');
@@ -130,12 +130,12 @@
   templates.onchange=()=>{if(templates.value)text.value=templates.value;};
   delivery.onchange=()=>{const restart=delivery.value==='restart';delayLabel.hidden=delivery.value==='now';delay.min=restart?'6':'1';if(restart&&Number(delay.value)<6)delay.value='6';textLabel.hidden=templates.hidden=restart;text.required=!restart;submit.textContent=restart?'Schedule warned restart':delivery.value==='later'?'Schedule announcement':'Send message';announcementStatus.textContent=restart?'Players receive automatic warnings 5 minutes and 1 minute before the restart.':'';};
   announcementForm.onsubmit=async event=>{
-    event.preventDefault();if(delivery.value==='restart'&&!confirm(`Restart this server in ${delay.value} minutes with 5-minute and 1-minute warnings?`))return;submit.disabled=true;
+    event.preventDefault();if(delivery.value==='restart'&&!await PanelUI.confirm(`Restart this server in ${delay.value} minutes with 5-minute and 1-minute warnings?`))return;submit.disabled=true;
     try{const result=await readJson(await postJson('/api/players/announcement',{mode:delivery.value,message:text.value,minutes:Number(delay.value)}));announcementStatus.textContent=result.message;if(delivery.value==='now')text.value='';}
     catch(error){announcementStatus.textContent=message(error);}finally{submit.disabled=false;}
   };
-  const openAnnouncements=()=>{announcementStatus.textContent='';announcements.showModal();};
+  const openAnnouncements=()=>{announcementStatus.textContent='';PanelUI.open(announcements);};
   for(const target of ['panel-players','panel-scheduler']){const tools=node('div',undefined,'workshop-toolbar');tools.append(button('Player announcement / warned restart',openAnnouncements,'admin_config'));document.getElementById(target).prepend(tools);}
-  function permissions(){document.querySelectorAll('.experience-dialog [data-permission],#panel-configuration > .workshop-toolbar [data-permission],#panel-players > .workshop-toolbar [data-permission],#panel-scheduler > .workshop-toolbar [data-permission]').forEach(element=>element.hidden=!can(element.dataset.permission));}
+  function permissions(){for(const option of opsKind.options)option.disabled=option.value!=='mods'&&!can('configure');if(!can('configure'))opsKind.value='mods';document.querySelectorAll('.experience-dialog [data-permission],#panel-configuration > .workshop-toolbar [data-permission],#panel-players > .workshop-toolbar [data-permission],#panel-scheduler > .workshop-toolbar [data-permission]').forEach(element=>element.hidden=!can(element.dataset.permission));}
   document.addEventListener('panel-ready',()=>{permissions();loadOperations();});permissions();
 })();

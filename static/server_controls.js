@@ -28,7 +28,7 @@ async function serverAction(action) {
   const labels = { start: 'Starting server...', stop: 'Stopping server...', restart: 'Restarting server...' };
   if (busy || !labels[action]) return;
   const name = document.getElementById('server-name-display').textContent || 'this server';
-  if (action !== 'start' && !confirm(`${action === 'stop' ? 'Stop' : 'Restart'} ${name}? Connected players will be disconnected.`)) return;
+  if (action !== 'start' && !await PanelUI.confirm(`${action === 'stop' ? 'Stop' : 'Restart'} ${name}? Connected players will be disconnected.`)) return;
   setBusy(true);
   setLog(labels[action], 'info');
   try {

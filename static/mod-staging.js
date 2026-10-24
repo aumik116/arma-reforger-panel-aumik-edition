@@ -12,7 +12,7 @@ window.chooseModVersions=conflicts=>new Promise(resolve=>{
   let done=false;function finish(value){if(done)return;done=true;dialog.close();dialog.remove();resolve(value);}
   dialog.querySelector('[data-cancel]').onclick=()=>finish(null);
   dialog.querySelector('[data-continue]').onclick=()=>finish(Object.fromEntries(selects.map(([id,select])=>[id,select.value])));
-  dialog.addEventListener('cancel',event=>{event.preventDefault();finish(null);});document.body.append(dialog);dialog.showModal();
+  dialog.addEventListener('cancel',event=>{event.preventDefault();finish(null);});document.body.append(dialog);PanelUI.open(dialog);
 });
 window.postWithModVersionChoice=async(url,body)=>{
   let choices={...(body.version_choices||{})};
@@ -33,10 +33,9 @@ window.postWithModVersionChoice=async(url,body)=>{
     for(const mod of rows){
       const estimate=state.sizes[mod.modId.toUpperCase()];const known=estimate&&estimate.version===(mod.version||'')&&Number.isFinite(estimate.bytes)&&estimate.bytes>=0;
       if(known)total+=estimate.bytes;else unknown++;
-      const row=document.createElement('div');row.className='mod-queue-row';const info=document.createElement('div'),name=document.createElement('strong'),detail=document.createElement('small');
-      name.textContent=mod.name||mod.modId;detail.textContent=`${mod.version?'Pinned v'+mod.version:'Latest release'} · ${known?size(estimate.bytes):'Size unknown'}`;info.append(name,detail);
-      const remove=document.createElement('button');remove.type='button';remove.className='btn-logout';remove.textContent='Remove';remove.setAttribute('aria-label','Remove '+(mod.name||mod.modId)+' from queue');remove.onclick=()=>removeEntry(mod.modId);row.append(info,remove);el('[data-rows]').append(row);
+
     }
+    PanelUI.modRows(el('[data-rows]'),rows,{sizes:state.sizes,remove:removeEntry});
     if(!rows.length)el('[data-rows]').textContent='No mods queued. Use Add to queue on Workshop cards.';
     el('[data-bytes]').textContent=size(total)+(unknown?' + unknown':'');el('[data-count]').textContent=`${rows.length} mod${rows.length===1?'':'s'} to add${unknown?' · '+unknown+' size'+(unknown===1?'':'s')+' unavailable':''}`;
     el('[data-estimate-note]').textContent='Workshop size estimate, including queued dependencies. Actual disk use varies with existing files and copy-on-write.';
@@ -50,7 +49,7 @@ window.postWithModVersionChoice=async(url,body)=>{
     catch(error){el('[data-status]').textContent=error.message;}finally{lock(false);}
   }
   const close=()=>{if(!busy)dialog.close();};el('[data-cancel]').onclick=close;dialog.addEventListener('cancel',event=>{event.preventDefault();close();});
-  button.onclick=async()=>{state=null;el('[data-status]').textContent='Loading queue…';el('[data-rows]').replaceChildren();dialog.showModal();lock(true);try{await load();el('[data-status]').textContent='';}catch(error){el('[data-status]').textContent=error.message;}finally{lock(false);if(!state)el('[data-apply]').disabled=true;}};
+  button.onclick=async()=>{state=null;el('[data-status]').textContent='Loading queue…';el('[data-rows]').replaceChildren();PanelUI.open(dialog);lock(true);try{await load();el('[data-status]').textContent='';}catch(error){el('[data-status]').textContent=error.message;}finally{lock(false);if(!state)el('[data-apply]').disabled=true;}};
   document.getElementById('workshop-queue-open').onclick=()=>button.click();
   el('[data-apply]').onclick=async()=>{
     if(busy||!state?.entries.length)return;lock(true);el('[data-status]').textContent='Adding queued mods…';

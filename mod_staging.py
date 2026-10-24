@@ -10,7 +10,7 @@ from server_software import write_state
 
 def install(api):
     from panel_features import MUTATIONS
-    MUTATIONS.update(mod_draft_save='mods',mod_draft_apply='mods',mod_draft_discard='mods',mod_draft_queue='mods')
+    MUTATIONS.update(mod_draft_save='mods',mod_draft_apply='mods',mod_draft_queue='mods')
 
     def path():return Path(api._STATE_DIR)/'.mod-draft.json'
     def draft():
@@ -110,11 +110,6 @@ def install(api):
             result=save(entries,sizes,choices)
             return jsonify(ok=True,count=len(entries),revision=(result or {}).get('updated'))
         except (ValueError,KeyError,TypeError) as exc:return jsonify(ok=False,error=str(exc)),400
-
-    @api.app.post('/api/mods/draft/discard')
-    def mod_draft_discard():
-        if request.get_json().get('revision')!=(draft() or {}).get('updated'):return jsonify(ok=False,error='Queue changed. Reopen it.'),409
-        path().unlink(missing_ok=True);return jsonify(ok=True)
 
     @api.app.post('/api/mods/draft/apply')
     def mod_draft_apply():

@@ -7,7 +7,7 @@ from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import abort, g, jsonify, request
-from units import text
+from units import text, unit_role_capabilities
 
 
 def install(api, db, access, revision, panel_admin, endpoints):
@@ -67,7 +67,7 @@ def install(api, db, access, revision, panel_admin, endpoints):
         if panel_admin():
             return dict(references=True, awards=True, campaigns=True)
         row = conn.execute('SELECT role,capabilities FROM unit_staff WHERE unit_id=? AND user_id=?', (unit_id, g.user['id'])).fetchone()
-        caps = json.loads(row['capabilities']) if row else []
+        caps = unit_role_capabilities(row['role']) if row else []
         return {key: bool(row and (row['role'] == 'admin' or key in caps)) for key in ('references', 'awards', 'campaigns')}
 
     def audit(conn, unit_id, kind, object_id, action, before, after, reason='', member_id=None):

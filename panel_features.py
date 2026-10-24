@@ -88,6 +88,7 @@ def install(api):
             conn.execute('ALTER TABLE users ADD COLUMN panel_admin INTEGER NOT NULL DEFAULT 0')
             conn.execute("UPDATE users SET panel_admin=1 WHERE role='admin'")
         conn.execute("CREATE TABLE IF NOT EXISTS user_server_roles (user_id INTEGER NOT NULL, server_id TEXT NOT NULL, role TEXT NOT NULL, PRIMARY KEY(user_id,server_id))")
+        conn.execute("UPDATE user_preferences SET theme='slate' WHERE theme='ocean'")
         if 'scenario_id' not in {row['name'] for row in conn.execute('PRAGMA table_info(presets)')}:
             conn.execute('ALTER TABLE presets ADD COLUMN scenario_id TEXT')
         if not conn.execute("SELECT 1 FROM users LIMIT 1").fetchone():
@@ -319,12 +320,13 @@ def install(api):
     def account_preferences():
         with db() as conn:
             row = conn.execute('SELECT theme FROM user_preferences WHERE user_id=?', (g.user['id'],)).fetchone()
-        return jsonify(theme=row['theme'] if row else 'slate')
+        return jsonify(theme='slate' if not row or row['theme']=='ocean' else row['theme'])
 
     @app.post('/api/preferences')
     def account_preferences_save():
         theme = (request.get_json(silent=True) or {}).get('theme')
-        if theme not in ('tactical', 'original', 'field', 'ocean', 'forest', 'light', 'slate', 'fielddesk', 'operations'):
+        if theme=='ocean':theme='slate'  # Accept requests from older open tabs.
+        if theme not in ('tactical', 'original', 'field', 'forest', 'light', 'slate', 'fielddesk', 'operations'):
             return jsonify(ok=False, error='Choose a supported theme'), 400
         with db() as conn:
             conn.execute('INSERT INTO user_preferences VALUES (?,?) ON CONFLICT(user_id) DO UPDATE SET theme=excluded.theme',
@@ -367,10 +369,11 @@ def install(api):
 
     @app.get("/api/users")
     def users_list():
+        from units import unit_role_capabilities
         with db() as conn:
             rows = conn.execute("SELECT id,username,role,enabled,access_all,panel_admin,version FROM users ORDER BY username").fetchall()
         with db() as conn:
-            unit_assignments = [dict(row,capabilities=json.loads(row['capabilities'])) for row in conn.execute('SELECT * FROM unit_staff')]
+            unit_assignments = [dict(row,capabilities=list(unit_role_capabilities(row['role']))) for row in conn.execute('SELECT * FROM unit_staff')]
             unit_choices = [dict(row) for row in conn.execute('SELECT id,name,revision FROM units ORDER BY name')]
             assignments = [dict(row) for row in conn.execute('SELECT * FROM user_server_roles')]
         servers = [dict(id=server.id, name=server.name) for server in api.server_registry.list()]

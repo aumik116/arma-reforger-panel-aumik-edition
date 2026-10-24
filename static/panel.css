@@ -617,3 +617,28 @@ html[data-theme] :where(dialog) :where(p){line-height:1.5;overflow-wrap:anywhere
 .panel-dialog-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 
 .mod-change-summary{padding:12px;border:1px solid var(--border);border-radius:4px;background:var(--surface2);color:var(--text)}
+
+/* Field uses light content with dark chrome; chrome needs its own readable tokens. */
+html[data-theme="field"] :is(header,.manager-header,.sidebar){
+  color-scheme:dark;
+  --text:#edf1e7;--heading:#ffffff;--muted:#c3cdb9;
+  --accent:#c8e4ac;--accent2:#e4f1d5;--accent-soft:#485b3c;--accent-border:#9bb88a;
+  --surface:#3b4934;--surface2:#45553d;--console-bg:#2d3928;--border:#7c8e6e;
+  --field-nav:var(--text);--field-nav-muted:var(--muted);
+  --nav-border:var(--border);--nav-control:var(--surface);--nav-selected:var(--accent-soft);--nav-selected-text:var(--accent2);--nav-hover:var(--surface2);
+  color:var(--text);
+}
+html[data-theme="field"] :is(header,.manager-header,.sidebar) :is(a,button,select){color:var(--text)}
+html[data-theme="field"] .fieldhq-brand span,html[data-theme="field"] .fieldhq-areas a[aria-current]{color:var(--accent)}
+html[data-theme="field"] .sidebar :is(.panel-tab.active,.panel-tab[aria-selected="true"],.panel-tab[aria-current]){color:var(--accent2)}
+html[data-theme="field"] .fleet-control-toolbar .fieldhq-search input{background:transparent}
+
+/* Original restores the angular amber treatment within the shared workspace. */
+:root[data-theme="original"]{--border:#62543d;--accent-border:#a88a47;--chart-grid:#3a352a}
+/* Radius is intentional here: component-specific selectors must not round this skin. */
+html[data-theme="original"] :is(button,input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),select,textarea,dialog,.btn-save,.btn-logout,.manager-link,.config-button,.login-submit,.fieldhq-search,.card,.chart-card,.config-category,.config-code-block,.files-workspace,.files-browser,.files-editor,.mods-card,.mod-tile,.mod-art,.mods-toolbar,.mod-review-card,.mods-bulk-toolbar,.mod-change-summary,.network-chart,.console-workspace,.console-command-card,.operator-row,.operator-facts,.fleet-server-card,.fleet-chart-panel,.fleet-alert-panel,.fleet-cards,.manager-summary>div,.unit-block,.unit-table,.unit-badge,.unit-brand-icon,.unit-brand-preview,.structure-section,.structure-group-heading,.downloaded-table-wrap,.manual-tools,.startup-savebar,.config-savebar,.section-tabs,.section-filter,.config-modes){border-radius:0!important}
+html[data-theme="original"] :is(.card,.chart-card,.fleet-chart-panel,.fleet-alert-panel,.fleet-server-card,.unit-block,.mod-tile,dialog){box-shadow:none;border-color:var(--border)}
+html[data-theme="original"] .sidebar .panel-tab{border:1px solid var(--border);border-left-width:2px}
+html[data-theme="original"] .sidebar :is(.panel-tab.active,.panel-tab[aria-selected="true"],.panel-tab[aria-current]){border-color:var(--accent-border);border-left-color:var(--accent);background:var(--accent-soft);color:var(--accent2)}
+html[data-theme="original"] .section-tabs button{border:1px solid var(--border)}
+html[data-theme="original"] .fieldhq-search{border-color:var(--border)}

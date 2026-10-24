@@ -4,6 +4,14 @@ Manage multiple Arma Reforger dedicated servers on one Ubuntu VM: mods, performa
 
 The default branch is **`main`**, including the multi-server manager. Fresh Ubuntu installation, Steam downloads and systemd game startup still need real VM verification. Remote nodes are not supported yet.
 
+## Documentation
+
+- **[Unit staff manual (PDF)](docs/unit-staff-manual.pdf)** · [Markdown](docs/unit-staff-manual.md) — a focused guide for rosters, member records, events, attendance and unit staff tasks.
+- **[User manual (PDF)](docs/user-manual.pdf)** · [Markdown](docs/user-manual.md) — everyday tasks, permissions, servers, mods, units, rosters and attendance.
+- **[Operations guide](docs/operations.md)** — installation, host administration and recovery.
+
+Use **Help** in the panel header for guidance on the current server tab or unit page. Both manuals are also available inside the panel at `/help`, with text search and PDF downloads.
+
 ## Fresh installation
 
 Use **Ubuntu 24.04, x86_64**, a sudo account and enough disk space for each server's game files, mods and saves. The installer installs Python dependencies and prepares SteamCMD.
@@ -31,7 +39,7 @@ Unit administrators can use **Administration → Customization** to upload an ic
 
 The unit workspace groups pages under **Overview**, **Roster**, **Operations**, **Resources** and **Administration**. Administration appears only when you have permission. The selected unit and page stay in the URL for reloads and bookmarks. Each page loads its data when opened; long tables scroll sideways on smaller screens.
 
-Open **Units & rosters** from the navigation. Panel administrators create units, link servers and create staff accounts. Use **Staff access → Add staff** inside a unit to create a login and assign its permissions in one popup (panel administrators), or assign an existing account (unit administrators). An optional roster link sets their name for unit notes and history. New logins have no server access. Unit administrators manage their own staff and rosters. Other staff see only their assigned units; hosting roles remain separate.
+Open **Units & rosters** from the navigation. Panel administrators create units, link servers and create staff accounts. Use **Staff access → Add staff** inside a unit to create a login and choose Staff or Unit administrator in one popup (panel administrators), or assign an existing account (unit administrators). An optional roster link sets their name for unit notes and history. New logins have no server access. Unit administrators manage their own staff and rosters. Other staff see only their assigned units; hosting roles remain separate.
 
 Create the unit's qualifications, position suggestions and independent rank structures in **Resources → Rank rules & catalogs**, then add roster members manually. Members need no login account. Game name, Discord handle, Active/Reserve/LOA status, optional rank, qualifications and promotion dates stay separate for each unit. Marine, Medical and Officer structures can each define their own ranks, advancement times and required qualifications; paygrade is only an optional label. Promotion eligibility is a staff notice, never an automatic promotion. Define groups, sections and billet slots, then place each member in one primary billet. Empty slots and staffing counts remain visible. UUIDs can be selected from recorded players on linked servers.
 
@@ -55,7 +63,7 @@ Choose **Bulk edit…** on the Roster tab to select up to 500 current members an
 - **Awards:** create a unit medal/badge catalog, then issue awards with a date and citation. Each issue records the staff member’s unit name. Repeated medals require explicit confirmation; revocations require a reason and retain the original issue. Member records show medals and campaign awards. Award names/images are preserved at issue time when the catalog later changes.
 - **Campaigns:** group this unit’s events by a timezone-aware date window or explicit event selection. Set a participation threshold and optionally link a catalog award. Progress uses confirmed Present outcomes divided by eligible finalized events: Reserve events count, LOA and Excused events are exempt, and Unknown means unconfirmed rather than absent. This differs from normal attendance percentages, which only count required Present/Absent decisions. Complete the campaign and finalize its tracked events before individually approving awards. Date-window campaigns must also reach the end of their window. Nothing grants or revokes campaign awards automatically.
 
-All unit staff can view these areas. Unit administrators and panel administrators can manage them; other staff can receive **Manage SOPs / loadouts**, **Manage awards** and **Manage campaigns** independently through Add staff or the user editor. These permissions grant no hosting access. Recruiting remains deferred.
+All unit staff can view these areas. Staff can manage SOPs/loadouts, awards and campaigns as part of their standard role. These permissions grant no hosting access. Recruiting remains deferred.
 
 ### Events and attendance
 
@@ -105,7 +113,7 @@ Updates create recovery snapshots under `/var/backups/arma-panel/`. A failed upd
 | Network | Listeners, ports, network settings and host traffic |
 | Administration | Staff access, activity, Discord notifications and maintenance |
 
-**Account settings** is a separate page for your password and theme. Everyone uses the same layout. Color choices are Slate (navy/teal, the default for new accounts), Field Desk (light/green), Operations (charcoal/blue), Tactical (charcoal/amber/olive), Original (classic amber), Ocean, Forest, Light and Field (olive and parchment); the login page uses the last palette remembered by that browser.
+**Account settings** changes your password and color theme. All accounts use the same layout. The eight themes are Slate (the default), Field Desk, Operations, Tactical, Original, Field, Forest and Light. Original adds square corners and firmer borders to the classic amber palette, while keeping the shared layout. Field keeps olive chrome and parchment content with contrasting navigation text. Former Ocean preferences move to Slate. Login uses the last palette remembered by the browser; signed-in pages load the account preference.
 
 Stop and restart ask for confirmation. Controls block repeated clicks while an action runs and show failures. Unavailable status is distinct from a stopped server.
 
@@ -235,3 +243,21 @@ comparison and preset reviews consistent. Routine polling pauses in hidden brows
 tabs, charts update only in their visible workspace, and concurrent roster/status
 reads are coalesced. Durable player-history collection and scheduled jobs continue
 in the service independently of browser visibility. Theme palettes remain available.
+
+### Two unit roles
+
+Unit access uses **Staff** and **Unit administrator**, with no individual permission
+checkboxes. Staff manage rosters, notes, primary assignments, qualifications,
+promotion reviews, events, attendance, references, awards and campaigns in assigned
+units. Unit administrators additionally manage staff access, rank rules/catalogs,
+structure, branding and permanent member deletion. Owner/panel administrator access
+remains intact; neither unit role grants hosting access. Existing Staff assignments
+receive the standard Staff access automatically when the updated panel starts.
+
+### Rebuilding manuals
+
+The Markdown files in `docs/` are the source for in-panel HTML and PDF manuals.
+For documentation changes, run `python3 scripts/build-manuals.py` in a development
+environment with Pandoc, ReportLab and DejaVu fonts installed, and commit the
+regenerated HTML/PDF files. The deployed panel reads these files without requiring
+those build tools. Installer updates copy manuals and include them in recovery snapshots.

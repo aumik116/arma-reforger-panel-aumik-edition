@@ -1545,6 +1545,9 @@ install_host(sys.modules[__name__])
 from server_experience import install as install_server_experience
 install_server_experience(sys.modules[__name__])
 
+from panel_help import install as install_panel_help
+install_panel_help(sys.modules[__name__])
+
 if __name__ == "__main__":
     notifications.start()
     operator_tools.start()

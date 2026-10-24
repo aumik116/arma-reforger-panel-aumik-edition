@@ -1,5 +1,7 @@
 # Operations guide
 
+For everyday browser tasks, see the [FIELDHQ user manual](user-manual.md).
+
 [Back to installation and the workspace overview](../README.md).
 
 ## All servers dashboard
@@ -127,7 +129,7 @@ Dashboard shows the selected server's events and Discord delivery status. In **A
 
 Monitoring distinguishes panel-controlled stops from unexpected process changes. Initial observation establishes a baseline. Repeated failures are suppressed for five minutes. Delivery tries up to three times, observes rate-limit delays and records failures. Messages do not include passwords, logs or configuration values; only the configured role can be mentioned. Saving settings cancels queued messages. The database retains the latest 1,000 events per server; the UI shows 100. Monitoring and delivery require the Linux service. Use **Send test message** to check your webhook.
 
-**Account settings** changes your password and theme without requiring server access. Password changes require the current password, keep the current session signed in and invalidate other sessions. Staff/access management remains in Administration. Login uses the browser's remembered theme; signed-in pages load the account's saved preference. The layout is shared by all accounts; the color picker changes only the palette. Tactical uses the charcoal/amber/olive mockup palette and is the default for accounts without a saved preference. Original retains the pre-refresh amber colors. Ocean, Forest, Light and Field (olive and parchment) complete the six color options. Existing saved colors remain selected.
+**Account settings** changes your password and color theme. All accounts use the same layout. The eight palettes are Slate (the default), Field Desk, Operations, Tactical, Original, Field, Forest and Light. Field keeps olive chrome and parchment content with contrasting navigation text. Former Ocean preferences move to Slate. Login uses the last palette remembered by the browser; signed-in pages load the account preference.
 
 The compact reference layout uses local SVG icons, bundled Barlow fonts (SIL Open Font License, included under `static/fonts`), and a contour header. The Dashboard places player and resource charts above the live console and roster; additional performance readings are under More performance details. Its player chart retains 60 roster readings in browser memory, with unavailable readings shown as gaps. The Mods table includes Workshop thumbnails and shortcuts to existing saved presets. Maintenance retains the actual server software and configuration-backup controls.
 

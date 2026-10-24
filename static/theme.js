@@ -1,6 +1,6 @@
 // The account is authoritative; this cache avoids a flash during page reloads.
 (() => {
-  const themes = ['tactical', 'original', 'field', 'ocean', 'forest', 'light', 'slate', 'fielddesk', 'operations'];
+  const themes = ['tactical', 'original', 'field', 'forest', 'light', 'slate', 'fielddesk', 'operations'];
   let current = 'slate';
   function apply(theme) {
     current = themes.includes(theme) ? theme : 'slate';

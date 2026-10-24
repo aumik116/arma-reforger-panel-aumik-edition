@@ -15,11 +15,11 @@
 set -e
 
 # Keep both fresh installs and updates on the same file-copy path.
-PANEL_PY_FILES=(app.py startup_settings.py moderation.py account_recovery.py storage_usage.py notifications.py workshop.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py config_backups.py mod_metadata.py mod_inventory.py mod_reuse.py mod_staging.py server_experience.py live_metrics.py units.py unit_events.py roster_tools.py unit_resources.py fleet_software.py server_software.py persistence_saves.py armahq_compare.py mod_validation.py legacy_api.py server_registry.py instance_runtime.py server_provisioning.py instance_control.py update_recovery.py scheduler.py operator_tools.py)
+PANEL_PY_FILES=(app.py startup_settings.py moderation.py account_recovery.py storage_usage.py notifications.py workshop.py panel_features.py player_query.py runtime_ops.py network_status.py file_manager.py config_editor.py config_backups.py mod_metadata.py mod_inventory.py mod_reuse.py mod_staging.py panel_help.py server_experience.py live_metrics.py units.py unit_events.py roster_tools.py unit_resources.py fleet_software.py server_software.py persistence_saves.py armahq_compare.py mod_validation.py legacy_api.py server_registry.py instance_runtime.py server_provisioning.py instance_control.py update_recovery.py scheduler.py operator_tools.py)
 
 copy_panel_files() {
     local destination="$1" file
-    for file in "${PANEL_PY_FILES[@]}" index.html login.html setup.html servers.html account.html units.html; do
+    for file in "${PANEL_PY_FILES[@]}" index.html login.html setup.html servers.html account.html units.html help.html; do
         if [[ ! -f "$SCRIPT_DIR/$file" ]]; then
             echo "ERROR: Required panel file $file is missing from the checkout." >&2
             return 1
@@ -29,11 +29,18 @@ copy_panel_files() {
         echo "ERROR: Panel static files are missing from the checkout." >&2
         return 1
     fi
-    mkdir -p "$destination/static"
-    for file in "${PANEL_PY_FILES[@]}" index.html login.html setup.html servers.html account.html units.html; do
+    for file in docs/user-manual.html docs/unit-staff-manual.html docs/user-manual.pdf docs/unit-staff-manual.pdf; do
+        if [[ ! -f "$SCRIPT_DIR/$file" ]]; then
+            echo "ERROR: Required manual $file is missing. Rebuild manuals before installation." >&2
+            return 1
+        fi
+    done
+    mkdir -p "$destination/static" "$destination/docs"
+    for file in "${PANEL_PY_FILES[@]}" index.html login.html setup.html servers.html account.html units.html help.html; do
         cp "$SCRIPT_DIR/$file" "$destination/"
     done
     cp -R "$SCRIPT_DIR/static/." "$destination/static/"
+    cp -R "$SCRIPT_DIR/docs/." "$destination/docs/"
 }
 
 # These helpers can be sourced by tests without running the installer.
@@ -185,10 +192,10 @@ update_panel_with_recovery() (
     copy_panel_files "$panel_dir"
     rm -f "$panel_dir/save_library.py" "$panel_dir/static/saves.js"
     local file
-    for file in "${PANEL_PY_FILES[@]}" index.html login.html setup.html servers.html account.html units.html; do
+    for file in "${PANEL_PY_FILES[@]}" index.html login.html setup.html servers.html account.html units.html help.html; do
         chown "$panel_user:$panel_user" "$panel_dir/$file"
     done
-    chown -R "$panel_user:$panel_user" "$panel_dir/static"
+    chown -R "$panel_user:$panel_user" "$panel_dir/static" "$panel_dir/docs"
     if ! grep -q "^PANEL_MODE=manager$" "$panel_dir/config.env"; then
         configure_server_control "$panel_dir" "$panel_user"
     fi

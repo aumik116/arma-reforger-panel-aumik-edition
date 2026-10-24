@@ -11,7 +11,12 @@ import time
 from flask import abort, g, jsonify, request, send_file, send_from_directory
 
 UUID = re.compile(r'[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}')
-CAPABILITIES = ('roster', 'events', 'attendance', 'references', 'awards', 'campaigns', 'staff')
+STAFF_CAPABILITIES = ('roster', 'events', 'attendance', 'references', 'awards', 'campaigns')
+CAPABILITIES = STAFF_CAPABILITIES + ('staff',)
+
+
+def unit_role_capabilities(role):
+    return CAPABILITIES if role == 'admin' else STAFF_CAPABILITIES if role == 'staff' else ()
 FIELDS = ('game_name', 'discord', 'identity', 'status', 'rank', 'section', 'position', 'joined_on', 'loa_until', 'notes', 'last_promo', 'certificates', 'rank_track')
 
 
@@ -122,6 +127,12 @@ def install(api):
                 if catalog['rank_structures']:
                     conn.execute("UPDATE unit_roster SET rank_track='Existing ranks' WHERE unit_id=? AND rank!='' AND rank_track=''",(unit['id'],))
         conn.execute('CREATE UNIQUE INDEX IF NOT EXISTS unit_roster_panel_user ON unit_roster(unit_id,panel_user_id) WHERE panel_user_id IS NOT NULL')
+        # Normalize legacy checkbox grants; role is now the sole authority.
+        for role in ('staff','admin'):
+            normalized=json.dumps(unit_role_capabilities(role))
+            changed=[row[0] for row in conn.execute('SELECT DISTINCT unit_id FROM unit_staff WHERE role=? AND capabilities!=?',(role,normalized))]
+            conn.execute('UPDATE unit_staff SET capabilities=? WHERE role=? AND capabilities!=?',(normalized,role,normalized))
+            for unit_id in changed:conn.execute('UPDATE units SET revision=revision+1 WHERE id=?',(unit_id,))
         owner_id = conn.execute('SELECT user_id FROM panel_owner WHERE singleton=1').fetchone()[0]
 
     def panel_admin():
@@ -145,7 +156,7 @@ def install(api):
         membership = conn.execute('SELECT * FROM unit_staff WHERE unit_id=? AND user_id=?', (unit_id,g.user['id'])).fetchone()
         if not membership:
             abort(404, description='Unit not found')
-        if capability and membership['role'] != 'admin' and capability not in json.loads(membership['capabilities']):
+        if capability and capability not in unit_role_capabilities(membership['role']):
             abort(403, description='Your unit role does not allow this change')
         return unit
 
@@ -155,12 +166,9 @@ def install(api):
         if not conn.execute('UPDATE units SET revision=revision+1 WHERE id=? AND revision=?', (unit_id,data['revision'])).rowcount:
             abort(409, description='This unit changed. Reload it before saving your changes.')
 
-    def validate_staff(role, capabilities):
-        if role not in ('staff','admin') or not isinstance(capabilities,list) or any(c not in CAPABILITIES for c in capabilities):
-            raise ValueError('Choose Staff or Unit administrator and valid permissions')
-        # Managing staff is an administrator responsibility, never a staff checkbox.
-        if role == 'staff' and 'staff' in capabilities:
-            raise ValueError('Only unit administrators can manage unit staff')
+    def validate_staff(role):
+        if role not in ('staff','admin'):
+            raise ValueError('Choose Staff or Unit administrator')
 
     def protect_admin(conn, unit_id, user_id, new_role):
         previous = conn.execute('SELECT role FROM unit_staff WHERE unit_id=? AND user_id=?', (unit_id,user_id)).fetchone()
@@ -183,7 +191,7 @@ def install(api):
             if unit_id in desired:
                 raise ValueError('A unit can only be assigned once')
             access(conn, unit_id, 'staff')
-            validate_staff(item.get('role'), item.get('capabilities',[]))
+            validate_staff(item.get('role'))
             desired[unit_id] = item
         existing = {r['unit_id'] for r in conn.execute('SELECT unit_id FROM unit_staff WHERE user_id=?',(user_id,))}
         for unit_id in existing | desired.keys():
@@ -195,7 +203,7 @@ def install(api):
             protect_admin(conn,unit_id,user_id,item['role'] if item else None)
             conn.execute('DELETE FROM unit_staff WHERE unit_id=? AND user_id=?',(unit_id,user_id))
             if item:
-                conn.execute('INSERT INTO unit_staff VALUES(?,?,?,?)',(unit_id,user_id,item['role'],json.dumps(item.get('capabilities',[]))))
+                conn.execute('INSERT INTO unit_staff VALUES(?,?,?,?)',(unit_id,user_id,item['role'],json.dumps(unit_role_capabilities(item['role']))))
             conn.execute('UPDATE units SET revision=revision+1 WHERE id=?',(unit_id,))
 
     def protect_account(conn, user_id):
@@ -235,7 +243,7 @@ def install(api):
             result = []
             for row in rows:
                 member = conn.execute('SELECT role,capabilities FROM unit_staff WHERE unit_id=? AND user_id=?',(row['id'],g.user['id'])).fetchone()
-                result.append(dict(row,role='admin' if panel_admin() else member['role'],capabilities=list(CAPABILITIES) if panel_admin() or member['role']=='admin' else json.loads(member['capabilities']),
+                result.append(dict(row,role='admin' if panel_admin() else member['role'],capabilities=list(CAPABILITIES) if panel_admin() or member['role']=='admin' else list(unit_role_capabilities(member['role'])),
                     servers=[r['server_id'] for r in conn.execute('SELECT server_id FROM unit_servers WHERE unit_id=?',(row['id'],))]))
             # Only disclose server names linked to visible units, plus explicit server grants.
             visible = {s for row in result for s in row['servers']}
@@ -602,8 +610,8 @@ def install(api):
             unit_brand=branding(conn,unit_id)
             admin = panel_admin() or membership['role']=='admin'
             accounts = [dict(r) for r in conn.execute('SELECT id,username,enabled FROM users ORDER BY username')] if panel_admin() else [dict(r) for r in conn.execute('SELECT u.id,u.username,u.enabled FROM users u JOIN unit_staff s ON s.user_id=u.id WHERE s.unit_id=? ORDER BY u.username',(unit_id,))]
-            staff = [dict(r,capabilities=json.loads(r['capabilities'])) for r in conn.execute('SELECT s.*,u.username,u.enabled FROM unit_staff s JOIN users u ON u.id=s.user_id WHERE unit_id=? ORDER BY username',(unit_id,))] if admin else []
-        return jsonify(unit=dict(unit,catalog=catalog,branding=unit_brand),structure=structure,roster=roster,staff=staff,can_edit=admin or 'roster' in json.loads(membership['capabilities']),can_staff=admin,can_delete=admin,accounts=accounts,can_settings=panel_admin())
+            staff = [dict(r,capabilities=list(unit_role_capabilities(r['role']))) for r in conn.execute('SELECT s.*,u.username,u.enabled FROM unit_staff s JOIN users u ON u.id=s.user_id WHERE unit_id=? ORDER BY username',(unit_id,))] if admin else []
+        return jsonify(unit=dict(unit,catalog=catalog,branding=unit_brand),structure=structure,roster=roster,staff=staff,can_edit=admin or 'roster' in unit_role_capabilities(membership['role']),can_staff=admin,can_delete=admin,accounts=accounts,can_settings=panel_admin())
 
     def find_member(conn, unit_id, member_id):
         member=conn.execute('SELECT r.*,u.username AS panel_username,u.enabled AS panel_user_enabled FROM unit_roster r LEFT JOIN users u ON u.id=r.panel_user_id WHERE r.unit_id=? AND r.id=?',(unit_id,member_id)).fetchone()
@@ -625,8 +633,8 @@ def install(api):
             decorate_slots(conn,unit_id,[member])
             rows=[dict(r) for r in conn.execute('SELECT id,author_name,created_at,note FROM unit_member_notes WHERE unit_id=? AND member_id=? AND (?=0 OR id<?) ORDER BY id DESC LIMIT 51',(unit_id,member_id,before,before))]
             membership=conn.execute('SELECT role,capabilities FROM unit_staff WHERE unit_id=? AND user_id=?',(unit_id,g.user['id'])).fetchone()
-            can_write=panel_admin() or membership['role']=='admin' or 'roster' in json.loads(membership['capabilities'])
-        return jsonify(member=dict(member,promotion=promotion(member,json.loads(unit['catalog']))),notes=rows[:50],next_before=rows[49]['id'] if len(rows)>50 else None,can_write=can_write,can_delete=panel_admin() or membership['role']=='admin',can_award=panel_admin() or membership['role']=='admin' or 'awards' in json.loads(membership['capabilities']))
+            can_write=panel_admin() or membership['role']=='admin' or 'roster' in unit_role_capabilities(membership['role'])
+        return jsonify(member=dict(member,promotion=promotion(member,json.loads(unit['catalog']))),notes=rows[:50],next_before=rows[49]['id'] if len(rows)>50 else None,can_write=can_write,can_delete=panel_admin() or membership['role']=='admin',can_award=panel_admin() or membership['role']=='admin' or 'awards' in unit_role_capabilities(membership['role']))
 
     @api.app.post('/api/units/<int:unit_id>/roster/<int:member_id>/record')
     def unit_member_note_save(unit_id,member_id):
@@ -795,11 +803,11 @@ def install(api):
                     user = conn.execute('SELECT * FROM users WHERE username=? COLLATE NOCASE',(username,)).fetchone()
                 if not user:
                     raise ValueError('No matching panel account. Ask a panel administrator to create it first.')
-                role, capabilities = data.get('role'),data.get('capabilities',[])
+                role=data.get('role');capabilities=list(unit_role_capabilities(role))
                 if role != 'remove':
                     if not user['enabled']:
                         raise ValueError('Ask a panel administrator to enable this account first')
-                    validate_staff(role,capabilities)
+                    validate_staff(role)
                 protect_admin(conn,unit_id,user['id'],role)
                 conn.execute('DELETE FROM unit_staff WHERE unit_id=? AND user_id=?',(unit_id,user['id']))
                 if role != 'remove':

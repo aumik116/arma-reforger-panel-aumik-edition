@@ -11,7 +11,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from flask import abort, g, jsonify, request
 
-from units import text, UUID
+from units import text, UUID, unit_role_capabilities
 
 OUTCOMES = ('present', 'absent', 'excused', 'unknown')
 
@@ -61,7 +61,7 @@ def install(api, db, access, panel_admin, promotion, endpoints):
         if panel_admin():
             return True
         row = conn.execute('SELECT role,capabilities FROM unit_staff WHERE unit_id=? AND user_id=?', (unit_id, g.user['id'])).fetchone()
-        return bool(row and (row['role'] == 'admin' or capability in json.loads(row['capabilities'])))
+        return bool(row and (capability in unit_role_capabilities(row['role'])))
 
     def actor(conn, unit_id):
         row = conn.execute('SELECT game_name FROM unit_roster WHERE unit_id=? AND panel_user_id=?', (unit_id, g.user['id'])).fetchone()

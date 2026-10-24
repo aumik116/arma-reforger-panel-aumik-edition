@@ -6,11 +6,12 @@ The default branch is **`main`**, including the multi-server manager. Fresh Ubun
 
 ## Documentation
 
+- **[Server management manual (PDF)](docs/server-management-manual.pdf)** · [Markdown](docs/server-management-manual.md) — hosting, server controls, mods, presets, schedules and maintenance.
 - **[Unit staff manual (PDF)](docs/unit-staff-manual.pdf)** · [Markdown](docs/unit-staff-manual.md) — a focused guide for rosters, member records, events, attendance and unit staff tasks.
-- **[User manual (PDF)](docs/user-manual.pdf)** · [Markdown](docs/user-manual.md) — everyday tasks, permissions, servers, mods, units, rosters and attendance.
+- **[Full manual (PDF)](docs/user-manual.pdf)** · [Markdown](docs/user-manual.md) — everyday tasks, permissions, servers, mods, units, rosters and attendance.
 - **[Operations guide](docs/operations.md)** — installation, host administration and recovery.
 
-Use **Help** in the panel header for guidance on the current server tab or unit page. Both manuals are also available inside the panel at `/help`, with text search and PDF downloads.
+Use **Help** in the panel header for guidance on the current server tab or unit page. All three manuals are available inside the panel at `/help`, with a section sidebar, text search and PDF downloads. The contents sidebar stays visible on desktop, highlights the current section and collapses on smaller screens.
 
 ## Fresh installation
 

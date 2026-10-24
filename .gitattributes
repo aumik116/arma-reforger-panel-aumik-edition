@@ -1,1 +1,4 @@
 *.sh text eol=lf
+
+# Generated documentation is binary, even when PDF streams are ASCII-encoded.
+*.pdf binary

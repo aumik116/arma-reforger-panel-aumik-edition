@@ -29,7 +29,7 @@ copy_panel_files() {
         echo "ERROR: Panel static files are missing from the checkout." >&2
         return 1
     fi
-    for file in docs/user-manual.html docs/unit-staff-manual.html docs/user-manual.pdf docs/unit-staff-manual.pdf; do
+    for file in docs/user-manual.html docs/unit-staff-manual.html docs/server-management-manual.html docs/user-manual.pdf docs/unit-staff-manual.pdf docs/server-management-manual.pdf; do
         if [[ ! -f "$SCRIPT_DIR/$file" ]]; then
             echo "ERROR: Required manual $file is missing. Rebuild manuals before installation." >&2
             return 1

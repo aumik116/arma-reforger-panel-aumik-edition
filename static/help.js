@@ -1,6 +1,14 @@
 (() => {
   const manual=document.getElementById('manual-content');
   if(manual){
+    const toc=document.getElementById('manual-toc-links'),headings=Array.from(manual.querySelectorAll('h2[id],h3[id]')).filter(heading=>heading.id!=='contents');
+    const list=document.createElement('ul'),links=[];
+    for(const heading of headings){const item=document.createElement('li'),link=document.createElement('a');link.href='#'+heading.id;link.textContent=heading.textContent;if(heading.tagName==='H3')item.className='manual-toc-subsection';item.append(link);list.append(item);links.push(link);}
+    toc.append(list);manual.classList.add('manual-with-sidebar');let frame;
+    function updateSection(){cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{let current=0;for(let index=0;index<headings.length;index++){if(headings[index].getBoundingClientRect().top<=115)current=index;else break;}links.forEach((link,index)=>{if(index===current)link.setAttribute('aria-current','location');else link.removeAttribute('aria-current');});});}
+    window.addEventListener('scroll',updateSection,{passive:true});window.addEventListener('hashchange',updateSection);updateSection();
+    const compact=window.matchMedia('(max-width:900px)'),contents=document.getElementById('manual-toc');const fit=()=>contents.open=!compact.matches;compact.addEventListener('change',fit);fit();
+    toc.addEventListener('click',event=>{if(compact.matches&&event.target.closest('a'))contents.open=false;});
     const input=document.getElementById('manual-search'),status=document.getElementById('manual-find-status');let term='',matches=[],index=-1;
     function find(){
       const query=input.value.trim();
@@ -20,7 +28,7 @@
   const button=document.createElement('button');button.type='button';button.id='panel-help-open';button.className='btn-logout';button.textContent='Help';button.setAttribute('aria-haspopup','dialog');
   const actions=header.querySelector('.fieldhq-account');if(actions)actions.prepend(button);else header.append(button);
   const dialog=document.createElement('dialog');dialog.className='help-dialog';dialog.setAttribute('aria-labelledby','panel-help-title');
-  dialog.innerHTML='<div class="mods-dialog-heading"><h2 id="panel-help-title">Help for this page</h2><button type="button" class="btn-logout" data-close>Close</button></div><p role="status" data-status></p><article class="manual-content" data-content></article><div class="help-dialog-footer"><a data-section href="/help">Read this section in the manual</a><a href="/help/manual/full">Full user manual</a><a href="/help/manual/staff">Unit staff manual</a></div>';
+  dialog.innerHTML='<div class="mods-dialog-heading"><h2 id="panel-help-title">Help for this page</h2><button type="button" class="btn-logout" data-close>Close</button></div><p role="status" data-status></p><article class="manual-content" data-content></article><div class="help-dialog-footer"><a data-section href="/help">Read this section in the manual</a><a href="/help/manual/server">Server management manual</a><a href="/help/manual/full">Full manual</a><a href="/help/manual/staff">Unit staff manual</a></div>';
   document.body.append(dialog);const el=selector=>dialog.querySelector(selector);el('[data-close]').onclick=()=>dialog.close();let serial=0;
   function topic(){
     if(location.pathname==='/servers')return 'servers';if(location.pathname==='/account')return 'account';if(location.pathname==='/setup')return 'setup';

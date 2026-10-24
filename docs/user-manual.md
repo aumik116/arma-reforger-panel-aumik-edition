@@ -1,8 +1,8 @@
-# FIELDHQ user manual
+# FIELDHQ full user manual
 
 This manual is for people using the web panel to manage Arma Reforger servers and unit records. Installation, service recovery and host administration are covered in the [operations guide](operations.md).
 
-For a guide focused on unit work, use the [unit staff manual](unit-staff-manual.md).
+For focused guides, use the [server management manual](server-management-manual.md) or [unit staff manual](unit-staff-manual.md).
 
 The panel currently manages servers on one host. A unit is an organizational workspace; a server is a game-server installation. Linking the two does not automatically give unit staff permission to control the server.
 
@@ -60,7 +60,7 @@ Switching servers reloads the workspace. Save or discard edits before switching.
 
 ### Help inside the panel
 
-Choose **Help** in the header to read guidance for the current server tab or unit page. The help window links to the relevant manual section and both full manuals. In the manual page, use text search or Download PDF for a printable copy. Opening help does not discard your current form edits.
+Choose **Help** in the header to read guidance for the current server tab or unit page. The help window links to the relevant manual section and all three manuals. In the manual page, use text search or Download PDF for a printable copy. Opening help does not discard your current form edits.
 
 ## 2. Accounts, roles and access
 
